@@ -1,0 +1,23 @@
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build and package manager folders
+**/build/
+**/.gradle/
+**/node_modules/
+**/.npm/
+**/dist/
+.gradle/
+node_modules/
+dist/
+
+# Logs and databases
+*.log
+postgres_data/
