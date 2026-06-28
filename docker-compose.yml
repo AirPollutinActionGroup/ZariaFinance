@@ -67,6 +67,16 @@ services:
     networks:
       - zariya-network
 
+  adminer:
+    image: adminer:latest
+    container_name: zariya-adminer
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - db
+    networks:
+      - zariya-network
+
 volumes:
   postgres_data:
   gradle_cache:
