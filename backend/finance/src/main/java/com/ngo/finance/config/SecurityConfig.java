@@ -21,7 +21,14 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.ignoringRequestMatchers("/api/public/**"))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/api/public/**").permitAll()
+                .requestMatchers(
+                    "/", 
+                    "/api/public/**",
+                    "/swagger-ui.html",
+                    "/swagger-ui/**",
+                    "/api-docs/**",
+                    "/api-docs"
+                ).permitAll()
                 .anyRequest().authenticated()
             );
         return http.build();
