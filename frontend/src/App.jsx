@@ -118,6 +118,17 @@ function App() {
                 'Refresh Connection'
               )}
             </button>
+            {status === 'connected' && (
+              <a
+                href="http://localhost:5174/swagger-ui.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="secondary-btn"
+                style={{ textDecoration: 'none' }}
+              >
+                📖 Explore Swagger API
+              </a>
+            )}
           </div>
         </section>
 
