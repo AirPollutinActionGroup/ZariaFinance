@@ -41,6 +41,18 @@ Once running, access the application in your browser at:
 
 ---
 
+## 📖 API Documentation (Swagger / OpenAPI)
+
+When the backend service is running, you can access the Swagger UI and OpenAPI documentation to explore and test the available REST API endpoints:
+
+*   **Swagger UI:** 👉 [http://localhost:5174/swagger-ui.html](http://localhost:5174/swagger-ui.html)
+*   **OpenAPI Specs (JSON):** 👉 [http://localhost:5174/api-docs](http://localhost:5174/api-docs)
+
+> [!NOTE]
+> Make sure to access the Swagger endpoints using **HTTP** (not HTTPS), as the local backend runs on plain HTTP. These endpoints are configured to bypass Spring Security filters automatically.
+
+---
+
 ## 🛠️ Developer Workflows
 
 This environment is optimized for rapid local development. You **never** need to rebuild the Docker images when editing code.

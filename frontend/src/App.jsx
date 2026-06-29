@@ -118,6 +118,28 @@ function App() {
                 'Refresh Connection'
               )}
             </button>
+            {status === 'connected' && (
+              <>
+                <a
+                  href="http://localhost:5174/swagger-ui.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="secondary-btn"
+                  style={{ textDecoration: 'none' }}
+                >
+                  📖 Explore Swagger API
+                </a>
+                <a
+                  href="http://localhost:8080"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="secondary-btn"
+                  style={{ textDecoration: 'none' }}
+                >
+                  🗄️ Database Admin
+                </a>
+              </>
+            )}
           </div>
         </section>
 
@@ -145,13 +167,41 @@ function App() {
                 <span className="detail-value">PostgreSQL</span>
               </div>
               <div className="detail-row">
-                <span className="detail-label">DB User</span>
-                <span className="detail-value">finance_user</span>
+                <span className="detail-label">DB Host (Local/Docker)</span>
+                <span className="detail-value">localhost / db</span>
               </div>
               <div className="detail-row">
-                <span className="detail-label">DB Name</span>
-                <span className="detail-value">finance</span>
+                <span className="detail-label">DB Port (Local/Docker)</span>
+                <span className="detail-value">5433 / 5432</span>
               </div>
+              
+              {/* Adminer copy-paste credentials panel */}
+              <div className="detail-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
+                <span className="detail-label" style={{ fontWeight: '600', color: 'var(--text-h)' }}>Adminer Login Credentials</span>
+                <div style={{ width: '100%', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(255, 255, 255, 0.02)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text)' }}>System:</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontWeight: '600' }}>PostgreSQL</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text)' }}>Server:</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontWeight: '600' }}>db</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text)' }}>Username:</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontWeight: '600' }}>finance_user</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text)' }}>Password:</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontWeight: '600' }}>finance_secure_password</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text)' }}>Database:</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontWeight: '600' }}>finance</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="detail-row">
                 <span className="detail-label">JPA/Hibernate Mode</span>
                 <span className="detail-value">update</span>
