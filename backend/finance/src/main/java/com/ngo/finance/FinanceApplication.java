@@ -19,7 +19,7 @@ public class FinanceApplication {
 
 	@GetMapping("/")
     public String home() {
-       return "Welcome to Zariya Finance!";
+       return "Welcome to Finance!";
     }
 
 	@Bean
