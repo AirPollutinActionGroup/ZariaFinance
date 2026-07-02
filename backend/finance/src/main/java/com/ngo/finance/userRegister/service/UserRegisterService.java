@@ -12,8 +12,8 @@ public interface UserRegisterService {
 
     UserRegisterDto getUserById(Long userId);
 
-    // UserRegisterDto updateUser(Long userId, AddUserRegisterDto
-    // addUserRegisterDto);
-
     List<UserRegisterDto> getAllUsers();
+
+    Boolean userNameVerified(String userName);
+
 }

@@ -15,12 +15,10 @@ import jakarta.validation.constraints.NotBlank;
 public class Role {
 
     @Id
-
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     public Long id;
 
     @NotBlank(message = "Role name is required")
-
     @Column(name = "name", nullable = false, unique = true)
     public String name;
 

@@ -75,4 +75,10 @@ public class UserRegisterServiceImpl implements UserRegisterService {
         return userList;
     }
 
+    @Override
+    public Boolean userNameVerified(String userName) {
+
+        return userRegisterRepo.existsByUsername(userName);
+    }
+
 }

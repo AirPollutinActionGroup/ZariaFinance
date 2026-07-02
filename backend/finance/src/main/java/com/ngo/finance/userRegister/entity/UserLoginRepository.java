@@ -1,6 +1,5 @@
-package com.ngo.finance.userLogin.repository;
+package com.ngo.finance.userRegister.entity;
 
-import com.ngo.finance.userRegister.entity.UserRegister;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
