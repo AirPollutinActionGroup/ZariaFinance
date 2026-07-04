@@ -221,6 +221,35 @@
     .burger{display:inline-grid !important}
   }
   .burger{display:none; place-items:center; width:34px;height:34px; border-radius:8px; background:none; border:1px solid var(--line); color:var(--ink); cursor:pointer; margin-right:auto}
+
+  /* ── Auth screens (graphite backdrop, committed single-look surface) ── */
+  .auth{position:fixed; inset:0; background:var(--g950); z-index:40; overflow-y:auto; display:none}
+  .auth.show{display:block}
+  .auth-wrap{min-height:100%; display:grid; place-items:center; padding:32px 16px}
+  .auth-col{width:100%; max-width:440px}
+  .auth-col.wide{max-width:560px}
+  .auth-brand{display:flex; justify-content:center; margin-bottom:22px}
+  .auth-card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:32px; box-shadow:0 16px 48px rgba(12,13,15,.5)}
+  .auth-card h1{font-size:20px; margin:0 0 4px}
+  .auth-card .sub{margin-bottom:20px}
+  .fld{margin-bottom:14px}
+  .fld label{display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px}
+  .fld input{width:100%; font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:9px 12px; outline:none}
+  .fld input:focus{border-color:var(--ink)}
+  .fld.invalid input{border-color:var(--err)}
+  .fld .msg{font-size:11.5px; color:var(--err); margin-top:3px; min-height:14px}
+  .fld .hint{font-size:11.5px; color:var(--muted); margin-top:3px}
+  .auth-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 14px}
+  @media (max-width:560px){.auth-grid{grid-template-columns:1fr}}
+  .auth-alert{background:var(--warn-bg); color:var(--warn); border-radius:9px; padding:10px 14px; font-size:12.5px; font-weight:500; margin-bottom:14px; display:none}
+  .auth-alert.show{display:block}
+  .auth-div{display:flex; align-items:center; gap:12px; color:var(--muted); font-size:12px; margin:18px 0}
+  .auth-div::before,.auth-div::after{content:''; flex:1; height:1px; background:var(--line)}
+  .auth-foot{text-align:center; font-size:12.5px; color:var(--muted); margin-top:16px}
+  .auth-foot button{background:none;border:none;color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:underline;padding:0}
+  .wfull{width:100%}
+  .pend{ text-align:center }
+  .pend .hourglass{font-size:38px; margin-bottom:10px}
 </style>
 
 <div class="frame">
@@ -251,6 +280,16 @@
     <main class="content" id="view" aria-live="polite"></main>
   </div>
 </div>
+
+<div class="auth" id="auth" aria-hidden="true"><div class="auth-wrap"><div class="auth-col" id="auth-col">
+  <div class="auth-brand">
+    <div style="display:flex;gap:12px;align-items:center">
+      <div class="brand-tile" aria-hidden="true">Z</div>
+      <div><b style="color:var(--platinum);display:block;line-height:1.15">Zariya</b><small style="color:var(--silver);font-size:11px">Budget · Trade · Report</small></div>
+    </div>
+  </div>
+  <div class="auth-card" id="auth-card"></div>
+</div></div></div>
 
 <div class="toast" id="toast" role="status"></div>
 <dialog id="dlg">
@@ -972,5 +1011,88 @@ $('role').onchange=e=>{
   render();
 };
 $('burger').onclick=()=>$('rail').classList.toggle('open');
+
+/* ── Auth flow (mirrors LoginPage / RegisterPage / PendingApprovalPage) ── */
+let authView='login'; /* start signed-out, like the real app */
+const field=(id,label,type,hint,half)=>`
+  <div class="fld${half?'':''}" id="f-${id}">
+    <label for="${id}">${label}</label>
+    <input id="${id}" type="${type||'text'}" autocomplete="off">
+    <div class="msg" id="m-${id}"></div>${hint?`<div class="hint">${hint}</div>`:''}
+  </div>`;
+function renderAuth(){
+  const host=$('auth'), card=$('auth-card'), col=$('auth-col');
+  if(authView==='in'){host.classList.remove('show');host.setAttribute('aria-hidden','true');return}
+  host.classList.add('show');host.setAttribute('aria-hidden','false');
+  col.classList.toggle('wide', authView==='register');
+  if(authView==='login'){
+    card.innerHTML=`
+      <h1>Sign in</h1><p class="sub">Budgeting, Trading &amp; Reporting for A-PAG · TCF</p>
+      <div class="auth-alert" id="login-alert">Sign-in is not available yet: the backend /api/userLogin controller has
+      no endpoints (gap #1). Use “Continue in review mode” until backend authentication ships.</div>
+      ${field('lg-user','Username')}
+      ${field('lg-pass','Password','password')}
+      <button class="btn primary wfull" id="do-login" style="padding:11px">Sign in</button>
+      <div class="auth-div">or</div>
+      <button class="btn ghost wfull" id="do-review">Continue in review mode</button>
+      <div class="auth-foot">New here? <button id="go-register">Request an account</button></div>`;
+    $('do-login').onclick=()=>{$('login-alert').classList.add('show')};
+    $('do-review').onclick=()=>{authView='in';renderAuth();toast('Review mode — role switchable in the top bar (ADR-0004)')};
+    $('go-register').onclick=()=>{authView='register';renderAuth()};
+  }
+  if(authView==='register'){
+    card.innerHTML=`
+      <h1>Request an account</h1><p class="sub">Access is granted after manual approval by the technology team.</p>
+      <div class="auth-grid">
+        ${field('rg-first','First name *')}
+        ${field('rg-last','Last name')}
+        ${field('rg-email','Email *','email')}
+        ${field('rg-mob','Mobile number *','tel','10 digits, starting 6–9')}
+        ${field('rg-user','Username *','text','4–20 characters')}
+        <div></div>
+        ${field('rg-pass','Password *','password','8–100 characters')}
+        ${field('rg-conf','Confirm password *','password')}
+      </div>
+      <button class="btn primary wfull" id="do-register" style="padding:11px">Submit request</button>
+      <div class="auth-foot">Already approved? <button id="go-login">Sign in</button></div>`;
+    $('go-login').onclick=()=>{authView='login';renderAuth()};
+    $('do-register').onclick=()=>{
+      const v=id=>$(id).value.trim();
+      const rules=[
+        ['rg-first', v('rg-first')?'':'First name is required'],
+        ['rg-email', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v('rg-email'))?'':'Invalid email'],
+        ['rg-mob',   /^[6-9]\d{9}$/.test(v('rg-mob'))?'':'Invalid mobile number'],
+        ['rg-user',  v('rg-user').length>=4&&v('rg-user').length<=20?'':'Username must be between 4 and 20 characters'],
+        ['rg-pass',  $('rg-pass').value.length>=8&&$('rg-pass').value.length<=100?'':'Password must be between 8 and 100 characters'],
+        ['rg-conf',  $('rg-conf').value===$('rg-pass').value?'':'Passwords do not match'],
+      ];
+      let bad=false;
+      rules.forEach(([id,msg])=>{
+        $('m-'+id).textContent=msg; $('f-'+id).classList.toggle('invalid',Boolean(msg)); if(msg)bad=true;
+      });
+      if(!bad){authView='pending';renderAuth();}
+      /* Validation mirrors AddUserRegisterDto; in production this POSTs /api/userRegister */
+    };
+  }
+  if(authView==='pending'){
+    card.innerHTML=`
+      <div class="pend">
+        <div class="hourglass" aria-hidden="true">⏳</div>
+        <h1>Awaiting approval</h1>
+        <p class="sub" style="margin-bottom:18px">Your request was received. Accounts are reviewed and approved manually by
+        <b>technology@a-pag.org</b>. You can sign in once your account status is <b>Approved</b>
+        (statuses: Pending Approval · Approved · Rejected · Suspended · Disabled).</p>
+        <button class="btn primary wfull" id="go-login2">Back to sign in</button>
+      </div>`;
+    $('go-login2').onclick=()=>{authView='login';renderAuth()};
+  }
+}
+/* Sign out from the identity chip */
+document.querySelector('.who').style.cursor='pointer';
+$('avatar').style.cursor='pointer';
+const signOut=async()=>{ if(await confirmDlg('Sign out','End this session and return to the sign-in screen?','Sign out')){authView='login';renderAuth()} };
+$('avatar').onclick=signOut; document.querySelector('.who').onclick=signOut;
+
 render();
+renderAuth();
 </script>
