@@ -33,6 +33,8 @@ public class UserRegisterServiceImpl implements UserRegisterService {
         userRegisterDto.setEmailId(userRegister.getEmailId());
         userRegisterDto.setMobileNo(userRegister.getMobileNo());
         userRegisterDto.setUsername(userRegister.getUsername());
+        userRegisterDto.setRole(userRegister.getRole());
+        userRegisterDto.setStatus(userRegister.getStatus());
 
         return userRegisterDto;
     }
@@ -53,6 +55,15 @@ public class UserRegisterServiceImpl implements UserRegisterService {
         UserRegister userRegister = userRegisterRepo.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
         UserRegisterDto userRegisterDto = new UserRegisterDto();
+        userRegisterDto.setId(userRegister.getId());
+        userRegisterDto.setFirstName(userRegister.getFirstName());
+        userRegisterDto.setLastName(userRegister.getLastName());
+        userRegisterDto.setEmailId(userRegister.getEmailId());
+        userRegisterDto.setMobileNo(userRegister.getMobileNo());
+        userRegisterDto.setUsername(userRegister.getUsername());
+        userRegisterDto.setPassword(userRegister.getPassword());
+        userRegisterDto.setRole(userRegister.getRole());
+        userRegisterDto.setStatus(userRegister.getStatus());
 
         return userRegisterDto;
     }
@@ -69,7 +80,9 @@ public class UserRegisterServiceImpl implements UserRegisterService {
                         user.getEmailId(),
                         user.getMobileNo(),
                         user.getUsername(),
-                        user.getPassword()))
+                        user.getPassword(),
+                        user.getRole(),
+                        user.getStatus()))
                 .toList();
 
         return userList;

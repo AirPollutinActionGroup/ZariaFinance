@@ -37,6 +37,8 @@ public class LoginServiceImpl implements LoginService {
         userRegisterDto.setMobileNo(user.getMobileNo());
         userRegisterDto.setUsername(user.getUsername());
         userRegisterDto.setPassword(user.getPassword());
+        userRegisterDto.setRole(user.getRole());
+        userRegisterDto.setStatus(user.getStatus());
 
         return userRegisterDto;
     }
