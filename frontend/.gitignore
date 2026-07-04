@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Test artifacts
+playwright-report
+test-results
+storybook-static
+coverage
