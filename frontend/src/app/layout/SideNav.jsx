@@ -3,8 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../core/auth/index.js';
 import { canViewModule } from '../../core/permissions/index.js';
 import { getNavSections } from '../../core/modules/index.js';
-import { accent, graphite, layout } from '../../theme/tokens.js';
-import { BrandMark } from './BrandMark.jsx';
+import { layout } from '../../theme/tokens.js';
 
 /**
  * Application sidebar. Content is derived entirely from the module registry
@@ -25,23 +24,29 @@ export function SideNav() {
         '& .MuiDrawer-paper': {
           width: layout.sidebarWidth,
           boxSizing: 'border-box',
-          backgroundColor: graphite[950],
-          color: accent.silver,
-          borderRight: `1px solid ${accent.hairline}`,
+          backgroundColor: 'background.default',
+          color: 'text.secondary',
+          borderRight: '1px solid',
+          borderColor: 'divider',
         },
       }}
     >
-      <Box sx={{ px: 2.5, py: 2.5 }}>
-        <BrandMark />
+      <Box sx={{ px: 3, pt: 3, pb: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Typography variant="h5" component="p" sx={{ letterSpacing: '0.02em', color: 'text.primary' }}>
+          Zariya
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
+          Budgeting · Trading · Reporting
+        </Typography>
       </Box>
 
-      <Box sx={{ overflowY: 'auto', flex: 1, pb: 2 }}>
+      <Box sx={{ overflowY: 'auto', flex: 1, pb: 2, px: 2 }}>
         {sections.map((section) => (
-          <Box key={section.label} sx={{ mt: 1.5 }}>
+          <Box key={section.label} sx={{ mt: 3 }}>
             {section.label ? (
               <Typography
                 variant="overline"
-                sx={{ px: 2.5, color: graphite[500], display: 'block', mb: 0.5 }}
+                sx={{ px: 1.5, display: 'block', mb: 0.5 }}
               >
                 {section.label}
               </Typography>
@@ -59,27 +64,28 @@ export function SideNav() {
                     to={item.path}
                     selected={selected}
                     sx={{
-                      mx: 1.25,
-                      mb: 0.25,
                       borderRadius: 2,
-                      color: accent.silver,
+                      mb: 0.25,
+                      px: 1.5,
+                      py: 0.9,
+                      color: 'text.secondary',
+                      '&:hover': { bgcolor: 'action.hover' },
                       '&.Mui-selected': {
-                        background: accent.gradient,
-                        color: accent.platinum,
-                        border: `1px solid ${accent.hairline}`,
-                        '&:hover': { background: accent.gradientHover },
+                        color: 'text.primary',
+                        backgroundColor: '#ECE9E2',
+                        '& .MuiListItemIcon-root': { color: 'secondary.main' },
+                        '&:hover': { backgroundColor: '#E2DFD7' },
                       },
-                      '&:hover': { backgroundColor: graphite[900] },
                     }}
                   >
                     {Icon ? (
-                      <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
-                        <Icon fontSize="small" />
+                      <ListItemIcon sx={{ minWidth: 34, color: 'inherit' }}>
+                        <Icon sx={{ fontSize: 19 }} />
                       </ListItemIcon>
                     ) : null}
                     <ListItemText
                       primary={item.label}
-                      primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: selected ? 600 : 500 }}
+                      primaryTypographyProps={{ fontSize: 14, fontWeight: 500 }}
                     />
                   </ListItemButton>
                 );
@@ -89,9 +95,9 @@ export function SideNav() {
         ))}
       </Box>
 
-      <Box sx={{ px: 2.5, py: 2, borderTop: `1px solid ${accent.hairline}` }}>
-        <Typography sx={{ color: graphite[500], fontSize: 11 }}>v0.1 · Review Draft</Typography>
-        <Typography sx={{ color: graphite[500], fontSize: 11 }}>A-PAG · TCF</Typography>
+      <Box sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+        <Typography sx={{ color: 'text.secondary', fontSize: 11 }}>v0.1 · Review Draft</Typography>
+        <Typography sx={{ color: 'text.secondary', fontSize: 11 }}>A-PAG · TCF</Typography>
       </Box>
     </Drawer>
   );

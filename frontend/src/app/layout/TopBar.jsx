@@ -1,21 +1,8 @@
-import {
-  AppBar,
-  Avatar,
-  Box,
-  Chip,
-  IconButton,
-  Menu,
-  MenuItem,
-  Stack,
-  Toolbar,
-  Typography,
-} from '@mui/material';
-import LogoutIcon from '@mui/icons-material/Logout';
-import { useState } from 'react';
+import { Avatar, Box, Button, Chip, Stack, Typography } from '@mui/material';
+import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/auth/index.js';
 import { ROLES } from '../../core/permissions/index.js';
-import { accent, graphite, layout } from '../../theme/tokens.js';
 
 const ROLE_LABELS = {
   [ROLES.CEO]: 'CEO',
@@ -27,7 +14,6 @@ const ROLE_LABELS = {
 export function TopBar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [anchorEl, setAnchorEl] = useState(null);
 
   const initials = (user?.name || '?')
     .split(/\s+/)
@@ -37,59 +23,69 @@ export function TopBar() {
     .toUpperCase();
 
   const handleLogout = () => {
-    setAnchorEl(null);
     logout();
     navigate('/login', { replace: true });
   };
 
+  const roleLabel = ROLE_LABELS[user?.role] || user?.role || 'Member';
+
   return (
-    <AppBar
-      position="sticky"
-      elevation={0}
+    <Box
+      component="header"
       sx={{
-        backgroundColor: 'background.paper',
-        color: 'text.primary',
-        borderBottom: `1px solid ${graphite[200]}`,
-        height: layout.topbarHeight,
-        justifyContent: 'center',
+        height: 64,
+        px: 4,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 3,
+        borderBottom: 1,
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
       }}
     >
-      <Toolbar sx={{ gap: 2 }}>
-        <Box sx={{ flex: 1 }} />
-        {user?.mode === 'review' ? (
-          <Chip
-            size="small"
-            label="Review mode — backend sign-in pending"
-            sx={{ background: accent.gradient, color: accent.platinum }}
-          />
-        ) : null}
-        <Stack
-          direction="row"
-          spacing={1.5}
-          alignItems="center"
-          sx={{ cursor: 'pointer' }}
-          onClick={(event) => setAnchorEl(event.currentTarget)}
-          role="button"
-          aria-label="Account menu"
+      {user?.mode === 'review' ? (
+        <Chip
+          size="small"
+          label="Review mode — backend sign-in pending"
+          variant="outlined"
+          color="secondary"
+          sx={{ fontWeight: 600 }}
+        />
+      ) : null}
+
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+        <Avatar
+          sx={{
+            width: 34,
+            height: 34,
+            fontSize: 13,
+            fontWeight: 600,
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+          }}
         >
-          <Avatar sx={{ width: 34, height: 34, background: accent.gradient, fontSize: 13 }}>
-            {initials}
-          </Avatar>
-          <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>
-              {user?.name}
-            </Typography>
-            <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>
-              {ROLE_LABELS[user?.role] || user?.role}
-            </Typography>
-          </Box>
-        </Stack>
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-          <MenuItem onClick={handleLogout}>
-            <LogoutIcon fontSize="small" sx={{ mr: 1 }} /> Sign out
-          </MenuItem>
-        </Menu>
-      </Toolbar>
-    </AppBar>
+          {initials}
+        </Avatar>
+        <Box>
+          <Typography variant="body2" fontWeight={600} lineHeight={1.2}>
+            {user?.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {roleLabel}
+          </Typography>
+        </Box>
+      </Stack>
+
+      <Button
+        variant="outlined"
+        size="small"
+        color="inherit"
+        startIcon={<LogoutRoundedIcon sx={{ fontSize: 16 }} />}
+        onClick={handleLogout}
+      >
+        Sign out
+      </Button>
+    </Box>
   );
 }
