@@ -1,0 +1,976 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Zariya design preview: interactive UX mock of all scope-document modules with SAMPLE DATA.
+     This is a design artifact, not application code — the production app (src/) renders live API data only. -->
+<title>Zariya · Interactive UI Preview</title>
+<style>
+  :root{
+    --g950:#0C0D0F; --g900:#17191C; --g800:#232629; --g700:#33373D; --g500:#6F747D;
+    --g300:#C6C9CF; --g200:#DFE1E5; --g100:#EDEEF1; --g50:#F6F7F8; --g25:#FAFAFB;
+    --platinum:#E8EAED; --silver:#B7BCC3; --hairline:rgba(255,255,255,.08);
+    --accent-grad:linear-gradient(135deg,#2B2F35 0%,#17191C 55%,#202329 100%);
+    --accent-grad-hover:linear-gradient(135deg,#33383F 0%,#1C1F23 55%,#262A30 100%);
+    --ok:#0F7B4D; --ok-bg:#E6F4EE; --warn:#9A6700; --warn-bg:#FBF3E0;
+    --err:#C4362A; --err-bg:#FBEAE8; --info:#2F5FA8; --info-bg:#E9F0FA;
+    --bg:var(--g50); --card:#FFFFFF; --ink:var(--g900); --muted:var(--g500);
+    --line:var(--g200); --line-soft:var(--g100); --thead:var(--g25); --barfill:var(--g900);
+    --btn-ghost-ink:var(--g700); --shadow:0 1px 2px rgba(12,13,15,.05),0 1px 3px rgba(12,13,15,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#101214; --card:#17191C; --ink:#E8EAED; --muted:#9BA0A8;
+      --line:#2A2E33; --line-soft:#222529; --thead:#1C1F23; --barfill:#B7BCC3;
+      --ok-bg:rgba(15,123,77,.16); --warn-bg:rgba(154,103,0,.16);
+      --err-bg:rgba(196,54,42,.16); --info-bg:rgba(47,95,168,.16);
+      --ok:#4CC38A; --warn:#E2B33C; --err:#F08578; --info:#7EA6E0;
+      --btn-ghost-ink:#C6C9CF; --shadow:0 1px 2px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#F6F7F8; --card:#FFFFFF; --ink:#17191C; --muted:#6F747D;
+    --line:#DFE1E5; --line-soft:#EDEEF1; --thead:#FAFAFB; --barfill:#17191C;
+    --ok:#0F7B4D; --ok-bg:#E6F4EE; --warn:#9A6700; --warn-bg:#FBF3E0;
+    --err:#C4362A; --err-bg:#FBEAE8; --info:#2F5FA8; --info-bg:#E9F0FA;
+    --btn-ghost-ink:#33373D; --shadow:0 1px 2px rgba(12,13,15,.05),0 1px 3px rgba(12,13,15,.06);
+  }
+  :root[data-theme="dark"]{
+    --bg:#101214; --card:#17191C; --ink:#E8EAED; --muted:#9BA0A8;
+    --line:#2A2E33; --line-soft:#222529; --thead:#1C1F23; --barfill:#B7BCC3;
+    --ok-bg:rgba(15,123,77,.16); --warn-bg:rgba(154,103,0,.16);
+    --err-bg:rgba(196,54,42,.16); --info-bg:rgba(47,95,168,.16);
+    --ok:#4CC38A; --warn:#E2B33C; --err:#F08578; --info:#7EA6E0;
+    --btn-ghost-ink:#C6C9CF; --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    background:var(--bg); color:var(--ink); font-size:14px; line-height:1.5;
+  }
+  .frame{display:flex; min-height:100vh}
+
+  /* ── Sidebar (graphite in both themes — brand surface) ── */
+  .rail{
+    width:240px; flex:0 0 240px; background:var(--g950); color:var(--silver);
+    display:flex; flex-direction:column; border-right:1px solid var(--hairline);
+    position:sticky; top:0; height:100vh; overflow-y:auto;
+  }
+  .brand{display:flex; gap:12px; align-items:center; padding:20px 20px 12px}
+  .brand-tile{
+    width:40px;height:40px;border-radius:10px;background:var(--accent-grad);
+    border:1px solid var(--hairline); display:grid;place-items:center;
+    color:var(--platinum); font-weight:800; font-size:19px; flex:none;
+  }
+  .brand b{color:var(--platinum); display:block; line-height:1.15}
+  .brand small{color:var(--silver); font-size:11px}
+  .navgroup{margin-top:12px}
+  .navlabel{
+    font-size:10px; letter-spacing:.09em; text-transform:uppercase; font-weight:600;
+    color:var(--g500); padding:0 20px 5px;
+  }
+  .nav{list-style:none; margin:0; padding:0 10px}
+  .nav button{
+    width:100%; display:flex; align-items:center; gap:10px; text-align:left;
+    background:none; border:1px solid transparent; border-radius:9px; cursor:pointer;
+    color:var(--silver); font:inherit; font-weight:500; font-size:13px; padding:7.5px 12px; margin-bottom:2px;
+  }
+  .nav button:hover{background:var(--g900)}
+  .nav button:focus-visible{outline:2px solid var(--platinum); outline-offset:-2px}
+  .nav button[aria-current="true"]{
+    background:var(--accent-grad); color:var(--platinum); font-weight:600;
+    border-color:var(--hairline);
+  }
+  .nav .glyph{width:16px; height:16px; flex:0 0 16px; opacity:.85}
+  .railfoot{margin-top:auto; border-top:1px solid var(--hairline); padding:14px 20px; font-size:11px; color:var(--g500)}
+
+  /* ── Top bar ── */
+  .main{flex:1; min-width:0; display:flex; flex-direction:column}
+  .topbar{
+    display:flex; align-items:center; justify-content:flex-end; gap:14px;
+    background:var(--card); border-bottom:1px solid var(--line);
+    padding:10px 24px; position:sticky; top:0; z-index:5;
+  }
+  .demo-chip{
+    margin-right:auto; font-size:11px; font-weight:600; color:var(--warn);
+    background:var(--warn-bg); border-radius:999px; padding:4px 10px;
+  }
+  .role-picker{display:flex; align-items:center; gap:8px}
+  .role-picker label{font-size:11px; color:var(--muted); letter-spacing:.05em; text-transform:uppercase; font-weight:600}
+  .role-picker select{
+    font:inherit; font-size:13px; font-weight:600; color:var(--ink);
+    background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:6px 10px; cursor:pointer;
+  }
+  .avatar{
+    width:32px;height:32px;border-radius:50%;background:var(--accent-grad);
+    color:var(--platinum); display:grid; place-items:center; font-size:12px; font-weight:700;
+    border:1px solid var(--hairline); flex:none;
+  }
+  .who{line-height:1.2}
+  .who b{font-size:12.5px; display:block}
+  .who span{font-size:11px; color:var(--muted)}
+
+  /* ── Content ── */
+  .content{padding:26px 30px; max-width:1120px; width:100%; margin:0 auto}
+  .pagehead{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap}
+  h1{font-size:24px; font-weight:700; letter-spacing:-.02em; margin:0; text-wrap:balance}
+  .sub{color:var(--muted); margin:4px 0 0; font-size:13px}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(185px,1fr)); gap:14px; margin-bottom:22px}
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; box-shadow:var(--shadow)}
+  .kpi .lab{font-size:12px; color:var(--muted); margin-bottom:6px}
+  .kpi .val{font-size:23px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+  .kpi .hint{font-size:11px; color:var(--muted); margin-top:3px}
+  .kpi.hero{background:var(--accent-grad); border-color:var(--hairline); box-shadow:0 8px 24px rgba(12,13,15,.35)}
+  .kpi.hero .lab,.kpi.hero .hint{color:var(--silver)}
+  .kpi.hero .val{color:var(--platinum)}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); overflow:hidden}
+  .card h2{font-size:15px; font-weight:600; margin:0; padding:16px 20px 12px}
+  .card .cardsub{font-size:12px; color:var(--muted); margin:-8px 0 0; padding:0 20px 12px}
+  .tablewrap{overflow-x:auto}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  thead th{
+    background:var(--thead); color:var(--muted); text-align:left; font-size:11.5px;
+    font-weight:600; letter-spacing:.03em; padding:9px 14px; border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  tbody td{padding:10px 14px; border-bottom:1px solid var(--line-soft); white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr.rowlink{cursor:pointer}
+  tbody tr.rowlink:hover{background:var(--thead)}
+  td.money,th.money{text-align:right}
+  td.money{font-variant-numeric:tabular-nums; font-weight:600}
+  .pct-ok{color:var(--ok); font-weight:700}
+  .pct-bad{color:var(--err); font-weight:700}
+
+  .chip{display:inline-block; font-size:11px; font-weight:600; border-radius:999px; padding:3px 10px; line-height:1.5}
+  .chip.neutral{background:var(--line-soft); color:var(--btn-ghost-ink)}
+  .chip.graphite{background:var(--accent-grad); color:var(--platinum); border:1px solid var(--hairline)}
+  .chip.outlined{background:transparent; color:var(--muted); border:1px solid var(--line)}
+  .chip.ok{background:var(--ok-bg); color:var(--ok)}
+  .chip.warn{background:var(--warn-bg); color:var(--warn)}
+  .chip.err{background:var(--err-bg); color:var(--err)}
+  .chip.info{background:var(--info-bg); color:var(--info)}
+
+  .bar{display:inline-block; width:110px; height:6px; background:var(--line); border-radius:99px; vertical-align:middle; margin-right:8px}
+  .bar i{display:block; height:100%; background:var(--barfill); border-radius:99px}
+
+  .btn{font:inherit; font-size:13px; font-weight:600; border-radius:8px; cursor:pointer; padding:8px 15px; border:1px solid transparent}
+  .btn:focus-visible{outline:2px solid var(--info); outline-offset:2px}
+  .btn.primary{background:var(--accent-grad); color:var(--platinum); border-color:var(--hairline)}
+  .btn.primary:hover{background:var(--accent-grad-hover)}
+  .btn.ghost{background:transparent; color:var(--btn-ghost-ink); border-color:var(--line)}
+  .btn.ghost:hover{background:var(--thead)}
+  .btn.danger{background:transparent; color:var(--err); border-color:var(--err)}
+  .btn.danger:hover{background:var(--err-bg)}
+  .btn.sm{padding:5px 11px; font-size:12px}
+  .btn[disabled]{opacity:.45; cursor:not-allowed}
+
+  .toolbar{display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap; align-items:center}
+  .search{flex:1; max-width:360px; display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:7px 12px}
+  .search svg{width:15px;height:15px;color:var(--muted); flex:none}
+  .search input{border:none; outline:none; background:none; font:inherit; color:var(--ink); width:100%}
+  .seg{display:inline-flex; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:3px; gap:2px}
+  .seg button{font:inherit; font-size:12.5px; font-weight:600; border:none; background:none; color:var(--muted); border-radius:7px; padding:5px 14px; cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--accent-grad); color:var(--platinum)}
+
+  .detail-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px 22px; padding:6px 20px 18px}
+  .field .lab{font-size:11px; color:var(--muted); letter-spacing:.02em}
+  .field .val{font-size:13.5px; font-weight:500; margin-top:1px}
+  .chiprow{display:flex; gap:8px; padding:4px 20px 10px; flex-wrap:wrap}
+  .backlink{background:none;border:none;color:var(--muted);font:inherit;font-size:12.5px;cursor:pointer;padding:0;margin-bottom:14px;display:inline-flex;align-items:center;gap:6px}
+  .backlink:hover{color:var(--ink)}
+  .stack{display:flex; flex-direction:column; gap:18px}
+  .empty{padding:40px 20px; text-align:center; color:var(--muted); font-size:13px}
+  .note{font-size:12px; color:var(--muted); background:var(--card); border:1px dashed var(--line); border-radius:10px; padding:10px 14px; margin-top:20px}
+  .note b{color:var(--ink)}
+  .alertbox{display:flex; gap:12px; align-items:flex-start; background:var(--err-bg); border:1px solid var(--err); border-radius:12px; padding:14px 16px; margin-bottom:18px}
+  .alertbox.warn{background:var(--warn-bg); border-color:var(--warn)}
+  .alertbox b{display:block; font-size:13.5px}
+  .alertbox p{margin:2px 0 0; font-size:12.5px; color:var(--muted)}
+  .scenarios{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px}
+  .scen{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; box-shadow:var(--shadow); cursor:pointer}
+  .scen[aria-pressed="true"]{border-color:var(--ink); box-shadow:0 0 0 1px var(--ink)}
+  .scen h3{margin:0 0 4px; font-size:14px}
+  .scen p{margin:0 0 10px; font-size:12.5px; color:var(--muted)}
+  .reports{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+  .report{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; box-shadow:var(--shadow)}
+  .report h3{margin:0 0 4px; font-size:14px}
+  .report p{margin:0 0 12px; font-size:12.5px; color:var(--muted); min-height:36px}
+  .report .exports{display:flex; gap:6px; margin-bottom:12px}
+
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(8px);
+    background:var(--g900); color:var(--platinum); border:1px solid var(--hairline);
+    padding:10px 18px; border-radius:10px; font-size:13px; font-weight:600;
+    opacity:0; pointer-events:none; transition:opacity .18s, transform .18s; z-index:60;
+    box-shadow:0 8px 24px rgba(12,13,15,.45); max-width:88vw; text-align:center;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  dialog{border:1px solid var(--line); border-radius:14px; padding:0; background:var(--card); color:var(--ink); width:min(400px,90vw); box-shadow:0 16px 48px rgba(12,13,15,.4)}
+  dialog::backdrop{background:rgba(12,13,15,.5)}
+  .dlg-body{padding:22px 24px 8px}
+  .dlg-body h3{margin:0 0 8px; font-size:16px}
+  .dlg-body p{margin:0; color:var(--muted); font-size:13.5px}
+  .dlg-actions{display:flex; justify-content:flex-end; gap:10px; padding:18px 24px 20px}
+  @media (prefers-reduced-motion: reduce){ .toast{transition:none} }
+  @media (max-width:840px){
+    .rail{position:fixed; z-index:20; transform:translateX(-100%); transition:transform .2s}
+    .rail.open{transform:none}
+    .main{width:100%}
+    .burger{display:inline-grid !important}
+  }
+  .burger{display:none; place-items:center; width:34px;height:34px; border-radius:8px; background:none; border:1px solid var(--line); color:var(--ink); cursor:pointer; margin-right:auto}
+</style>
+
+<div class="frame">
+  <aside class="rail" id="rail">
+    <div class="brand">
+      <div class="brand-tile" aria-hidden="true">Z</div>
+      <div><b>Zariya</b><small>Budget · Trade · Report</small></div>
+    </div>
+    <nav aria-label="Modules" id="navhost"></nav>
+    <div class="railfoot">v0.1 · Review Draft<br>A-PAG · TCF</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="burger" id="burger" aria-label="Toggle navigation">☰</button>
+      <span class="demo-chip">Design preview · sample data — production binds to the live ZariaFinance API</span>
+      <div class="role-picker">
+        <label for="role">Role</label>
+        <select id="role" aria-label="Switch role">
+          <option value="FINANCE_OFFICER">Accounts / Finance Officer</option>
+          <option value="CEO">CEO</option>
+          <option value="FUNDRAISING_LEAD">Fund Raising Lead</option>
+        </select>
+      </div>
+      <div class="avatar" id="avatar">FO</div>
+      <div class="who"><b id="who-name">Finance Officer</b><span id="who-role">Accounts · full edit</span></div>
+    </header>
+    <main class="content" id="view" aria-live="polite"></main>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<dialog id="dlg">
+  <div class="dlg-body"><h3 id="dlg-title"></h3><p id="dlg-text"></p></div>
+  <div class="dlg-actions">
+    <button class="btn ghost" id="dlg-cancel">Cancel</button>
+    <button class="btn primary" id="dlg-ok">Confirm</button>
+  </div>
+</dialog>
+
+<script>
+/* ── Permission engine (mirrors src/core/permissions/permissions.js) ── */
+const POLICY = {
+  CEO:               { '*': ['view','comment'] },
+  FINANCE_OFFICER:   { '*': ['view','edit','comment','approve'] },
+  FUNDRAISING_LEAD:  { 'donor-management': ['view','edit','comment'] },
+};
+const can = (role, action, mod) => {
+  const p = POLICY[role]; if (!p) return false;
+  const acts = p[mod] || p['*']; return acts ? acts.includes(action) : false;
+};
+
+/* ── Formatting ── */
+const CR=1e7, L=1e5;
+const inr = v => Math.abs(v)>=CR ? `₹${(v/CR).toFixed(2)} Cr` : Math.abs(v)>=L ? `₹${(v/L).toFixed(2)} L` : `₹${v.toLocaleString('en-IN')}`;
+const dt  = s => new Date(s).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+const chip = ([label,tone]) => `<span class="chip ${tone}">${label}</span>`;
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct = v => `${v>0?'+':''}${v.toFixed(1)}%`;
+
+/* ── Sample data (labelled demo data; shapes follow the scope document) ── */
+const donors = [
+  {id:1, donorCode:'DNR-001', donorName:'Tata Foundation', donorSource:'CSR partnership', donorType:'Foundation', fundClass:'DOMESTIC', fcra:false, foreignType:null, foreignCountry:null, restricted:true,  status:'ACTIVE', isActive:true, contact:'R. Krishnan', email:'grants@tatafoundation.org', phone:'+91 98100 12345', address:'Bombay House, Homi Mody St, Mumbai 400001', pan:'AAATT1234F', bankRef:'HDFC-FCR-**4821', country:'India', createdAt:'2025-11-04', updatedAt:'2026-06-21', mou:'MoU_Tata_2026.pdf', committed:1.20*CR, received:.80*CR, alloc:100},
+  {id:2, donorCode:'DNR-002', donorName:'Gates Foundation', donorSource:'Institutional outreach', donorType:'Foundation', fundClass:'INTERNATIONAL', fcra:true, foreignType:'Foreign Foundation', foreignCountry:'USA', restricted:true, status:'ACTIVE', isActive:true, contact:'S. Mehta', email:'india@gatesfoundation.org', phone:'+91 98200 22334', address:'Capital Court, Munirka, New Delhi 110067', pan:'AAACG5678K', bankRef:'SBI-FCRA-**0092', country:'USA', createdAt:'2025-12-12', updatedAt:'2026-06-28', mou:'MoU_Gates_2026.pdf', committed:.95*CR, received:.65*CR, alloc:100},
+  {id:3, donorCode:'DNR-003', donorName:'Azim Premji Philanthropy', donorSource:'Direct relationship', donorType:'Philanthropy', fundClass:'DOMESTIC', fcra:false, foreignType:null, foreignCountry:null, restricted:false, status:'ONBOARDED', isActive:true, contact:'V. Rao', email:'programs@azimpremji.org', phone:'+91 99860 44556', address:'Sarjapur Road, Bengaluru 560035', pan:'AABTA9012L', bankRef:'ICICI-DOM-**3310', country:'India', createdAt:'2026-01-20', updatedAt:'2026-05-30', mou:'MoU_APPI_2026.pdf', committed:.50*CR, received:.50*CR, alloc:100},
+  {id:4, donorCode:'DNR-004', donorName:'Rockefeller Foundation', donorSource:'Grant application', donorType:'Foundation', fundClass:'INTERNATIONAL', fcra:true, foreignType:'Foreign Foundation', foreignCountry:'USA', restricted:true, status:'PENDING_APPROVAL', isActive:false, contact:'A. D’Souza', email:'asia@rockefeller.org', phone:'+1 212 869 8500', address:'420 Fifth Avenue, New York, NY 10018', pan:'—', bankRef:'SBI-FCRA-**0092', country:'USA', createdAt:'2026-04-02', updatedAt:'2026-06-15', mou:null, committed:.42*CR, received:.21*CR, alloc:80},
+  {id:5, donorCode:'DNR-005', donorName:'Individual Giving Pool', donorSource:'Campaigns & events', donorType:'Individual', fundClass:'DOMESTIC', fcra:false, foreignType:null, foreignCountry:null, restricted:false, status:'ACTIVE', isActive:true, contact:'Pooja Gill', email:'giving@a-pag.org', phone:'+91 98110 55667', address:'A-PAG Office, Jor Bagh, New Delhi 110003', pan:'AABCA3456M', bankRef:'ICICI-DOM-**3310', country:'India', createdAt:'2025-11-04', updatedAt:'2026-06-30', mou:null, committed:.30*CR, received:.185*CR, alloc:100},
+  {id:6, donorCode:'DNR-006', donorName:'Bloomberg Philanthropies', donorSource:'Institutional outreach', donorType:'Foundation', fundClass:'INTERNATIONAL', fcra:true, foreignType:'Foreign Corporate Philanthropy', foreignCountry:'USA', restricted:true, status:'INACTIVE', isActive:false, contact:'J. Park', email:'grants@bloomberg.org', phone:'+1 212 205 0100', address:'25 East 78th Street, New York, NY 10075', pan:'—', bankRef:'SBI-FCRA-**0092', country:'USA', createdAt:'2026-02-14', updatedAt:'2026-04-19', mou:'MoU_Bloomberg_2026.pdf', committed:.28*CR, received:.08*CR, alloc:65},
+];
+let grants = [
+  {id:11, grantCode:'GR-2026-01', agreementName:'Clean Air Delhi — Phase II', donorId:1, donorName:'Tata Foundation', programmeName:'Clean Air', startDate:'2026-04-01', endDate:'2027-03-31', totalGrantAmount:1.2*CR, fundClass:'DOMESTIC', grantStatus:'ACTIVE'},
+  {id:12, grantCode:'GR-2026-02', agreementName:'Air Quality Sensors Network', donorId:2, donorName:'Gates Foundation', programmeName:'Monitoring', startDate:'2026-06-01', endDate:'2027-05-31', totalGrantAmount:.95*CR, fundClass:'INTERNATIONAL', grantStatus:'APPROVED'},
+  {id:13, grantCode:'GR-2026-03', agreementName:'School Health & Awareness', donorId:3, donorName:'Azim Premji Philanthropy', programmeName:'Outreach', startDate:'2026-05-15', endDate:'2026-12-15', totalGrantAmount:.50*CR, fundClass:'DOMESTIC', grantStatus:'PENDING_APPROVAL'},
+  {id:14, grantCode:'GR-2026-04', agreementName:'Policy Research Fellowship', donorId:4, donorName:'Rockefeller Foundation', programmeName:'Policy', startDate:'2026-08-01', endDate:'2027-07-31', totalGrantAmount:.42*CR, fundClass:'INTERNATIONAL', grantStatus:'DRAFT'},
+  {id:15, grantCode:'GR-2025-09', agreementName:'Crop Burning Alternatives Pilot', donorId:1, donorName:'Tata Foundation', programmeName:'Rural', startDate:'2025-10-01', endDate:'2026-03-31', totalGrantAmount:.30*CR, fundClass:'DOMESTIC', grantStatus:'CLOSED'},
+];
+/* Budget lines — buckets per §3, CapEx/OpEx per §2.1, owners per §2.1 */
+const budget = [
+  {code:'BL-01', line:'Field Staff Salaries',            bucket:'PROJECT',     capex:false, owner:'Programme Lead',  fy:1.40*CR, actual:.62*CR, forecast:1.42*CR, conf:'HIGH'},
+  {code:'BL-02', line:'Programme Materials & Kits',      bucket:'PROJECT',     capex:false, owner:'Programme Lead',  fy:.60*CR,  actual:.31*CR, forecast:.66*CR,  conf:'MEDIUM'},
+  {code:'BL-03', line:'Travel — Programme Delivery',     bucket:'PROJECT',     capex:false, owner:'Programme Lead',  fy:.30*CR,  actual:.09*CR, forecast:.24*CR,  conf:'HIGH'},
+  {code:'BL-04', line:'Partner / Vendor Costs',          bucket:'PROJECT',     capex:false, owner:'Programme Lead',  fy:.50*CR,  actual:.22*CR, forecast:.50*CR,  conf:'MEDIUM'},
+  {code:'BL-05', line:'Central Team Human Resources',    bucket:'ADMIN',       capex:false, owner:'CFO',             fy:.80*CR,  actual:.40*CR, forecast:.80*CR,  conf:'HIGH'},
+  {code:'BL-06', line:'Office Rent & Utilities',         bucket:'ADMIN',       capex:false, owner:'Accounts',        fy:.24*CR,  actual:.12*CR, forecast:.24*CR,  conf:'HIGH'},
+  {code:'BL-07', line:'IT Systems & Infrastructure',     bucket:'ADMIN',       capex:true,  owner:'Technology',      fy:.18*CR,  actual:.05*CR, forecast:.20*CR,  conf:'LOW'},
+  {code:'BL-08', line:'Legal & Compliance',              bucket:'ADMIN',       capex:false, owner:'Accounts',        fy:.10*CR,  actual:.03*CR, forecast:.10*CR,  conf:'HIGH'},
+  {code:'BL-09', line:'Fundraising Campaigns',           bucket:'FUNDRAISING', capex:false, owner:'Fundraising Lead',fy:.20*CR,  actual:.02*CR, forecast:.18*CR,  conf:'MEDIUM'},
+  {code:'BL-10', line:'Donor Management CRM',            bucket:'FUNDRAISING', capex:true,  owner:'Fundraising Lead',fy:.08*CR,  actual:0,      forecast:.08*CR,  conf:'LOW'},
+];
+const actualsTx = [
+  {id:'TX-1041', date:'2026-06-28', line:'Field Staff Salaries', desc:'June payroll — field team', basis:'ACCRUAL', amount:1050000, state:'POSTED'},
+  {id:'TX-1042', date:'2026-06-27', line:'Programme Materials & Kits', desc:'Sensor kits — Enviro Tech inv #882', basis:'ACCRUAL', amount:640000, state:'POSTED'},
+  {id:'TX-1043', date:'2026-06-25', line:'Office Rent & Utilities', desc:'Q1 office lease', basis:'CASH', amount:600000, state:'POSTED'},
+  {id:'TX-1044', date:'2026-06-24', line:'Travel — Programme Delivery', desc:'Field visits — Lucknow cluster', basis:'CASH', amount:184000, state:'POSTED'},
+  {id:'TX-1045', date:'2026-07-02', line:'Partner / Vendor Costs', desc:'Sub-grant tranche — SEED partner', basis:'ACCRUAL', amount:900000, state:'QUEUED'},
+  {id:'TX-1046', date:'2026-06-20', line:'IT Systems & Infrastructure', desc:'Cloud services — annual', basis:'ACCRUAL', amount:310000, state:'RECLASS'},
+];
+let committed = [
+  {id:'PO-104', kind:'Purchase order', ref:'Enviro Tech — sensor procurement', line:'Programme Materials & Kits', amount:.22*CR, stage:'PART_INVOICED', aged:12},
+  {id:'CT-009', kind:'Contract',       ref:'Media agency — awareness campaign', line:'Fundraising Campaigns', amount:.15*CR, stage:'APPROVED', aged:65},
+  {id:'HR-021', kind:'Planned hire',   ref:'Field Coordinator — offer released', line:'Field Staff Salaries', amount:.096*CR, stage:'RAISED', aged:9},
+];
+let unassigned = [
+  {id:'UA-31', date:'2026-06-02', desc:'Workshop venue — funder TBD', amount:260000, aged:31},
+  {id:'UA-32', date:'2026-06-18', desc:'Translation services — mixed programmes', amount:220000, aged:15},
+  {id:'UA-33', date:'2026-06-29', desc:'Emergency air-quality response — Kanpur', amount:160000, aged:4},
+];
+const scenarios = [
+  {id:'A', name:'Reallocate travel underspend', detail:'Move ₹6.0 L from Travel (BL-03, tracking −20%) into Programme Materials.', impact:'BvA lands at +2.1% · within threshold', risk:'Low — travel underspend is structural (rail passes)'},
+  {id:'B', name:'Defer kit procurement to Q4', detail:'Shift the second sensor-kit order past the monsoon deployment window.', impact:'BvA lands at +4.5% · still flagged', risk:'Medium — compresses Q4 delivery schedule'},
+  {id:'C', name:'Renegotiate vendor rates', detail:'Volume-based re-quote with Enviro Tech on the standing order.', impact:'BvA lands at +3.2% · within threshold', risk:'Medium — 3-week negotiation lead time'},
+];
+const ENUM = {
+  fund:{DOMESTIC:['Domestic','neutral'], INTERNATIONAL:['Foreign · FCRA','graphite'], GOVERNMENT:['Government','outlined'], CORPORATE:['Corporate','outlined'], INDIVIDUAL:['Individual','neutral'], NGO:['NGO','outlined']},
+  restrict:{true:['Restricted','outlined'], false:['Unrestricted','outlined']},
+  dstat:{DRAFT:['Draft','neutral'], PENDING_APPROVAL:['Pending Approval','warn'], APPROVED:['Approved','info'], ONBOARDED:['Onboarded','info'], ACTIVE:['Active','ok'], INACTIVE:['Inactive','neutral'], SUSPENDED:['Suspended','warn'], TERMINATED:['Terminated','err']},
+  gstat:{DRAFT:['Draft','neutral'], PENDING_APPROVAL:['Pending Approval','warn'], APPROVED:['Approved','info'], ACTIVE:['Active','ok'], ON_HOLD:['On Hold','warn'], COMPLETED:['Completed','ok'], TERMINATED:['Terminated','err'], CLOSED:['Closed','neutral']},
+  bucket:{PROJECT:['Project','info'], ADMIN:['Admin','neutral'], FUNDRAISING:['Fundraising','outlined']},
+  conf:{HIGH:['High','ok'], MEDIUM:['Medium','warn'], LOW:['Low','err']},
+  postate:{RAISED:['Raised','neutral'], APPROVED:['Approved','info'], PART_INVOICED:['Part-invoiced','warn'], FULLY_INVOICED:['Fully invoiced','ok'], CLOSED:['Closed','neutral']},
+  txstate:{POSTED:['Posted · immutable','ok'], QUEUED:['Queued — after cut-off','warn'], RECLASS:['Reclass pending · dual-auth','info']},
+};
+const lifecycle = s => s==='DRAFT'||s==='PENDING_APPROVAL' ? ['approve'] : s==='APPROVED' ? ['activate','close'] : (s==='ACTIVE'||s==='ON_HOLD') ? ['close'] : [];
+const NEXT = {approve:'APPROVED', activate:'ACTIVE', close:'CLOSED'};
+const PO_NEXT = {RAISED:'APPROVED', APPROVED:'PART_INVOICED', PART_INVOICED:'FULLY_INVOICED', FULLY_INVOICED:'CLOSED'};
+
+/* ── App state ── */
+let role='FINANCE_OFFICER', route={name:'dashboard'}, donorQ='', grantQ='', varMode='BvA', chosenScen=null, scenApplied=false;
+const ROLE_META={FINANCE_OFFICER:['FO','Finance Officer','Accounts · full edit'],CEO:['CE','CEO','View & comment'],FUNDRAISING_LEAD:['FL','Fundraising Lead','Donor Management only']};
+
+const $=id=>document.getElementById(id);
+const toast=m=>{const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2400)};
+function confirmDlg(title,text,okLabel,danger){return new Promise(res=>{
+  $('dlg-title').textContent=title;$('dlg-text').textContent=text;
+  const ok=$('dlg-ok');ok.textContent=okLabel;ok.className='btn '+(danger?'danger':'primary');
+  const d=$('dlg');d.showModal();
+  const done=v=>{d.close();ok.onclick=null;$('dlg-cancel').onclick=null;res(v)};
+  ok.onclick=()=>done(true);$('dlg-cancel').onclick=()=>done(false);
+})}
+
+/* ── Navigation model — mirrors the module registry ── */
+const G={
+  grid:'<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+  book:'<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-2z"/><path d="M8 3v18"/></svg>',
+  trend:'<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>',
+  ledger:'<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+  scale:'<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 7l7-4 7 4"/><path d="M3 13a3 3 0 0 0 6 0L6 7zM15 13a3 3 0 0 0 6 0l-3-6z"/></svg>',
+  hand:'<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 13l4 4 6 3 6-4-2-9-6-2-6 3z"/><path d="M8 17l4-9"/></svg>',
+  inbox:'<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 6h14l2 7v6H3v-6z"/></svg>',
+  map:'<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 8 11 15.5M16.5 8 13 15.5"/></svg>',
+  heart:'<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 8.6a5 5 0 0 0-8.8-3.2A5 5 0 0 0 3.2 8.6c0 5 8.8 10.4 8.8 10.4s8.8-5.4 8.8-10.4z"/></svg>',
+  spark:'<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z"/></svg>',
+  doc:'<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7"/></svg>',
+};
+const NAVSECTIONS=[
+  {label:'', items:[{key:'dashboard',label:'Dashboard',glyph:G.grid,mod:'dashboard'}]},
+  {label:'Core layers', items:[
+    {key:'budget',label:'Budget',glyph:G.book,mod:'finance'},
+    {key:'forecast',label:'Forecast',glyph:G.trend,mod:'finance'},
+    {key:'actuals',label:'Actuals',glyph:G.ledger,mod:'finance'},
+    {key:'variance',label:'Variance',glyph:G.scale,mod:'finance'},
+  ]},
+  {label:'Control', items:[
+    {key:'committed',label:'Committed (Trading)',glyph:G.hand,mod:'finance'},
+    {key:'unassigned',label:'Unassigned Funding',glyph:G.inbox,mod:'finance'},
+    {key:'mapping',label:'Donor Mapping',glyph:G.map,mod:'donor-management'},
+  ]},
+  {label:'Donor module', items:[
+    {key:'donors',label:'Donors',glyph:G.heart,mod:'donor-management'},
+    {key:'grants',label:'Grants',glyph:G.hand,mod:'donor-management'},
+  ]},
+  {label:'Insight', items:[
+    {key:'optimiser',label:'Optimiser',glyph:G.spark,mod:'finance'},
+    {key:'reports',label:'Reports',glyph:G.doc,mod:'finance'},
+  ]},
+];
+const ROUTE_MOD={dashboard:'dashboard',budget:'finance',forecast:'finance',actuals:'finance',variance:'finance',committed:'finance',unassigned:'finance',mapping:'donor-management',donors:'donor-management',donor:'donor-management',grants:'donor-management',grant:'donor-management',optimiser:'finance',reports:'finance'};
+function renderNav(){
+  const host=$('navhost'); host.innerHTML='';
+  NAVSECTIONS.forEach(sec=>{
+    const items=sec.items.filter(it=>can(role,'view',it.mod));
+    if(!items.length) return;
+    const g=document.createElement('div');g.className='navgroup';
+    g.innerHTML=(sec.label?`<div class="navlabel">${sec.label}</div>`:'')+'<ul class="nav"></ul>';
+    const ul=g.querySelector('ul');
+    items.forEach(it=>{
+      const li=document.createElement('li');
+      const active = route.name===it.key || (it.key==='donors'&&route.name==='donor') || (it.key==='grants'&&route.name==='grant');
+      li.innerHTML=`<button aria-current="${active}">${it.glyph}<span>${it.label}</span></button>`;
+      li.firstChild.onclick=()=>{route={name:it.key};render();$('rail').classList.remove('open')};
+      ul.appendChild(li);
+    });
+    host.appendChild(g);
+  });
+}
+
+/* ── Shared fragments ── */
+const kpi=(lab,val,hint,hero)=>`<div class="kpi${hero?' hero':''}"><div class="lab">${lab}</div><div class="val">${val}</div>${hint?`<div class="hint">${hint}</div>`:''}</div>`;
+const bar=p=>`<span class="bar"><i style="width:${Math.min(p,100)}%"></i></span><span class="${p>=100?'pct-ok':'pct-bad'}">${p}%</span>`;
+
+/* ── Views ── */
+function vDashboard(){
+  const open=grants.filter(g=>['APPROVED','ACTIVE','ON_HOLD'].includes(g.grantStatus));
+  const totalBudget=budget.reduce((s,b)=>s+b.fy,0);
+  const totalActual=budget.reduce((s,b)=>s+b.actual,0);
+  const totalCommitted=committed.filter(c=>c.stage!=='CLOSED').reduce((s,c)=>s+c.amount,0);
+  const available=totalBudget-totalActual-totalCommitted;
+  const rows=[...grants].sort((a,b)=>b.startDate.localeCompare(a.startDate)).slice(0,5).map(g=>`
+    <tr class="rowlink" data-g="${g.id}">
+      <td>${g.grantCode}</td><td>${esc(g.agreementName)}</td><td>${esc(g.donorName)}</td>
+      <td class="money">${inr(g.totalGrantAmount)}</td><td>${chip(ENUM.gstat[g.grantStatus])}</td>
+    </tr>`).join('');
+  return `
+    <div class="pagehead"><div><h1>Dashboard</h1><p class="sub">Live position across budget, commitments and funding</p></div></div>
+    <div class="kpis">
+      ${kpi('Approved budget (v2)',inr(totalBudget),'FY 2026–27 · locked')}
+      ${kpi('Actuals YTD',inr(totalActual),`${Math.round(totalActual/totalBudget*100)}% consumed`)}
+      ${kpi('Committed (open)',inr(totalCommitted),`${committed.filter(c=>c.stage!=='CLOSED').length} POs / contracts / hires`)}
+      ${kpi('Available budget',inr(available),'Budget − Actuals − Committed',true)}
+    </div>
+    <div class="stack">
+      <div class="card"><h2>Recent grant agreements</h2><div class="tablewrap"><table>
+        <thead><tr><th>Code</th><th>Agreement</th><th>Donor</th><th class="money">Committed</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody></table></div></div>
+      <div class="alertbox warn"><div><b>Unassigned funding: ${inr(unassigned.reduce((s,u)=>s+u.amount,0))} across ${unassigned.length} items</b>
+        <p>1 item aged over 30 days — escalated to CFO. Period close is blocked while unassigned actuals exceed the ₹5.00 L materiality threshold.</p></div></div>
+    </div>`;
+}
+
+function vBudget(){
+  const canEdit=can(role,'edit','finance');
+  const total=budget.reduce((s,b)=>s+b.fy,0);
+  const bucketSum=k=>budget.filter(b=>b.bucket===k).reduce((s,b)=>s+b.fy,0);
+  const rows=budget.map(b=>`
+    <tr>
+      <td>${b.code}</td><td><b>${esc(b.line)}</b></td>
+      <td>${chip(ENUM.bucket[b.bucket])}</td>
+      <td>${chip([b.capex?'CapEx':'OpEx', b.capex?'graphite':'neutral'])}</td>
+      <td>${esc(b.owner)}</td>
+      <td class="money">${inr(b.fy)}</td>
+      <td>${chip(['Locked','outlined'])}</td>
+    </tr>`).join('');
+  return `
+    <div class="pagehead">
+      <div><h1>Budget</h1><p class="sub">The control layer — approved plan &amp; baseline · FY 2026–27</p></div>
+      <div style="display:flex;gap:10px">
+        ${canEdit?'<button class="btn ghost" id="reopen">Request re-open</button><button class="btn primary" id="newver">New revision (v3)</button>':''}
+      </div>
+    </div>
+    <div class="kpis">
+      ${kpi('Approved total',inr(total),'Version v2 · board-approved',true)}
+      ${kpi('Project / programme',inr(bucketSum('PROJECT')),`${Math.round(bucketSum('PROJECT')/total*100)}% of budget`)}
+      ${kpi('Admin / overhead',inr(bucketSum('ADMIN')),`${Math.round(bucketSum('ADMIN')/total*100)}% of budget`)}
+      ${kpi('Fundraising',inr(bucketSum('FUNDRAISING')),`${Math.round(bucketSum('FUNDRAISING')/total*100)}% of budget`)}
+    </div>
+    <div class="card">
+      <h2>Budget lines</h2>
+      <p class="cardsub">Version trail: v0 original → v1 → <b>v2 approved (12 Mar 2026, Board)</b>. Locked post-approval; every line carries a named owner, CapEx/OpEx class and bucket — enforced at entry.</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Code</th><th>Cost line</th><th>Bucket</th><th>Class</th><th>Owner</th><th class="money">FY budget</th><th>State</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>
+    <div class="note"><b>From the scope doc (§2.1):</b> version control with audit trail, cost-centre ownership per line,
+    approval workflow in-system, CapEx vs OpEx enforced at entry, assumptions linked to lines.</div>`;
+}
+
+function vForecast(){
+  const totalB=budget.reduce((s,b)=>s+b.fy,0), totalF=budget.reduce((s,b)=>s+b.forecast,0);
+  const rows=budget.map(b=>{
+    const drift=(b.forecast-b.fy)/b.fy*100;
+    return `<tr>
+      <td><b>${esc(b.line)}</b></td>
+      <td class="money">${inr(b.fy)}</td>
+      <td class="money">${inr(b.forecast)}</td>
+      <td class="money"><span class="${drift<=0?'pct-ok':(drift>5?'pct-bad':'')}">${pct(drift)}</span></td>
+      <td>${chip(ENUM.conf[b.conf])}</td>
+      <td>${esc(b.owner)}</td>
+      <td><span style="color:var(--muted);font-size:12px">28 Jun 2026</span></td>
+    </tr>`}).join('');
+  return `
+    <div class="pagehead">
+      <div><h1>Forecast</h1><p class="sub">The intelligence layer — rolling 12-month view · quarterly cadence (&gt; ₹5 Cr rule)</p></div>
+      ${can(role,'edit','finance')?'<button class="btn primary" id="updfc">Update open periods</button>':''}
+    </div>
+    <div class="kpis">
+      ${kpi('Budget baseline',inr(totalB),'v2 approved')}
+      ${kpi('Forecast landing',inr(totalF),'Rolling 12-month',true)}
+      ${kpi('Drift vs plan',pct((totalF-totalB)/totalB*100),'BvF at organisation level')}
+      ${kpi('Periods locked','Apr – Jun','Only open periods editable')}
+    </div>
+    <div class="card">
+      <h2>Line forecasts</h2>
+      <p class="cardsub">Prior months locked at close; each line carries a confidence flag and a named owner with last-updated timestamp (§2.2).</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Cost line</th><th class="money">Budget</th><th class="money">Forecast</th><th class="money">Drift</th><th>Confidence</th><th>Owner</th><th>Updated</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>`;
+}
+
+function vActuals(){
+  const rows=actualsTx.map(t=>`
+    <tr>
+      <td>${t.id}</td><td>${dt(t.date)}</td><td><b>${esc(t.line)}</b></td>
+      <td style="white-space:normal;min-width:200px">${esc(t.desc)}</td>
+      <td>${chip([t.basis==='ACCRUAL'?'Accrual':'Cash', t.basis==='ACCRUAL'?'info':'neutral'])}</td>
+      <td class="money">${inr(t.amount)}</td>
+      <td>${chip(ENUM.txstate[t.state])}</td>
+    </tr>`).join('');
+  return `
+    <div class="pagehead">
+      <div><h1>Actuals</h1><p class="sub">The truth layer — immutable once posted · sourced from the accounting feed</p></div>
+      ${can(role,'edit','finance')?'<button class="btn ghost" id="reclass">Reclassification request</button>':''}
+    </div>
+    <div class="kpis">
+      ${kpi('Posted YTD',inr(budget.reduce((s,b)=>s+b.actual,0)),'Apr – Jun 2026 closed')}
+      ${kpi('Month-end cut-off','5 Jul 2026','Late postings queue to next period')}
+      ${kpi('Queued past cut-off','1 entry','₹9.00 L — July period')}
+      ${kpi('Reclass pending','1 entry','Dual authorisation required')}
+    </div>
+    <div class="card">
+      <h2>Transaction register</h2>
+      <p class="cardsub">Original entries are never edited: coding errors go through a dual-authorised reclassification that preserves the audit trail (§2.3). Chart-of-accounts → management-line mapping applied on import.</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>ID</th><th>Date</th><th>Management line</th><th>Description</th><th>Basis</th><th class="money">Amount</th><th>State</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>`;
+}
+
+function vVariance(){
+  const modes={BvA:['Budget vs Actual','Are we on track vs the approved plan?'],BvF:['Budget vs Forecast','Where will we land by year-end vs plan?'],FvA:['Forecast vs Actual','How accurate has our forecasting been?']};
+  const calc=b=>{
+    const ytdBudget=b.fy/2; /* six months elapsed */
+    if(varMode==='BvA') return (b.actual-ytdBudget)/ytdBudget*100;
+    if(varMode==='BvF') return (b.forecast-b.fy)/b.fy*100;
+    return (b.actual-(b.forecast/2))/(b.forecast/2)*100;
+  };
+  const rows=budget.map(b=>{
+    const v=calc(b); const flagged=Math.abs(v)>5;
+    const favourable=v<0;
+    return `<tr>
+      <td><b>${esc(b.line)}</b></td>
+      <td class="money">${inr(b.fy/2)}</td>
+      <td class="money">${inr(varMode==='BvF'?b.forecast:b.actual)}</td>
+      <td class="money"><span class="${favourable?'pct-ok':'pct-bad'}">${pct(v)}</span></td>
+      <td>${chip(favourable?['Favourable','ok']:['Adverse','err'])}</td>
+      <td>${flagged?chip(['Commentary required','warn']):chip(['Within threshold','neutral'])}</td>
+    </tr>`}).join('');
+  return `
+    <div class="pagehead">
+      <div><h1>Variance</h1><p class="sub">${modes[varMode][1]}</p></div>
+      <div class="seg" role="group" aria-label="Variance measure">
+        ${Object.keys(modes).map(m=>`<button aria-pressed="${m===varMode}" data-vm="${m}">${m}</button>`).join('')}
+      </div>
+    </div>
+    <div class="alertbox">
+      <div><b>BL-02 Programme Materials &amp; Kits breached the 5% materiality threshold (+3.3% MTD, trending +9.8%)</b>
+      <p>Root-cause commentary is mandatory at period close. The Optimiser has 3 modelled remediation scenarios ready.</p></div>
+      <button class="btn sm ghost" id="to-opt" style="margin-left:auto;flex:none">Open Optimiser →</button>
+    </div>
+    <div class="card">
+      <h2>${modes[varMode][0]} — half-year</h2>
+      <p class="cardsub">Materiality threshold 5% (configurable per line, §2.4). Cost underspend = favourable; visual coding for non-finance readers.</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Cost line</th><th class="money">${varMode==='FvA'?'Forecast (½ yr)':'Budget (½ yr)'}</th><th class="money">${varMode==='BvF'?'Forecast (FY)':'Actual YTD'}</th><th class="money">Variance</th><th>Tag</th><th>Commentary</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>`;
+}
+
+function vCommitted(){
+  const canEdit=can(role,'edit','finance');
+  const totalBudget=budget.reduce((s,b)=>s+b.fy,0);
+  const totalActual=budget.reduce((s,b)=>s+b.actual,0);
+  const open=committed.filter(c=>c.stage!=='CLOSED');
+  const totalC=open.reduce((s,c)=>s+c.amount,0);
+  const rows=committed.map(c=>`
+    <tr>
+      <td>${c.id}</td><td>${c.kind}</td>
+      <td style="white-space:normal;min-width:220px"><b>${esc(c.ref)}</b><br><span style="color:var(--muted);font-size:12px">${esc(c.line)}</span></td>
+      <td class="money">${inr(c.amount)}</td>
+      <td>${chip(ENUM.postate[c.stage])}</td>
+      <td>${c.aged>60?chip([`${c.aged}d — aged`, 'err']):`<span style="color:var(--muted)">${c.aged}d</span>`}</td>
+      <td>${canEdit&&PO_NEXT[c.stage]?`<button class="btn sm ghost" data-po="${c.id}">→ ${ENUM.postate[PO_NEXT[c.stage]][0]}</button>`:''}</td>
+    </tr>`).join('');
+  return `
+    <div class="pagehead">
+      <div><h1>Committed Costs (Trading)</h1><p class="sub">Approved obligations not yet realised as actuals — the layer between budget and books</p></div>
+      ${canEdit?'<button class="btn primary" id="newpo">+ New commitment</button>':''}
+    </div>
+    <div class="kpis">
+      ${kpi('Budget (v2)',inr(totalBudget),'')}
+      ${kpi('− Actuals YTD',inr(totalActual),'')}
+      ${kpi('− Committed',inr(totalC),`${open.length} open items`)}
+      ${kpi('= Available budget',inr(totalBudget-totalActual-totalC),'The single most important number (§5.3)',true)}
+    </div>
+    <div class="card">
+      <h2>Commitment register</h2>
+      <p class="cardsub">PO lifecycle: raised → approved → part-invoiced → fully invoiced → closed. Commitments auto-release when the invoice posts to actuals; items uncommitted &gt; 60 days are flagged (§5.2).</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Ref</th><th>Type</th><th>Commitment</th><th class="money">Value</th><th>Stage</th><th>Age</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>`;
+}
+
+function vUnassigned(){
+  const total=unassigned.reduce((s,u)=>s+u.amount,0);
+  const canEdit=can(role,'edit','finance');
+  const rows=unassigned.map(u=>`
+    <tr>
+      <td>${u.id}</td><td>${dt(u.date)}</td>
+      <td style="white-space:normal;min-width:220px">${esc(u.desc)}</td>
+      <td class="money">${inr(u.amount)}</td>
+      <td>${u.aged>30?chip([`${u.aged}d — escalated to CFO`,'err']):u.aged>20?chip([`${u.aged}d`,'warn']):`<span style="color:var(--muted)">${u.aged}d</span>`}</td>
+      <td>${canEdit?`<button class="btn sm primary" data-ua="${u.id}">Allocate</button>`:''}</td>
+    </tr>`).join('');
+  return `
+    <div class="pagehead">
+      <div><h1>Unassigned Funding</h1><p class="sub">Temporary holding for actuals not yet mapped to a funding source — visible, never buried</p></div>
+    </div>
+    <div class="kpis">
+      ${kpi('Unallocated total',inr(total),`${unassigned.length} items`,true)}
+      ${kpi('Materiality threshold','₹5.00 L','Period close blocked above this')}
+      ${kpi('Oldest item',`${Math.max(...unassigned.map(u=>u.aged),0)} days`,'30-day rule → CFO escalation')}
+    </div>
+    ${total>500000?`<div class="alertbox"><div><b>Period close is blocked</b>
+      <p>Unassigned actuals (${inr(total)}) exceed the ₹5.00 L materiality threshold. Allocate items to funding sources to unblock the June close (§5.1).</p></div></div>`:
+      `<div class="alertbox warn" style="background:var(--ok-bg);border-color:var(--ok)"><div><b>Below threshold — period close permitted</b><p>Remaining items should still be allocated before ageing flags trigger.</p></div></div>`}
+    <div class="card">
+      <h2>Holding bucket</h2>
+      <p class="cardsub">New entries alert the accounts team automatically; this is not a permanent parking spot.</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>ID</th><th>Date</th><th>Expense</th><th class="money">Amount</th><th>Ageing</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table>
+        ${unassigned.length?'':'<div class="empty">Nothing unallocated — clean position. 🎯</div>'}</div>
+    </div>`;
+}
+
+function vMapping(){
+  const committedT=donors.reduce((s,d)=>s+d.committed,0);
+  const receivedT=donors.reduce((s,d)=>s+d.received,0);
+  const rows=donors.map(d=>`
+    <tr class="rowlink" data-d="${d.id}">
+      <td><b>${esc(d.donorName)}</b></td>
+      <td>${chip(ENUM.fund[d.fundClass])}</td>
+      <td>${chip(ENUM.restrict[d.restricted])}</td>
+      <td class="money">${inr(d.committed)}</td>
+      <td class="money">${inr(d.received)}</td>
+      <td>${bar(d.alloc)}</td>
+    </tr>`).join('');
+  return `
+    <div class="pagehead">
+      <div><h1>Donor Agreements &amp; Mapping</h1><p class="sub">Funding sources ⟷ budget lines · 100% mapping integrity required</p></div>
+      ${can(role,'edit','donor-management')?'<button class="btn primary" id="remap">Re-map period</button>':''}
+    </div>
+    <div class="kpis">
+      ${kpi('Donors',donors.length,'')}
+      ${kpi('Total committed',inr(committedT),'')}
+      ${kpi('Received YTD',inr(receivedT),'')}
+      ${kpi('Pipeline gap',inr(committedT-receivedT),'Committed − received',true)}
+    </div>
+    <div class="card">
+      <h2>Donor register</h2>
+      <p class="cardsub">One-to-many and many-to-one mappings supported; totals must sum to 100% before finalisation, and unallocated funds flow to the Unassigned bucket automatically (§4.1).</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Donor</th><th>Domicile</th><th>Fund type</th><th class="money">Committed</th><th class="money">Received</th><th>Allocation</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>
+    <div class="note"><b>FCRA:</b> foreign-domiciled donors carry the graphite “Foreign · FCRA” flag which drives compliance reporting and FX treatment (§4.2).</div>`;
+}
+
+function vDonors(){
+  const canEdit=can(role,'edit','donor-management');
+  const list=donors.filter(d=>!donorQ||`${d.donorName} ${d.donorCode} ${d.donorType} ${d.contact} ${d.donorSource}`.toLowerCase().includes(donorQ.toLowerCase()));
+  const rows=list.map(d=>`
+    <tr class="rowlink" data-d="${d.id}">
+      <td>${d.id}</td>
+      <td>${d.donorCode}</td>
+      <td><b>${esc(d.donorName)}</b></td>
+      <td>${esc(d.donorSource)}</td>
+      <td>${esc(d.donorType)}</td>
+      <td>${chip(ENUM.fund[d.fundClass])}</td>
+      <td>${d.fcra?chip(['FCRA','graphite']):chip(['N/A','neutral'])}</td>
+      <td>${d.foreignType?esc(d.foreignType):'—'}</td>
+      <td>${d.foreignCountry?esc(d.foreignCountry):'—'}</td>
+      <td>${esc(d.contact)}</td>
+      <td>${esc(d.email)}</td>
+      <td>${esc(d.phone)}</td>
+      <td style="white-space:normal;min-width:200px">${esc(d.address)}</td>
+      <td>${esc(d.pan)}</td>
+      <td>${esc(d.bankRef)}</td>
+      <td>${d.isActive?chip(['Active','ok']):chip(['Inactive','neutral'])}</td>
+      <td>${dt(d.createdAt)}</td>
+      <td>${dt(d.updatedAt)}</td>
+      <td>${d.mou?`<button class="btn sm ghost" data-mou="${d.id}">MoU ↗</button>`:'—'}</td>
+    </tr>`).join('');
+  return `
+    <div class="pagehead">
+      <div><h1>Donor Register</h1><p class="sub">Funding sources across the organisation — full compliance register, scrolls sideways</p></div>
+      ${canEdit?'<button class="btn primary" id="new-donor">+ New donor</button>':''}
+    </div>
+    <div class="toolbar"><div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="donor-q" placeholder="Search donors…" value="${esc(donorQ)}" aria-label="Search donors">
+    </div></div>
+    <div class="card"><div class="tablewrap"><table>
+      <thead><tr>
+        <th>Donor ID</th><th>Donor code</th><th>Donor name</th><th>Donor source</th><th>Donor type</th>
+        <th>Fund source (domicile)</th><th>FCRA applicable</th><th>Foreign fund source type</th><th>Foreign country</th>
+        <th>Contact person</th><th>Email</th><th>Phone</th><th>Address</th>
+        <th>PAN</th><th>Bank account ref *</th><th>Active</th><th>Created at</th><th>Updated at</th><th>MoU</th>
+      </tr></thead>
+      <tbody>${rows}</tbody></table>
+      ${list.length?'':'<div class="empty">No donors match your search.</div>'}</div></div>
+    <div class="note"><b>* Bank account ref</b> is masked in list views; the full account detail sits behind the
+    <b>edit</b> permission on the donor record. FCRA, foreign source type and country drive the compliance
+    reports for foreign-domiciled funds (§4.2).</div>`;
+}
+function vDonor(id){
+  const d=donors.find(x=>x.id===id); if(!d) return '<div class="empty">Not found</div>';
+  const canEdit=can(role,'edit','donor-management');
+  const dg=grants.filter(g=>g.donorId===id);
+  const rows=dg.map(g=>`
+    <tr class="rowlink" data-g="${g.id}">
+      <td>${g.grantCode}</td><td>${esc(g.agreementName)}</td><td>${dt(g.startDate)}</td><td>${dt(g.endDate)}</td>
+      <td class="money">${inr(g.totalGrantAmount)}</td><td>${chip(ENUM.gstat[g.grantStatus])}</td>
+    </tr>`).join('');
+  return `
+    <button class="backlink" id="back-donors">← Donor Register</button>
+    <div class="pagehead">
+      <div><h1>${esc(d.donorName)}</h1><p class="sub">Donor ${d.donorCode}</p></div>
+      ${canEdit?`<div style="display:flex;gap:10px">
+        <button class="btn ${d.isActive?'danger':'ghost'}" id="toggle-active">${d.isActive?'Deactivate':'Activate'}</button>
+        <button class="btn primary" id="edit-donor">Edit</button></div>`:''}
+    </div>
+    <div class="stack">
+      <div class="card">
+        <div class="chiprow" style="padding-top:18px">${chip(ENUM.dstat[d.status])}${chip(ENUM.fund[d.fundClass])}${chip(ENUM.restrict[d.restricted])}${d.fcra?chip(['FCRA','graphite']):''}</div>
+        <div class="detail-grid">
+          <div class="field"><div class="lab">Donor ID</div><div class="val">${d.id}</div></div>
+          <div class="field"><div class="lab">Donor source</div><div class="val">${esc(d.donorSource)}</div></div>
+          <div class="field"><div class="lab">Donor type</div><div class="val">${esc(d.donorType)}</div></div>
+          <div class="field"><div class="lab">Foreign fund source type</div><div class="val">${d.foreignType?esc(d.foreignType):'—'}</div></div>
+          <div class="field"><div class="lab">Foreign country</div><div class="val">${d.foreignCountry?esc(d.foreignCountry):'—'}</div></div>
+          <div class="field"><div class="lab">Contact person</div><div class="val">${esc(d.contact)}</div></div>
+          <div class="field"><div class="lab">Email</div><div class="val">${esc(d.email)}</div></div>
+          <div class="field"><div class="lab">Phone</div><div class="val">${esc(d.phone)}</div></div>
+          <div class="field"><div class="lab">Address</div><div class="val">${esc(d.address)}</div></div>
+          <div class="field"><div class="lab">PAN</div><div class="val">${esc(d.pan)}</div></div>
+          <div class="field"><div class="lab">Bank account ref *</div><div class="val">${esc(d.bankRef)}</div></div>
+          <div class="field"><div class="lab">MoU</div><div class="val">${d.mou?`<button class="btn sm ghost" data-mou="${d.id}">${esc(d.mou)} ↗</button>`:'Not on file'}</div></div>
+          <div class="field"><div class="lab">Committed</div><div class="val">${inr(d.committed)}</div></div>
+          <div class="field"><div class="lab">Received YTD</div><div class="val">${inr(d.received)}</div></div>
+          <div class="field"><div class="lab">Mapping</div><div class="val">${d.alloc}% allocated</div></div>
+          <div class="field"><div class="lab">Created at</div><div class="val">${dt(d.createdAt)}</div></div>
+          <div class="field"><div class="lab">Updated at</div><div class="val">${dt(d.updatedAt)}</div></div>
+        </div>
+      </div>
+      <div class="card"><h2>Grant agreements</h2><div class="tablewrap"><table>
+        <thead><tr><th>Code</th><th>Agreement</th><th>Start</th><th>End</th><th class="money">Committed</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody></table>${dg.length?'':'<div class="empty">No grants for this donor.</div>'}</div></div>
+    </div>`;
+}
+function vGrants(){
+  const canEdit=can(role,'edit','donor-management');
+  const list=grants.filter(g=>!grantQ||`${g.agreementName} ${g.grantCode} ${g.donorName}`.toLowerCase().includes(grantQ.toLowerCase()));
+  const rows=list.map(g=>`
+    <tr class="rowlink" data-g="${g.id}">
+      <td>${g.grantCode}</td><td><b>${esc(g.agreementName)}</b></td><td>${esc(g.donorName)}</td>
+      <td>${dt(g.startDate)}</td><td class="money">${inr(g.totalGrantAmount)}</td>
+      <td>${chip(ENUM.fund[g.fundClass])}</td><td>${chip(ENUM.gstat[g.grantStatus])}</td>
+    </tr>`).join('');
+  return `
+    <div class="pagehead">
+      <div><h1>Grant Agreements</h1><p class="sub">Signed and pipeline funding agreements</p></div>
+      ${canEdit?'<button class="btn primary" id="new-grant">+ New grant</button>':''}
+    </div>
+    <div class="toolbar"><div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="grant-q" placeholder="Search grants…" value="${esc(grantQ)}" aria-label="Search grants">
+    </div></div>
+    <div class="card"><div class="tablewrap"><table>
+      <thead><tr><th>Code</th><th>Agreement</th><th>Donor</th><th>Start</th><th class="money">Committed</th><th>Fund class</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody></table>${list.length?'':'<div class="empty">No grants match your search.</div>'}</div></div>`;
+}
+function vGrant(id){
+  const g=grants.find(x=>x.id===id); if(!g) return '<div class="empty">Not found</div>';
+  const canApprove=can(role,'approve','donor-management');
+  const actions=lifecycle(g.grantStatus);
+  const btns=canApprove?actions.map(a=>`<button class="btn ${a==='close'?'danger':'primary'}" data-act="${a}">${a[0].toUpperCase()+a.slice(1)}</button>`).join(''):'';
+  return `
+    <button class="backlink" id="back-grants">← Grant Agreements</button>
+    <div class="pagehead">
+      <div><h1>${esc(g.agreementName)}</h1><p class="sub">Grant ${g.grantCode}</p></div>
+      <div style="display:flex;gap:10px" id="lifecycle">${btns}</div>
+    </div>
+    <div class="card">
+      <div class="chiprow" style="padding-top:18px">${chip(ENUM.gstat[g.grantStatus])}${chip(ENUM.fund[g.fundClass])}</div>
+      <div class="detail-grid">
+        <div class="field"><div class="lab">Donor</div><div class="val">${esc(g.donorName)}</div></div>
+        <div class="field"><div class="lab">Programme</div><div class="val">${esc(g.programmeName)}</div></div>
+        <div class="field"><div class="lab">Total grant amount</div><div class="val">₹${g.totalGrantAmount.toLocaleString('en-IN')}</div></div>
+        <div class="field"><div class="lab">Start date</div><div class="val">${dt(g.startDate)}</div></div>
+        <div class="field"><div class="lab">End date</div><div class="val">${dt(g.endDate)}</div></div>
+        <div class="field"><div class="lab">Lifecycle</div><div class="val">${actions.length?('Available: '+actions.join(', ')):'Terminal state'}</div></div>
+      </div>
+    </div>
+    <div class="note"><b>Permissions in action:</b> lifecycle buttons require the <b>approve</b> capability (Finance Officer).
+    CEO sees this page read-only; Fundraising Lead can edit donor data but never approve.</div>`;
+}
+
+function vOptimiser(){
+  const canEdit=can(role,'edit','finance');
+  const cards=scenarios.map(s=>`
+    <div class="scen" role="button" tabindex="0" aria-pressed="${chosenScen===s.id}" data-scen="${s.id}">
+      <h3>Scenario ${s.id} — ${esc(s.name)}</h3>
+      <p>${esc(s.detail)}</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${chip([s.impact, s.impact.includes('within')?'ok':'warn'])}
+        ${chip([s.risk.split(' — ')[0]+' risk','outlined'])}
+      </div>
+    </div>`).join('');
+  return `
+    <div class="pagehead">
+      <div><h1>Optimiser</h1><p class="sub">Closing the loop — model the fix, push it back into the live forecast</p></div>
+      ${canEdit?`<button class="btn primary" id="pushfc" ${chosenScen&&!scenApplied?'':'disabled'}>${scenApplied?'Pushed to forecast ✓':'Push selected to forecast'}</button>`:''}
+    </div>
+    <div class="alertbox">
+      <div><b>1 · Variance alert — BL-02 Programme Materials &amp; Kits</b>
+      <p>BvA breached the 5% materiality threshold; trending +9.8% by year-end. Root cause: sensor unit-cost inflation (price, not volume).</p></div>
+    </div>
+    <div class="card" style="overflow:visible;background:none;border:none;box-shadow:none">
+      <h2 style="padding-left:0">2 · Modelled scenarios ${chosenScen?`— selected: ${chosenScen}`:''}</h2>
+      <div class="scenarios">${cards}</div>
+    </div>
+    <div class="note"><b>3 → 4:</b> the selected scenario pushes into the live forecast; if material, a
+    <b>re-baseline review</b> triggers CFO/Board approval (§7). Without this loop, scenario modelling
+    stays in spreadsheets and the system remains a scorecard, not a decision-support tool.</div>`;
+}
+
+function vReports(){
+  const canEdit=can(role,'edit','finance');
+  const R=[
+    ['Board pack','Board / Trustees','Headline BvA, year-end forecast, key variances. Auto-generated at period close.'],
+    ['Management accounts','CEO, CFO, senior team','Full BvA by department with commentary and trends.'],
+    ['Donor / funder report','Individual donors','Ring-fenced project income & expenditure, template-formatted per funder.'],
+    ['Fundraising pipeline','Fundraising team','Committed vs received vs target income across the donor register.'],
+    ['Audit support pack','External auditors','Trial balance, transaction listing, reconciliations.'],
+  ];
+  return `
+    <div class="pagehead">
+      <div><h1>Reports</h1><p class="sub">Different readers, different views of the same truth</p></div>
+    </div>
+    <div class="reports">
+      ${R.map(([t,aud,d])=>`
+        <div class="report">
+          <h3>${t}</h3>
+          <p><b style="color:var(--ink)">${aud}.</b> ${d}</p>
+          <div class="exports">${chip(['PDF','outlined'])}${chip(['Excel','outlined'])}${chip(['CSV','outlined'])}</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn sm primary" data-rep="${t}">Generate</button>
+            ${canEdit?`<button class="btn sm ghost" data-sched="${t}">Schedule</button>`:''}
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="note"><b>Scheduled dispatch</b> with distribution-list management ships with the reporting API (§6.2).</div>`;
+}
+
+function vDenied(){
+  return `<div class="pagehead"><div><h1>Page not found</h1>
+    <p class="sub">This role has no view permission for that module, so the route resolves to 404 — route existence is never leaked.</p></div></div>`;
+}
+
+/* ── Router / render ── */
+const VIEWS={dashboard:vDashboard,budget:vBudget,forecast:vForecast,actuals:vActuals,variance:vVariance,committed:vCommitted,unassigned:vUnassigned,mapping:vMapping,donors:vDonors,grants:vGrants,optimiser:vOptimiser,reports:vReports};
+function render(){
+  const [av,nm,ds]=ROLE_META[role];
+  $('avatar').textContent=av; $('who-name').textContent=nm; $('who-role').textContent=ds;
+  const v=$('view');
+  const mod=ROUTE_MOD[route.name];
+  if(!can(role,'view',mod)){v.innerHTML=vDenied();}
+  else if(route.name==='donor') v.innerHTML=vDonor(route.id);
+  else if(route.name==='grant') v.innerHTML=vGrant(route.id);
+  else v.innerHTML=VIEWS[route.name]();
+  renderNav(); wire();
+}
+function wire(){
+  document.querySelectorAll('tr[data-d]').forEach(tr=>tr.onclick=()=>{route={name:'donor',id:+tr.dataset.d};render()});
+  document.querySelectorAll('tr[data-g]').forEach(tr=>tr.onclick=()=>{route={name:'grant',id:+tr.dataset.g};render()});
+  const keepFocus=(id,setter)=>{const el=$(id); if(el){el.oninput=e=>{setter(e.target.value);const p=e.target.selectionStart;render();const n=$(id);n.focus();n.setSelectionRange(p,p)}}};
+  keepFocus('donor-q',v=>donorQ=v); keepFocus('grant-q',v=>grantQ=v);
+  const on=(id,fn)=>{const el=$(id); if(el)el.onclick=fn};
+  on('back-donors',()=>{route={name:'donors'};render()});
+  on('back-grants',()=>{route={name:'grants'};render()});
+  on('new-donor',()=>toast('Opens the donor form — RHF + Zod, mirrors CreateDonorRequest'));
+  on('new-grant',()=>toast('Opens the grant form bound to POST /api/v1/grants'));
+  on('edit-donor',()=>toast('Opens the edit form — donorCode immutable (no code in UpdateDonorRequest)'));
+  on('newver',()=>toast('Starts budget revision v3 — approval workflow + audit trail (§2.1)'));
+  on('reopen',()=>toast('Formal re-open request routed to CFO — budgets stay locked post-approval'));
+  on('updfc',()=>toast('Opens editable cells for open periods only — Apr–Jun are locked'));
+  on('reclass',()=>toast('Reclassification: original entry preserved, dual authorisation required'));
+  on('remap',()=>toast('Opens period re-mapping — change-logged; totals must sum to 100%'));
+  on('newpo',()=>toast('Registers a PO / contract / offer letter into the committed layer'));
+  on('to-opt',()=>{route={name:'optimiser'};render()});
+  document.querySelectorAll('[data-vm]').forEach(b=>b.onclick=()=>{varMode=b.dataset.vm;render()});
+  document.querySelectorAll('[data-po]').forEach(b=>b.onclick=async()=>{
+    const c=committed.find(x=>x.id===b.dataset.po); const next=PO_NEXT[c.stage];
+    if(await confirmDlg('Advance commitment',`${c.id} → ${ENUM.postate[next][0]}. ${next==='FULLY_INVOICED'?'Invoice posting will auto-release this commitment from Available Budget.':''}`,'Advance')){
+      c.stage=next; render(); toast(`${c.id} is now ${ENUM.postate[next][0]}`);
+    }});
+  document.querySelectorAll('[data-ua]').forEach(b=>b.onclick=async()=>{
+    const u=unassigned.find(x=>x.id===b.dataset.ua);
+    if(await confirmDlg('Allocate expense',`Map ${u.id} (${inr(u.amount)}) to a funding source. In production this opens the donor-mapping picker.`,'Allocate')){
+      unassigned=unassigned.filter(x=>x.id!==u.id); render(); toast(`${u.id} allocated — unassigned total ${inr(unassigned.reduce((s,x)=>s+x.amount,0))}`);
+    }});
+  document.querySelectorAll('[data-scen]').forEach(el=>{
+    const pick=()=>{chosenScen=el.dataset.scen;scenApplied=false;render()};
+    el.onclick=pick; el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick()}};
+  });
+  on('pushfc',async()=>{
+    if(!chosenScen||scenApplied)return;
+    const s=scenarios.find(x=>x.id===chosenScen);
+    if(await confirmDlg('Push scenario to forecast',`Scenario ${s.id} — ${s.name}. The live forecast updates and, if material, a re-baseline review triggers CFO approval.`,'Push to forecast')){
+      scenApplied=true; render(); toast(`Scenario ${s.id} pushed to live forecast — re-baseline review queued`);
+    }});
+  document.querySelectorAll('[data-mou]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const d=donors.find(x=>x.id===+b.dataset.mou);
+    toast(`Opens ${d.mou} — grant document register (DocumentType MOU, versioned)`);
+  });
+  document.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>toast(`${b.dataset.rep} generated — exports: PDF · Excel · CSV`));
+  document.querySelectorAll('[data-sched]').forEach(b=>b.onclick=()=>toast(`${b.dataset.sched}: schedule + distribution list (§6.2)`));
+  const ta=$('toggle-active'); if(ta)ta.onclick=async()=>{
+    const d=donors.find(x=>x.id===route.id); const onA=!d.isActive;
+    if(await confirmDlg(onA?'Activate donor':'Deactivate donor',
+      `${onA?'Reactivate':'Deactivate'} ${d.donorName}? In production this calls PATCH /api/v1/donors/${d.id}/${onA?'activate':'deactivate'}.`,
+      onA?'Activate':'Deactivate', !onA)){
+      d.isActive=onA; d.status=onA?'ACTIVE':'INACTIVE'; render(); toast(`${d.donorName} ${onA?'activated':'deactivated'}`);
+    }};
+  const lc=$('lifecycle'); if(lc)lc.querySelectorAll('button').forEach(b=>b.onclick=async()=>{
+    const g=grants.find(x=>x.id===route.id); const act=b.dataset.act;
+    if(await confirmDlg(`${act[0].toUpperCase()+act.slice(1)} grant`,
+      `${g.agreementName} → ${ENUM.gstat[NEXT[act]][0]}. In production this calls PATCH /api/v1/grants/${g.id}/${act}.`,
+      act[0].toUpperCase()+act.slice(1), act==='close')){
+      g.grantStatus=NEXT[act]; render(); toast(`Grant ${g.grantCode}: ${ENUM.gstat[g.grantStatus][0]}`);
+    }});
+}
+$('role').onchange=e=>{
+  role=e.target.value;
+  if(!can(role,'view',ROUTE_MOD[route.name])) route={name:can(role,'view','dashboard')?'dashboard':'donors'};
+  render();
+};
+$('burger').onclick=()=>$('rail').classList.toggle('open');
+render();
+</script>

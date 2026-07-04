@@ -75,3 +75,26 @@ the repository layer isolates the change when `Pageable` params arrive.
 `CreateDonorContactRequest` and `DonorContactResponse` DTOs exist and
 contacts are embedded in `DonorResponse`, but there is no endpoint to add or
 edit contacts. The UI renders contacts read-only via the donor detail payload.
+
+## #10 — Donor register schema extension (requested by business)
+
+The approved donor register (see `docs/design-preview.html`, Donors screen)
+requires fields that `DonorMaster`/`DonorResponse` do not carry today:
+
+| Field | Notes |
+| --- | --- |
+| `donorSource` | Acquisition channel (CSR partnership, campaign, referral…) |
+| `fcraApplicable` | Boolean compliance flag for foreign funds |
+| `foreignFundSourceType` | e.g. Foreign Foundation / Foreign Corporate Philanthropy |
+| `foreignCountryName` | Domicile country for FCRA reporting |
+| `contactPerson` | Primary contact (exists only inside DonorContact today) |
+| `panCardNumber` | Statutory identifier |
+| `bankAccountRef` | Receiving account reference (masked in list views) |
+| `mouDocumentLink` | Link to the signed MoU (could reuse GrantDocument with type MOU) |
+
+Existing fields already covering register columns: `id`, `donorCode`,
+`donorName`, `donorType`, `fundClass` (domicile), `email`, `phoneNumber`,
+`address`, `isActive`, `createdAt`, `updatedAt`.
+
+**Needed:** columns + DTO fields (or a donor-level document/contact join)
+so the frontend can render the full compliance register without derivation.
