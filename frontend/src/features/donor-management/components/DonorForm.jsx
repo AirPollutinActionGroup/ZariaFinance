@@ -5,6 +5,7 @@ import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
 import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
 import { donorSchema, donorFormDefaults } from '../validation/donorSchema.js';
 import { FUND_CLASS, toOptions } from '../constants.js';
+import { donorService } from '../services/donorService.js';
 
 /**
  * Create/edit form for a donor. Purely presentational + validation:
@@ -21,7 +22,13 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
 
   const submit = handleSubmit(async (values) => {
     try {
-      await onSubmit(values);
+      if (typeof onSubmit === 'function') {
+        await onSubmit(values);
+      } else if (mode === 'edit') {
+        await donorService.updateDonor(defaultValues?.id, values);
+      } else {
+        await donorService.createDonor(values);
+      }
     } catch (error) {
       applyServerErrors(error, setError);
     }
