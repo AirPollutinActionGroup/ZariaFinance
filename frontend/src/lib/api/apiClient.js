@@ -12,8 +12,10 @@ import { toApiError } from './ApiError.js';
  *    carry credentials; no token header management is required today.
  *  - All errors are normalised to ApiError before they leave this layer.
  */
+const normalizedBaseUrl = (env.apiBaseUrl || '/api').replace(/\/$/, '');
+
 export const apiClient = axios.create({
-  baseURL: env.apiBaseUrl,
+  baseURL: normalizedBaseUrl,
   timeout: env.apiTimeoutMs,
   withCredentials: true,
   headers: {
@@ -22,6 +24,12 @@ export const apiClient = axios.create({
   },
 });
 
+function normalizeRequestUrl(url = '') {
+  if (url == null || url === '') return url;
+  if (/^https?:\/\//i.test(url)) return url;
+  return String(url).replace(/^\/+/, '');
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => Promise.reject(toApiError(error)),
@@ -29,9 +37,9 @@ apiClient.interceptors.response.use(
 
 /** Thin helpers so repositories stay declarative. */
 export const http = {
-  get: async (url, config) => (await apiClient.get(url, config)).data,
-  post: async (url, body, config) => (await apiClient.post(url, body, config)).data,
-  put: async (url, body, config) => (await apiClient.put(url, body, config)).data,
-  patch: async (url, body, config) => (await apiClient.patch(url, body, config)).data,
-  delete: async (url, config) => (await apiClient.delete(url, config)).data,
+  get: async (url, config) => (await apiClient.get(normalizeRequestUrl(url), config)).data,
+  post: async (url, body, config) => (await apiClient.post(normalizeRequestUrl(url), body, config)).data,
+  put: async (url, body, config) => (await apiClient.put(normalizeRequestUrl(url), body, config)).data,
+  patch: async (url, body, config) => (await apiClient.patch(normalizeRequestUrl(url), body, config)).data,
+  delete: async (url, config) => (await apiClient.delete(normalizeRequestUrl(url), config)).data,
 };

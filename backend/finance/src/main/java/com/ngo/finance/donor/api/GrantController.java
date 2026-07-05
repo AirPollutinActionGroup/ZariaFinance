@@ -31,8 +31,12 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Grants", description = "Grant Agreement Management APIs")
 public class GrantController {
 
+    private final GrantService grantService;
+
     @Autowired
-    private GrantService grantService;
+    public GrantController(GrantService grantService) {
+        this.grantService = grantService;
+    }
 
     @PostMapping
     @Operation(summary = "Create a new grant agreement")

@@ -14,7 +14,7 @@ import { FUND_CLASS, toOptions } from '../constants.js';
  * (docs/BACKEND_GAPS.md #4) — the field is validated as numeric and the
  * server remains the authority on whether the programme exists.
  */
-export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitError, onCancel }) {
+export function GrantForm({ donors, programmes, defaultValues, onSubmit, submitting, submitError, onCancel }) {
   const { control, handleSubmit, setError } = useForm({
     resolver: zodResolver(grantSchema),
     defaultValues: defaultValues || grantFormDefaults,
@@ -23,6 +23,11 @@ export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitE
   const donorOptions = donors.map((donor) => ({
     value: String(donor.id),
     label: `${donor.donorName} (${donor.donorCode})`,
+  }));
+
+  const programmeOptions = (programmes || []).map((programme) => ({
+    value: String(programme.id),
+    label: `${programme.programmeName} (${programme.programmeCode})`,
   }));
 
   const submit = handleSubmit(async (values) => {
@@ -69,12 +74,12 @@ export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitE
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <RhfTextField
+                <RhfSelect
                   name="programmeId"
                   control={control}
-                  label="Programme ID"
+                  label="Programme"
                   required
-                  helperText="Programme lookup endpoint pending (gap #4)"
+                  options={programmeOptions}
                 />
               </Grid>
             </Grid>
