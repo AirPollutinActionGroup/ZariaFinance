@@ -25,7 +25,8 @@ public class SecurityConfig {
                                                 "/api/userLogin",
                                                 "/api/roles",
                                                 "/api/v1/donors",
-                                                "/api/v1/donors/**"))
+                                                "/api/v1/donors/**",
+                                                "/api/v1/geography/**"))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(
                                                                 "/",
@@ -38,6 +39,7 @@ public class SecurityConfig {
                                                                 "/api/roles/**",
                                                                 "/api/v1/donors",
                                                                 "/api/v1/donors/**",
+                                                                "/api/v1/geography/**",
                                                                 "/swagger-ui.html",
                                                                 "/swagger-ui/**",
                                                                 "/api-docs/**",

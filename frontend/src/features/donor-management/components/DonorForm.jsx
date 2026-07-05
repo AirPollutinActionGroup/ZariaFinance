@@ -6,6 +6,8 @@ import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
 import { donorSchema, donorFormDefaults } from '../validation/donorSchema.js';
 import { FUND_CLASS, toOptions } from '../constants.js';
 import { donorService } from '../services/donorService.js';
+import { useState, useEffect } from 'react';
+import { geographyService } from '../services/geographyService.js';
 
 /**
  * Create/edit form for a donor. Purely presentational + validation:
@@ -15,10 +17,41 @@ import { donorService } from '../services/donorService.js';
  * UpdateDonorRequest does not carry it.
  */
 export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitError, onCancel }) {
-  const { control, handleSubmit, setError } = useForm({
+  const { control, handleSubmit, setError, watch, setValue } = useForm({
     resolver: zodResolver(donorSchema),
     defaultValues: defaultValues || donorFormDefaults,
   });
+
+  const stateId = watch('stateId');
+  const [prevStateId, setPrevStateId] = useState(defaultValues?.stateId || '');
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+
+  useEffect(() => {
+    geographyService.listStates()
+      .then(setStates)
+      .catch((err) => console.error('Error loading states', err));
+  }, []);
+
+  useEffect(() => {
+    if (stateId) {
+      geographyService.listCities(stateId)
+        .then((data) => {
+          setCities(data);
+          if (stateId !== prevStateId) {
+            setValue('cityId', '');
+            setPrevStateId(stateId);
+          }
+        })
+        .catch((err) => console.error('Error loading cities', err));
+    } else {
+      setCities([]);
+      if (stateId !== prevStateId) {
+        setValue('cityId', '');
+        setPrevStateId('');
+      }
+    }
+  }, [stateId, prevStateId, setValue]);
 
   const submit = handleSubmit(async (values) => {
     try {
@@ -117,19 +150,20 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                 <RhfTextField name="address" control={control} label="Street address" />
               </Grid>
               <Grid size={{ xs: 6, sm: 3 }}>
-                <RhfTextField
-                  name="cityId"
+                <RhfSelect
+                  name="stateId"
                   control={control}
-                  label="City ID"
-                  helperText="Master lookup pending (gap #4)"
+                  label="State"
+                  options={states}
                 />
               </Grid>
               <Grid size={{ xs: 6, sm: 3 }}>
-                <RhfTextField
-                  name="stateId"
+                <RhfSelect
+                  name="cityId"
                   control={control}
-                  label="State ID"
-                  helperText="Master lookup pending (gap #4)"
+                  label="City"
+                  options={cities}
+                  disabled={!stateId}
                 />
               </Grid>
               <Grid size={{ xs: 6, sm: 3 }}>
