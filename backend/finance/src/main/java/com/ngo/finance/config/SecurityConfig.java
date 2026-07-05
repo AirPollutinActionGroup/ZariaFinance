@@ -26,10 +26,14 @@ public class SecurityConfig {
                                                 "/api/roles",
                                                 "/api/v1/donors",
                                                 "/api/v1/donors/**",
+<<<<<<< HEAD
                                                 "/api/v1/grants",
                                                 "/api/v1/grants/**",
                                                 "/api/v1/programmes",
                                                 "/api/v1/programmes/**"))
+=======
+                                                "/api/v1/geography/**"))
+>>>>>>> 112be71612cfb33dc42aa3fbfadfbe1f39c1669b
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(
                                                                 "/",
@@ -42,10 +46,14 @@ public class SecurityConfig {
                                                                 "/api/roles/**",
                                                                 "/api/v1/donors",
                                                                 "/api/v1/donors/**",
+<<<<<<< HEAD
                                                                 "/api/v1/grants",
                                                                 "/api/v1/grants/**",
                                                                 "/api/v1/programmes",
                                                                 "/api/v1/programmes/**",
+=======
+                                                                "/api/v1/geography/**",
+>>>>>>> 112be71612cfb33dc42aa3fbfadfbe1f39c1669b
                                                                 "/swagger-ui.html",
                                                                 "/swagger-ui/**",
                                                                 "/api-docs/**",

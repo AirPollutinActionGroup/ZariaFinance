@@ -66,8 +66,8 @@ export function toDonorFormValues(donor) {
     registrationNumber: donor.registrationNumber || '',
     taxId: donor.taxId || '',
     address: donor.address || '',
-    cityId: '',
-    stateId: '',
+    cityId: donor.cityId || '',
+    stateId: donor.stateId || '',
     country: donor.country || '',
     postalCode: donor.postalCode || '',
   };

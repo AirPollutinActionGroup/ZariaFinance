@@ -28,6 +28,10 @@ public interface DonorMapper {
     @Mapping(target = "isActive", ignore = true)
     DonorMaster toEntity(CreateDonorRequest request);
 
+    @Mapping(source = "city.id", target = "cityId")
+    @Mapping(source = "city.cityName", target = "cityName")
+    @Mapping(source = "state.id", target = "stateId")
+    @Mapping(source = "state.stateName", target = "stateName")
     DonorResponse toResponse(DonorMaster entity);
 
     @Mapping(target = "id", ignore = true)

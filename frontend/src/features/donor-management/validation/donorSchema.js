@@ -17,8 +17,8 @@ export const donorSchema = z.object({
   registrationNumber: z.string().trim().optional().or(z.literal('')),
   taxId: z.string().trim().optional().or(z.literal('')),
   address: z.string().trim().optional().or(z.literal('')),
-  cityId: z.string().trim().regex(/^\d*$/, 'City ID must be a number').optional().or(z.literal('')),
-  stateId: z.string().trim().regex(/^\d*$/, 'State ID must be a number').optional().or(z.literal('')),
+  cityId: z.union([z.number(), z.string()]).optional().or(z.literal('')).nullable(),
+  stateId: z.union([z.number(), z.string()]).optional().or(z.literal('')).nullable(),
   country: z.string().trim().optional().or(z.literal('')),
   postalCode: z.string().trim().optional().or(z.literal('')),
 });
