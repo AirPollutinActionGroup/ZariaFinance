@@ -71,4 +71,25 @@ public class UserRegisterController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/pending-users")
+    public ResponseEntity<List<UserRegisterDto>> getPendingUsers() {
+        List<UserRegisterDto> pendingUsers = userRegisterService.getPendingUsers();
+        return ResponseEntity.ok(pendingUsers);
+    }
+
+    @PostMapping("/userApprove")
+    public ResponseEntity<Map<String, Object>> approveUser(
+            @Valid @RequestParam Long userId,
+            @Valid @RequestParam Long primaryId,
+            @Valid @RequestParam Integer approveReject) {
+
+        UserRegisterDto approvedUser = userRegisterService.approveRejectUser(userId, primaryId, approveReject);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "User approved successfully");
+        response.put("result", approvedUser);
+
+        return ResponseEntity.ok(response);
+    }
+
 }

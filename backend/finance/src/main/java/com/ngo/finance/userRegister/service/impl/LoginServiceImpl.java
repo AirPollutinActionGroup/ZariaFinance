@@ -1,5 +1,6 @@
 package com.ngo.finance.userRegister.service.impl;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import com.ngo.finance.userRegister.dto.UserRegisterDto;
@@ -27,6 +28,10 @@ public class LoginServiceImpl implements LoginService {
         UserRegister user = loginRepository.findByUsername(username);
         if (user == null || !password.equals(user.getPassword())) {
             throw new IllegalArgumentException("Invalid username or password");
+        }
+
+        if (!user.getIsApproved().equals(1)) { // 1 = approved, 2 = pending, 3 = rejected
+            throw new AccessDeniedException("User is not approved");
         }
 
         UserRegisterDto userRegisterDto = new UserRegisterDto();

@@ -94,4 +94,50 @@ public class UserRegisterServiceImpl implements UserRegisterService {
         return userRegisterRepo.existsByUsername(userName);
     }
 
+    @Override
+    public List<UserRegisterDto> getPendingUsers() {
+        List<UserRegister> pendingUsers = userRegisterRepo.findByIsApproved(2); // 2 = pending
+        return pendingUsers.stream()
+                .map(user -> new UserRegisterDto(
+                        user.getId(),
+                        user.getFirstName(),
+                        user.getLastName(),
+                        user.getEmailId(),
+                        user.getMobileNo(),
+                        user.getUsername(),
+                        user.getPassword(),
+                        user.getRole(),
+                        user.getStatus()))
+                .toList();
+    }
+
+    @Override
+    public UserRegisterDto approveRejectUser(Long userId, Long primaryId, Integer approveReject) {
+        // `primaryId` is the id of the user row to update. `userId` is the approver's
+        // id.
+        UserRegister user = userRegisterRepo.findById(primaryId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + primaryId));
+
+        if (approveReject == 1 || approveReject == 3) {
+            user.setApprovedBy(userId);
+            user.setIsApproved(approveReject); // 1 = approved, 3 = rejected
+        } else {
+            throw new IllegalArgumentException("Invalid action: " + approveReject);
+        }
+
+        userRegisterRepo.save(user);
+
+        UserRegisterDto userRegisterDto = new UserRegisterDto();
+        userRegisterDto.setId(user.getId());
+        userRegisterDto.setFirstName(user.getFirstName());
+        userRegisterDto.setLastName(user.getLastName());
+        userRegisterDto.setEmailId(user.getEmailId());
+        userRegisterDto.setMobileNo(user.getMobileNo());
+        userRegisterDto.setUsername(user.getUsername());
+        userRegisterDto.setRole(user.getRole());
+        userRegisterDto.setStatus(user.getStatus());
+
+        return userRegisterDto;
+    }
+
 }

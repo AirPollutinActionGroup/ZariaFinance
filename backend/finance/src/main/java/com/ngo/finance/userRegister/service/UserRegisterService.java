@@ -16,4 +16,7 @@ public interface UserRegisterService {
 
     Boolean userNameVerified(String userName);
 
+    List<UserRegisterDto> getPendingUsers();
+
+    UserRegisterDto approveRejectUser(Long userId, Long primaryId, Integer approveReject);
 }
