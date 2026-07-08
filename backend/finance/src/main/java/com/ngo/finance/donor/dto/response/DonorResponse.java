@@ -42,6 +42,14 @@ public class DonorResponse {
 
     private String address;
 
+    private Long cityId;
+
+    private String cityName;
+
+    private Long stateId;
+
+    private String stateName;
+
     private String country;
 
     private String postalCode;

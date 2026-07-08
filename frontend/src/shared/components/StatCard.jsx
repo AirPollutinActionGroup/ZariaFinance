@@ -1,41 +1,45 @@
 import { Card, CardContent, Typography } from '@mui/material';
-import { accent, shadows } from '../../theme/tokens.js';
 
 /**
- * KPI tile used on dashboards. `highlight` renders the premium graphite
- * variant (the card that was yellow in the review-draft design).
+ * KPI tile used on dashboards.
  */
-export function StatCard({ label, value, hint = null, highlight = false }) {
+export function StatCard({ label, value, hint = null, emphasis = false, highlight = false }) {
+  const isEmphasis = emphasis || highlight;
+
   return (
     <Card
       sx={
-        highlight
-          ? {
-              background: accent.gradient,
-              border: `1px solid ${accent.hairline}`,
-              boxShadow: shadows.graphiteGlow,
-            }
+        isEmphasis
+          ? { bgcolor: 'primary.main', color: 'primary.contrastText', borderColor: 'primary.main' }
           : undefined
       }
     >
-      <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+      <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
         <Typography
-          variant="body2"
-          sx={{ color: highlight ? accent.silver : 'text.secondary', mb: 1 }}
+          variant="overline"
+          component="p"
+          sx={{
+            color: isEmphasis ? 'rgba(252, 251, 248, 0.7)' : 'text.secondary',
+            mb: 0.5,
+          }}
         >
           {label}
         </Typography>
         <Typography
-          variant="h2"
+          variant="h3"
           component="p"
-          sx={{ color: highlight ? accent.platinum : 'text.primary' }}
+          sx={{ color: 'inherit' }}
         >
           {value}
         </Typography>
         {hint ? (
           <Typography
             variant="caption"
-            sx={{ color: highlight ? accent.silver : 'text.secondary' }}
+            sx={{
+              color: isEmphasis ? 'rgba(252, 251, 248, 0.7)' : 'text.secondary',
+              display: 'block',
+              mt: 0.5,
+            }}
           >
             {hint}
           </Typography>

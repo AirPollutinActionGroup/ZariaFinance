@@ -130,6 +130,8 @@ export function DonorDetailPage() {
               <Field label="Registration no." value={donor.registrationNumber} />
               <Field label="Tax ID" value={donor.taxId} />
               <Field label="Address" value={donor.address} />
+              <Field label="City" value={donor.cityName} />
+              <Field label="State" value={donor.stateName} />
               <Field label="Country" value={donor.country} />
               <Field label="Postal code" value={donor.postalCode} />
               <Field label="Created" value={formatDateTime(donor.createdAt)} />

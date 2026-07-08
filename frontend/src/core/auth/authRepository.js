@@ -1,34 +1,31 @@
-import { ApiError } from '../../lib/api/ApiError.js';
-
-/**
- * Authentication repository — the single adapter between the app and the
- * backend authentication capability.
- *
- * BACKEND REALITY (verified against backend/finance on this branch):
- *   - UserLoginController (/api/userLogin) exists but exposes ZERO endpoints.
- *   - SecurityConfig permits only /api/public/** and Swagger; there is no
- *     login mechanism (no httpBasic/formLogin/JWT filter) configured.
- *
- * Per the platform rules we do not invent endpoints. login() therefore fails
- * fast with a precise, typed error that the UI surfaces verbatim. When the
- * backend ships its login endpoint, THIS FILE is the only place that changes.
- * See docs/BACKEND_GAPS.md #1 and docs/adr/ADR-0004.
- */
+import { http } from '../../lib/api/apiClient.js';
+import { USER_STATUS } from '../permissions/permissions.js';
 
 export const AUTH_NOT_IMPLEMENTED_CODE = 'AUTH_ENDPOINT_MISSING';
 
 export const authRepository = {
   /**
-   * @returns {Promise<never>} Always rejects until the backend exposes a
-   * login endpoint under /api/userLogin.
+   * Performs the real login request to the backend.
+   * @param {Object} credentials - { username, password }
    */
-  async login() {
-    throw new ApiError({
-      message:
-        'Sign-in is not available yet: the backend /api/userLogin controller has no endpoints. ' +
-        'Use "Continue in review mode" until backend authentication ships.',
-      status: 501,
-      code: AUTH_NOT_IMPLEMENTED_CODE,
-    });
+  async login(credentials) {
+    const userDto = await http.post('/userLogin', credentials);
+    
+    // Map backend role to a valid frontend permission role.
+    let mappedRole = userDto.role;
+    if (mappedRole === 'USER' || !mappedRole) {
+      mappedRole = 'FINANCE_OFFICER';
+    }
+    
+    // Map status: status in backend is Boolean (true = approved/active, false = disabled)
+    const mappedStatus = userDto.status === false ? USER_STATUS.DISABLED : USER_STATUS.APPROVED;
+
+    return {
+      id: userDto.id,
+      name: `${userDto.firstName} ${userDto.lastName || ''}`.trim(),
+      role: mappedRole,
+      status: mappedStatus,
+      mode: 'session',
+    };
   },
 };

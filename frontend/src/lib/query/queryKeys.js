@@ -15,6 +15,9 @@ export const queryKeys = {
     list: (filters) => ['grants', 'list', filters || {}],
     detail: (id) => ['grants', 'detail', String(id)],
   },
+  programmes: {
+    all: () => ['programmes'],
+  },
   documents: {
     all: () => ['documents'],
     byGrant: (grantId, documentName) => [

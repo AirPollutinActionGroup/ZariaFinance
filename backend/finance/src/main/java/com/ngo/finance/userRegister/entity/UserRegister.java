@@ -47,7 +47,14 @@ public class UserRegister {
 
     @Column(nullable = false)
     private String role = "USER";
-
+    /*
+     * @Column(name = "approved_by", nullable = true)
+     * private Long approvedBy;
+     * 
+     * 
+     * @Column(name = "is_approved", nullable = false)
+     * private Integer isApproved = 0; // 0 = pending, 1 = approved, 2 = rejected
+     */
     @Column(nullable = false)
     private Boolean status = true;
 

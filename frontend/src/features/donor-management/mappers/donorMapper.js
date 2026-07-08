@@ -55,6 +55,7 @@ export function toUpdateDonorRequest(values) {
 /** DonorResponse → form default values for the edit screen. */
 export function toDonorFormValues(donor) {
   return {
+    id: donor.id || '',
     donorCode: donor.donorCode || '',
     donorName: donor.donorName || '',
     donorType: donor.donorType || '',
@@ -65,8 +66,8 @@ export function toDonorFormValues(donor) {
     registrationNumber: donor.registrationNumber || '',
     taxId: donor.taxId || '',
     address: donor.address || '',
-    cityId: '',
-    stateId: '',
+    cityId: donor.cityId || '',
+    stateId: donor.stateId || '',
     country: donor.country || '',
     postalCode: donor.postalCode || '',
   };
