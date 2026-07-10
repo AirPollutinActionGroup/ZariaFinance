@@ -34,3 +34,16 @@ export function recentGrants(grants, limit = 8) {
     .sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')))
     .slice(0, limit);
 }
+
+/**
+ * Governance rule: no ACTIVE grant should hang off an inactive donor. Returns
+ * the offending grants (real data) so the dashboard can surface an exception.
+ */
+export function grantsWithDonorStatusClash(donors, grants) {
+  const inactiveDonorIds = new Set(
+    donors.filter((donor) => donor.isActive === false).map((donor) => donor.id),
+  );
+  return grants.filter(
+    (grant) => grant.grantStatus === 'ACTIVE' && inactiveDonorIds.has(grant.donorId),
+  );
+}

@@ -1,0 +1,68 @@
+/*
+ * Zariya design tokens as CSS custom properties.
+ *
+ * These mirror the values in src/theme/palette.js. MUI components read the
+ * palette through the theme; a few bespoke surfaces (the nav rail, chips, KV
+ * tables) read these variables directly via sx `var(--…)` so plain-CSS and MUI
+ * stay in lockstep across light/dark. The active mode is selected by the
+ * `data-theme` attribute set on <html> by ColorModeProvider.
+ */
+
+:root,
+:root[data-theme='light'] {
+  --paper: #f6f4ee;
+  --card: #fdfcf9;
+  --card2: #f1eee6;
+  --ink: #23241f;
+  --muted: #75705f;
+  --line: #e4e0d4;
+  --line2: #efece2;
+  --thead: #f8f6f0;
+  --ok: #1e6b4a;
+  --ok-bg: #e7f1eb;
+  --err: #b3372b;
+  --err-bg: #f8e9e6;
+  --warn: #8f6a12;
+  --warn-bg: #f6efdc;
+  --info: #3a5b8c;
+  --info-bg: #e9eef6;
+  --dark: #23241f;
+  --dark-ink: #f3f1ea;
+  --shadow: 0 1px 2px rgba(35, 36, 31, 0.05), 0 2px 6px rgba(35, 36, 31, 0.05);
+}
+
+:root[data-theme='dark'] {
+  --paper: #191813;
+  --card: #201f18;
+  --card2: #26251d;
+  --ink: #edeae0;
+  --muted: #a39d8d;
+  --line: #37352a;
+  --line2: #2c2a21;
+  --thead: #23221a;
+  --ok: #5cb98c;
+  --ok-bg: rgba(46, 125, 87, 0.18);
+  --err: #e08a7c;
+  --err-bg: rgba(179, 55, 43, 0.18);
+  --warn: #d9b35e;
+  --warn-bg: rgba(143, 106, 18, 0.18);
+  --info: #8faad6;
+  --info-bg: rgba(58, 91, 140, 0.2);
+  --dark: #edeae0;
+  --dark-ink: #191813;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

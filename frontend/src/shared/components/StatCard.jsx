@@ -1,10 +1,33 @@
-import { Card, CardContent, Typography } from '@mui/material';
+import { Card, CardActionArea, CardContent, Typography } from '@mui/material';
 
 /**
- * KPI tile used on dashboards.
+ * KPI tile used on dashboards. Pass `onClick` to make the whole tile an
+ * accessible button (e.g. to open a quick-look pop-up).
  */
-export function StatCard({ label, value, hint = null, emphasis = false, highlight = false }) {
+export function StatCard({ label, value, hint = null, emphasis = false, highlight = false, onClick = null }) {
   const isEmphasis = emphasis || highlight;
+
+  const softColor = isEmphasis ? { color: 'primary.contrastText', opacity: 0.7 } : { color: 'text.secondary' };
+
+  const body = (
+    <CardContent sx={{ p: 2.25, '&:last-child': { pb: 2.25 } }}>
+      <Typography variant="overline" component="p" sx={{ ...softColor, mb: 0.75 }}>
+        {label}
+      </Typography>
+      <Typography
+        variant="h3"
+        component="p"
+        sx={{ color: 'inherit', fontSize: 26, fontVariantNumeric: 'tabular-nums' }}
+      >
+        {value}
+      </Typography>
+      {hint ? (
+        <Typography variant="caption" sx={{ ...softColor, display: 'block', mt: 0.5 }}>
+          {hint}
+        </Typography>
+      ) : null}
+    </CardContent>
+  );
 
   return (
     <Card
@@ -14,37 +37,13 @@ export function StatCard({ label, value, hint = null, emphasis = false, highligh
           : undefined
       }
     >
-      <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
-        <Typography
-          variant="overline"
-          component="p"
-          sx={{
-            color: isEmphasis ? 'rgba(252, 251, 248, 0.7)' : 'text.secondary',
-            mb: 0.5,
-          }}
-        >
-          {label}
-        </Typography>
-        <Typography
-          variant="h3"
-          component="p"
-          sx={{ color: 'inherit' }}
-        >
-          {value}
-        </Typography>
-        {hint ? (
-          <Typography
-            variant="caption"
-            sx={{
-              color: isEmphasis ? 'rgba(252, 251, 248, 0.7)' : 'text.secondary',
-              display: 'block',
-              mt: 0.5,
-            }}
-          >
-            {hint}
-          </Typography>
-        ) : null}
-      </CardContent>
+      {onClick ? (
+        <CardActionArea onClick={onClick} sx={{ height: '100%' }}>
+          {body}
+        </CardActionArea>
+      ) : (
+        body
+      )}
     </Card>
   );
 }
