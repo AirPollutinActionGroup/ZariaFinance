@@ -5,7 +5,7 @@ import { formatDate } from '../../../lib/format/date.js';
 import { useReceiveTranche, useTranchesByGrant } from '../hooks/useTranches.js';
 import { MODULE_ID } from '../constants.js';
 
-const STATUS_TONE = { Received: 'success', Expected: 'neutral', Pending: 'warning' };
+const STATUS_TONE = { Received: 'success', Expected: 'warning', Pending: 'warning' };
 
 function money(currency, amount) {
   if (amount == null) return '—';
@@ -13,7 +13,7 @@ function money(currency, amount) {
   return currency && currency !== 'INR' ? `${currency} ${n}` : `₹${n}`;
 }
 
-/** Tranche schedule + receipts for a grant, with a one-click "record receipt". */
+/** Tranche schedule + receipts for a grant, in the approved design's table layout. */
 export function TranchesPanel({ grantId, grantCurrency }) {
   const query = useTranchesByGrant(grantId);
   const receive = useReceiveTranche(grantId);
@@ -29,17 +29,28 @@ export function TranchesPanel({ grantId, grantCurrency }) {
   };
 
   const columns = [
-    { key: 'trancheNumber', header: '#', width: 50, render: (r) => `T${r.trancheNumber}` },
+    { key: 'trancheNumber', header: '#', width: 50 },
     { key: 'trancheAmount', header: 'Expected', align: 'right', render: (r) => money(grantCurrency, r.trancheAmount) },
-    { key: 'plannedReleaseDate', header: 'Planned', render: (r) => formatDate(r.plannedReleaseDate) },
+    { key: 'plannedReleaseDate', header: 'Expected date', render: (r) => formatDate(r.plannedReleaseDate) },
     { key: 'actualAmount', header: 'Actual', align: 'right', render: (r) => money(grantCurrency, r.actualAmount) },
-    { key: 'actualReleaseDate', header: 'Received on', render: (r) => formatDate(r.actualReleaseDate) },
+    { key: 'actualReleaseDate', header: 'Actual date', render: (r) => formatDate(r.actualReleaseDate) },
+    {
+      key: 'conditionsToRelease',
+      header: 'Release condition',
+      render: (r) => r.conditionsToRelease || '—',
+    },
+    {
+      key: 'priorUtilisationRequired',
+      header: 'Gate',
+      align: 'right',
+      render: (r) =>
+        r.priorUtilisationRequired != null ? `${Number(r.priorUtilisationRequired)}%` : '—',
+    },
     {
       key: 'trancheStatus',
       header: 'Status',
       render: (r) => <StatusChip label={r.trancheStatus} tone={STATUS_TONE[r.trancheStatus] || 'neutral'} />,
     },
-    { key: 'conditionMet', header: 'Gate', render: (r) => r.conditionMet || '—' },
     {
       key: 'action',
       header: '',
@@ -57,11 +68,9 @@ export function TranchesPanel({ grantId, grantCurrency }) {
 
   return (
     <Box>
-      <Typography variant="h4" component="h2" sx={{ mb: 1.5 }}>
-        Tranches
-      </Typography>
       <Stack spacing={1}>
         <DataTable
+          title="Tranche schedule"
           columns={columns}
           rows={query.data || []}
           getRowKey={(r) => r.id}
@@ -72,7 +81,7 @@ export function TranchesPanel({ grantId, grantCurrency }) {
           emptyDescription="Scheduled receipts appear here; recording an actual receipt feeds the funding chain."
         />
         <Typography variant="caption" color="text.secondary">
-          Amounts are in the grant currency. Recording a receipt updates the dashboard funding chain.
+          Amounts are in the grant currency. Recording a receipt updates the funding position above.
         </Typography>
       </Stack>
     </Box>

@@ -42,7 +42,6 @@ public interface GrantMapper {
     @Mapping(source = "fundProfile.fundClassCode", target = "fundClassCode")
     GrantDetailsResponse toDetailsResponse(GrantAgreement entity);
 
-    @Mapping(target = "id", ignore = true)
     @Mapping(source = "donor.donorName", target = "donorName")
     @Mapping(source = "programme.programmeName", target = "programmeName")
     @Mapping(source = "fundProfile.fundClassCode", target = "fundClassCode")
