@@ -2,10 +2,10 @@ import { Box, Card, Stack, Typography } from '@mui/material';
 import { formatInr } from '../../../lib/format/currency.js';
 
 /**
- * "The funding chain" — the preview's signature dashboard visual. Committed is
- * real (from grant totals); Received / Utilised / Available are illustrative
- * (see mockFunding.js). Every grant moves Committed → Received → Utilised, with
- * Available = Received − Utilised.
+ * "The funding chain" — the signature dashboard visual, driven by the
+ * server-side summary. Committed and Received are real (Received = sum of
+ * tranche receipts); Utilised is the seeded placeholder. Every grant moves
+ * Committed → Received → Utilised, with Available = Received − Utilised.
  */
 const STEPS = [
   ['committed', 'Committed', 'contracted / signed (receivable)'],

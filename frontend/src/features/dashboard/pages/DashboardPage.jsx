@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Grid, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Grid, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import {
   DataTable,
@@ -12,18 +12,8 @@ import {
 import { formatInr } from '../../../lib/format/currency.js';
 import { useDonors } from '../../donor-management/hooks/useDonors.js';
 import { useGrants } from '../../donor-management/hooks/useGrants.js';
-import {
-  DONOR_STATUS_TONE,
-  FUND_CLASS_TONE,
-  GRANT_STATUS_TONE,
-} from '../../donor-management/constants.js';
-import {
-  computeDashboardMetrics,
-  grantsWithDonorStatusClash,
-  recentGrants,
-} from '../services/dashboardService.js';
-import { computeFundingTotals, deriveGrantFunding } from '../services/mockFunding.js';
-import { MOCK_DONORS, MOCK_GRANTS, isEmpty } from '../services/mockWorkbook.js';
+import { DONOR_STATUS_TONE, GRANT_STATUS_TONE } from '../../donor-management/constants.js';
+import { grantsWithDonorStatusClash, recentGrants } from '../services/dashboardService.js';
 import { useDashboardSummary } from '../hooks/useDashboardSummary.js';
 import { FundingChainCard } from '../components/FundingChainCard.jsx';
 import { RecordsDialog } from '../components/RecordsDialog.jsx';
@@ -96,27 +86,6 @@ const recentColumns = [
     render: (row) => formatInr(row.reportingAmountInr ?? row.totalGrantAmount),
   },
   {
-    key: 'received',
-    header: 'Received',
-    align: 'right',
-    render: (row) => formatInr(deriveGrantFunding(row).receivedInr),
-  },
-  {
-    key: 'available',
-    header: 'Available',
-    align: 'right',
-    render: (row) => {
-      const f = deriveGrantFunding(row);
-      return f.blocked ? (
-        <Box component="span" sx={{ color: 'error.main', fontStyle: 'italic' }}>
-          blocked
-        </Box>
-      ) : (
-        formatInr(f.availableInr)
-      );
-    },
-  },
-  {
     key: 'grantStatus',
     header: 'Status',
     render: (row) => (
@@ -125,7 +94,7 @@ const recentColumns = [
   },
 ];
 
-/** Landing dashboard — aggregates live donor & grant data (funding chain illustrative). */
+/** Landing dashboard — server-computed summary (funding chain from real tranche receipts). */
 export function DashboardPage() {
   const summaryQuery = useDashboardSummary();
   const donorsQuery = useDonors('');
@@ -146,39 +115,15 @@ export function DashboardPage() {
     return <ErrorState error={grantsQuery.error} onRetry={grantsQuery.refetch} />;
   }
 
-  // KPIs and the funding chain come from the server-side summary (received is
-  // real, from tranche receipts). When the backend has no grants yet we fall
-  // back to the illustrative "Master Workbook" so a fresh database still renders
-  // the approved demo dashboard.
+  // KPIs and the funding chain come from the server-side summary — received is
+  // real (sum of tranche receipts), utilised is the seeded placeholder. The
+  // summary's field names match what the cards / funding-chain card expect.
   const summary = summaryQuery.data;
-  const usingMock = !summary || summary.grantCount === 0;
-
-  const donors = usingMock ? MOCK_DONORS : donorsQuery.data;
-  const grants = usingMock ? MOCK_GRANTS : grantsQuery.data;
-
-  const metrics = usingMock
-    ? computeDashboardMetrics(donors, grants)
-    : {
-        donorCount: summary.donorCount,
-        activeDonorCount: summary.activeDonorCount,
-        draftDonorCount: summary.draftDonorCount,
-        draftBlockingAmount: summary.draftBlockingAmount,
-        grantCount: summary.grantCount,
-        activeGrantCount: summary.activeGrantCount,
-        closedGrantCount: summary.closedGrantCount,
-        blockedGrantCount: summary.blockedGrantCount,
-      };
-  const funding = usingMock
-    ? computeFundingTotals(grants)
-    : {
-        committed: summary.committed,
-        received: summary.received,
-        utilised: summary.utilised,
-        available: summary.available,
-        open: summary.open,
-        blocked: summary.blocked,
-      };
-  const clashGrants = usingMock ? grantsWithDonorStatusClash(donors, grants) : [];
+  const donors = donorsQuery.data;
+  const grants = grantsQuery.data;
+  const metrics = summary;
+  const funding = summary;
+  const clashGrants = grantsWithDonorStatusClash(donors, grants);
 
   return (
     <>
@@ -188,13 +133,6 @@ export function DashboardPage() {
       />
 
       <Stack spacing={3}>
-        {usingMock ? (
-          <Alert severity="info" variant="outlined" icon={false} sx={{ py: 0.5 }}>
-            Design preview · data from the “Donor Module Master Workbook” (illustrative). Figures
-            switch to live records as soon as the backend has donors and grants.
-          </Alert>
-        ) : null}
-
         {clashGrants.length > 0 ? (
           <Alert
             severity="error"
@@ -270,21 +208,15 @@ export function DashboardPage() {
 
         <FundingChainCard totals={funding} />
 
-        <Box>
-          <DataTable
-            title="Recent grant agreements"
-            columns={recentColumns}
-            rows={recentGrants(grants, 6)}
-            getRowKey={(row) => row.id}
-            emptyTitle="No grant agreements yet"
-            emptyDescription="Once grants are recorded they will appear here."
-            onRowClick={(row) => navigate(`/grants/${row.id}`)}
-          />
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1 }}>
-            Committed and status are live; Received and Available are illustrative until the backend
-            tracks receipts and utilisation.
-          </Typography>
-        </Box>
+        <DataTable
+          title="Recent grant agreements"
+          columns={recentColumns}
+          rows={recentGrants(grants, 6)}
+          getRowKey={(row) => row.id}
+          emptyTitle="No grant agreements yet"
+          emptyDescription="Once grants are recorded they will appear here."
+          onRowClick={(row) => navigate(`/grants/${row.id}`)}
+        />
       </Stack>
 
       <RecordsDialog
