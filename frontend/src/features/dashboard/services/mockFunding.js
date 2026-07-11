@@ -56,7 +56,9 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 /** Illustrative per-grant funding position derived from real committed + status. */
 export function deriveGrantFunding(grant) {
-  const committedInr = Number(grant?.totalGrantAmount) || 0;
+  // Prefer the INR reporting amount (foreign grants store totalGrantAmount in
+  // their own currency); fall back to totalGrantAmount for INR / mock grants.
+  const committedInr = Number(grant?.reportingAmountInr ?? grant?.totalGrantAmount) || 0;
   const status = grant?.grantStatus;
   const blocked = isBlockedGrant(grant);
 

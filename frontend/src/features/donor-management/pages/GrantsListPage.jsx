@@ -7,7 +7,7 @@ import { DataTable, PageHeader, SearchField, StatusChip } from '../../../shared/
 import { formatDate } from '../../../lib/format/date.js';
 import { formatInr } from '../../../lib/format/currency.js';
 import { useGrants } from '../hooks/useGrants.js';
-import { FUND_CLASS_TONE, GRANT_STATUS_TONE, MODULE_ID } from '../constants.js';
+import { FUND_CLASS_CODE_TONE, GRANT_STATUS_TONE, MODULE_ID } from '../constants.js';
 
 const columns = [
   { key: 'grantCode', header: 'Code', width: 110 },
@@ -20,14 +20,26 @@ const columns = [
     key: 'totalGrantAmount',
     header: 'Committed',
     align: 'right',
-    render: (row) => formatInr(row.totalGrantAmount),
+    render: (row) =>
+      row.grantCurrency && row.grantCurrency !== 'INR'
+        ? `${row.grantCurrency} ${Number(row.totalGrantAmount).toLocaleString('en-IN')}`
+        : formatInr(row.totalGrantAmount),
   },
   {
-    key: 'fundClass',
-    header: 'Fund class',
-    render: (row) => (
-      <StatusChip label={row.fundClassLabel} tone={FUND_CLASS_TONE[row.fundClass] || 'neutral'} />
-    ),
+    key: 'reportingAmountInr',
+    header: 'Reporting (₹)',
+    align: 'right',
+    render: (row) => formatInr(row.reportingAmountInr ?? row.totalGrantAmount),
+  },
+  {
+    key: 'fundClassCode',
+    header: 'Class',
+    render: (row) =>
+      row.fundClassCode ? (
+        <StatusChip label={`Class ${row.fundClassCode}`} tone={FUND_CLASS_CODE_TONE[row.fundClassCode] || 'neutral'} />
+      ) : (
+        '—'
+      ),
   },
   {
     key: 'grantStatus',

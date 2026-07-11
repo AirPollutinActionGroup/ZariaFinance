@@ -1,19 +1,18 @@
 import { z } from 'zod';
-import { FUND_CLASS } from '../constants.js';
 
 /**
  * Mirrors CreateGrantRequest bean validation, including the class-level
  * @ValidGrantDates rule (endDate must not precede startDate).
+ *
+ * A grant inherits its donor, programme and class from its fund profile, so the
+ * form selects a donor (to scope the profile list) and a fund profile. Only
+ * fundProfileId is sent to the backend; donorId is UX-only.
  */
 export const grantSchema = z
   .object({
     grantCode: z.string().trim().min(1, 'Grant code is required'),
     donorId: z.string().trim().min(1, 'Donor is required'),
-    programmeId: z
-      .string()
-      .trim()
-      .min(1, 'Programme ID is required')
-      .regex(/^\d+$/, 'Programme ID must be a number'),
+    fundProfileId: z.string().trim().min(1, 'Fund profile is required'),
     agreementName: z.string().trim().min(1, 'Agreement name is required'),
     agreementDate: z.string().min(1, 'Agreement date is required'),
     startDate: z.string().min(1, 'Start date is required'),
@@ -23,7 +22,12 @@ export const grantSchema = z
       .trim()
       .min(1, 'Total grant amount is required')
       .refine((v) => Number(v) > 0, 'Total grant amount must be positive'),
-    fundClass: z.enum(Object.keys(FUND_CLASS), { message: 'Fund class is required' }),
+    grantCurrency: z.string().trim().min(1, 'Currency is required'),
+    fxLockedRate: z
+      .string()
+      .trim()
+      .min(1, 'FX rate is required')
+      .refine((v) => Number(v) > 0, 'FX rate must be positive'),
     description: z.string().trim().optional().or(z.literal('')),
     agreementDocumentPath: z.string().trim().optional().or(z.literal('')),
   })
@@ -35,13 +39,14 @@ export const grantSchema = z
 export const grantFormDefaults = {
   grantCode: '',
   donorId: '',
-  programmeId: '',
+  fundProfileId: '',
   agreementName: '',
   agreementDate: '',
   startDate: '',
   endDate: '',
   totalGrantAmount: '',
-  fundClass: '',
+  grantCurrency: 'INR',
+  fxLockedRate: '1',
   description: '',
   agreementDocumentPath: '',
 };

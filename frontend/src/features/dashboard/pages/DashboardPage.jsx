@@ -24,6 +24,7 @@ import {
 } from '../services/dashboardService.js';
 import { computeFundingTotals, deriveGrantFunding } from '../services/mockFunding.js';
 import { MOCK_DONORS, MOCK_GRANTS, isEmpty } from '../services/mockWorkbook.js';
+import { useDashboardSummary } from '../hooks/useDashboardSummary.js';
 import { FundingChainCard } from '../components/FundingChainCard.jsx';
 import { RecordsDialog } from '../components/RecordsDialog.jsx';
 
@@ -92,7 +93,7 @@ const recentColumns = [
     key: 'committed',
     header: 'Committed',
     align: 'right',
-    render: (row) => formatInr(row.totalGrantAmount),
+    render: (row) => formatInr(row.reportingAmountInr ?? row.totalGrantAmount),
   },
   {
     key: 'received',
@@ -126,13 +127,17 @@ const recentColumns = [
 
 /** Landing dashboard — aggregates live donor & grant data (funding chain illustrative). */
 export function DashboardPage() {
+  const summaryQuery = useDashboardSummary();
   const donorsQuery = useDonors('');
   const grantsQuery = useGrants({});
   const navigate = useNavigate();
   const [dialog, setDialog] = useState(null); // 'donors' | 'grants' | null
 
-  if (donorsQuery.isPending || grantsQuery.isPending) {
+  if (summaryQuery.isPending || donorsQuery.isPending || grantsQuery.isPending) {
     return <LoadingState label="Loading dashboard…" />;
+  }
+  if (summaryQuery.isError) {
+    return <ErrorState error={summaryQuery.error} onRetry={summaryQuery.refetch} />;
   }
   if (donorsQuery.isError) {
     return <ErrorState error={donorsQuery.error} onRetry={donorsQuery.refetch} />;
@@ -141,20 +146,39 @@ export function DashboardPage() {
     return <ErrorState error={grantsQuery.error} onRetry={grantsQuery.refetch} />;
   }
 
-  // Live donor/grant data when the backend has a real portfolio; otherwise fall
+  // KPIs and the funding chain come from the server-side summary (received is
+  // real, from tranche receipts). When the backend has no grants yet we fall
   // back to the illustrative "Master Workbook" so a fresh database still renders
-  // the approved demo dashboard. The fallback is all-or-nothing: donors and
-  // grants are linked by donorId, so mixing live donors with mock grants (or
-  // vice versa) would break referential integrity — if either side is empty we
-  // use the whole mock workbook. (Received/utilised/available are illustrative
-  // in both cases — see mockFunding.js.)
-  const usingMock = isEmpty(donorsQuery.data) || isEmpty(grantsQuery.data);
+  // the approved demo dashboard.
+  const summary = summaryQuery.data;
+  const usingMock = !summary || summary.grantCount === 0;
+
   const donors = usingMock ? MOCK_DONORS : donorsQuery.data;
   const grants = usingMock ? MOCK_GRANTS : grantsQuery.data;
 
-  const metrics = computeDashboardMetrics(donors, grants);
-  const funding = computeFundingTotals(grants);
-  const clashGrants = grantsWithDonorStatusClash(donors, grants);
+  const metrics = usingMock
+    ? computeDashboardMetrics(donors, grants)
+    : {
+        donorCount: summary.donorCount,
+        activeDonorCount: summary.activeDonorCount,
+        draftDonorCount: summary.draftDonorCount,
+        draftBlockingAmount: summary.draftBlockingAmount,
+        grantCount: summary.grantCount,
+        activeGrantCount: summary.activeGrantCount,
+        closedGrantCount: summary.closedGrantCount,
+        blockedGrantCount: summary.blockedGrantCount,
+      };
+  const funding = usingMock
+    ? computeFundingTotals(grants)
+    : {
+        committed: summary.committed,
+        received: summary.received,
+        utilised: summary.utilised,
+        available: summary.available,
+        open: summary.open,
+        blocked: summary.blocked,
+      };
+  const clashGrants = usingMock ? grantsWithDonorStatusClash(donors, grants) : [];
 
   return (
     <>

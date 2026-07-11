@@ -82,9 +82,8 @@ public class GrantController {
             @PathVariable Long id,
             @Valid @RequestBody CreateGrantRequest request) {
         log.info("PUT /api/v1/grants/{} - Updating grant", id);
-        // Implementation would involve updating existing grant
-        // For now, creating new grant with same ID would need merge logic
-        return ResponseEntity.noContent().build();
+        GrantDetailsResponse response = grantService.updateGrant(id, request);
+        return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/{id}/approve")

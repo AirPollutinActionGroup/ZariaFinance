@@ -64,6 +64,32 @@ public class DonorMaster extends AuditEntity {
     @Column(length = 100)
     private String taxId;
 
+    // FCRA / domicile / statutory-identity fields (workbook sheets 02 & 10, V13).
+    @Column(name = "donor_source", length = 50)
+    private String donorSource;
+
+    @Column(name = "fund_source_domicile", length = 20)
+    private String fundSourceDomicile; // 'Domestic' | 'Foreign'
+
+    @Column(name = "fcra_applicable")
+    @Builder.Default
+    private Boolean fcraApplicable = false;
+
+    @Column(name = "foreign_fund_source_type", length = 50)
+    private String foreignFundSourceType;
+
+    @Column(name = "foreign_country_name", length = 100)
+    private String foreignCountryName;
+
+    @Column(name = "pan_card_number", length = 20)
+    private String panCardNumber;
+
+    @Column(name = "bank_account_ref", length = 100)
+    private String bankAccountRef;
+
+    @Column(name = "mou_link", length = 500)
+    private String mouLink;
+
     @Column(columnDefinition = "TEXT")
     private String address;
 

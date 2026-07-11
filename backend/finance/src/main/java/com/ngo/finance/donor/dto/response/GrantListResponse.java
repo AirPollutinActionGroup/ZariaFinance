@@ -1,7 +1,6 @@
 package com.ngo.finance.donor.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.ngo.finance.donor.enums.FundClass;
 import com.ngo.finance.donor.enums.GrantStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -36,7 +35,11 @@ public class GrantListResponse {
 
     private BigDecimal totalGrantAmount;
 
-    private FundClass fundClass;
+    private String fundClassCode;
+
+    private String grantCurrency;
+
+    private BigDecimal reportingAmountInr;
 
     private GrantStatus grantStatus;
 }

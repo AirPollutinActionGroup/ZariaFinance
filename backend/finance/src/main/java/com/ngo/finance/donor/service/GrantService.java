@@ -12,6 +12,8 @@ public interface GrantService {
 
     GrantDetailsResponse createGrant(CreateGrantRequest request);
 
+    GrantDetailsResponse updateGrant(Long id, CreateGrantRequest request);
+
     GrantDetailsResponse getGrantById(Long id);
 
     GrantDetailsResponse getGrantByCode(String grantCode);

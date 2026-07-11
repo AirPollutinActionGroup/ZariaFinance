@@ -18,6 +18,11 @@ export const queryKeys = {
   programmes: {
     all: () => ['programmes'],
   },
+  fundProfiles: {
+    all: () => ['fundProfiles'],
+    byDonor: (donorId) => ['fundProfiles', 'byDonor', String(donorId)],
+    detail: (id) => ['fundProfiles', 'detail', String(id)],
+  },
   documents: {
     all: () => ['documents'],
     byGrant: (grantId, documentName) => [

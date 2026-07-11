@@ -13,8 +13,9 @@ import { formatDate, formatDateTime } from '../../../lib/format/date.js';
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { useGrant, useGrantLifecycle } from '../hooks/useGrants.js';
 import { grantService } from '../services/grantService.js';
-import { FUND_CLASS_TONE, GRANT_STATUS_TONE, MODULE_ID } from '../constants.js';
+import { FUND_CLASS_CODE_TONE, GRANT_STATUS_TONE, MODULE_ID } from '../constants.js';
 import { DocumentsPanel } from '../components/DocumentsPanel.jsx';
+import { TranchesPanel } from '../components/TranchesPanel.jsx';
 
 const ACTION_COPY = {
   approve: {
@@ -98,15 +99,30 @@ export function GrantDetailPage() {
                 label={grant.statusLabel}
                 tone={GRANT_STATUS_TONE[grant.grantStatus] || 'neutral'}
               />
-              <StatusChip
-                label={grant.fundClassLabel}
-                tone={FUND_CLASS_TONE[grant.fundClass] || 'neutral'}
-              />
+              {grant.fundClassCode ? (
+                <StatusChip
+                  label={`Class ${grant.fundClassCode}`}
+                  tone={FUND_CLASS_CODE_TONE[grant.fundClassCode] || 'neutral'}
+                />
+              ) : null}
             </Stack>
             <Grid container spacing={2.5}>
               <Field label="Donor" value={grant.donorName} />
-              <Field label="Programme" value={grant.programmeName} />
-              <Field label="Total grant amount" value={formatInrExact(grant.totalGrantAmount)} />
+              <Field label="Programme" value={grant.programmeName || 'Untied'} />
+              <Field
+                label="Committed"
+                value={
+                  grant.grantCurrency && grant.grantCurrency !== 'INR'
+                    ? `${grant.grantCurrency} ${Number(grant.totalGrantAmount).toLocaleString('en-IN')}`
+                    : formatInrExact(grant.totalGrantAmount)
+                }
+              />
+              {grant.grantCurrency && grant.grantCurrency !== 'INR' ? (
+                <>
+                  <Field label="FX locked rate" value={grant.fxLockedRate} />
+                  <Field label="Reporting amount (₹)" value={formatInrExact(grant.reportingAmountInr)} />
+                </>
+              ) : null}
               <Field label="Agreement date" value={formatDate(grant.agreementDate)} />
               <Field label="Start date" value={formatDate(grant.startDate)} />
               <Field label="End date" value={formatDate(grant.endDate)} />
@@ -126,6 +142,8 @@ export function GrantDetailPage() {
             ) : null}
           </CardContent>
         </Card>
+
+        <TranchesPanel grantId={Number(id)} grantCurrency={grant.grantCurrency} />
 
         <DocumentsPanel grantId={Number(id)} />
       </Stack>
