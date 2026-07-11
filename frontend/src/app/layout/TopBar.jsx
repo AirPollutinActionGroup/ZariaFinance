@@ -13,6 +13,13 @@ const ROLE_LABELS = {
   [ROLES.FUNDRAISING_LEAD]: 'Fund Raising Lead',
 };
 
+/** Short access descriptor shown under the role, mirroring the design preview. */
+const ROLE_ACCESS = {
+  [ROLES.CEO]: 'full access · approver',
+  [ROLES.FINANCE_OFFICER]: 'full edit · approver',
+  [ROLES.FUNDRAISING_LEAD]: 'edit · submit',
+};
+
 /** Top application bar: identity, review-mode flag, theme toggle and sign-out. */
 export function TopBar() {
   const { user, logout } = useAuth();
@@ -32,6 +39,7 @@ export function TopBar() {
   };
 
   const roleLabel = ROLE_LABELS[user?.role] || user?.role || 'Member';
+  const roleAccess = ROLE_ACCESS[user?.role] || null;
 
   return (
     <Box
@@ -89,12 +97,12 @@ export function TopBar() {
         >
           {initials}
         </Avatar>
-        <Box>
+        <Box sx={{ textAlign: 'right' }}>
           <Typography variant="body2" fontWeight={600} lineHeight={1.2}>
-            {user?.name}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
             {roleLabel}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" lineHeight={1.2}>
+            {roleAccess || user?.name}
           </Typography>
         </Box>
       </Stack>

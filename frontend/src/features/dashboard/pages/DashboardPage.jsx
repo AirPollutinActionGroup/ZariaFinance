@@ -23,8 +23,21 @@ import {
   recentGrants,
 } from '../services/dashboardService.js';
 import { computeFundingTotals, deriveGrantFunding } from '../services/mockFunding.js';
+import { MOCK_DONORS, MOCK_GRANTS, isEmpty } from '../services/mockWorkbook.js';
 import { FundingChainCard } from '../components/FundingChainCard.jsx';
 import { RecordsDialog } from '../components/RecordsDialog.jsx';
+
+/** Coloured inline fragment for the multi-part KPI hints. */
+function Stat({ children, tone }) {
+  return (
+    <Box
+      component="span"
+      sx={{ color: tone ? `${tone}.main` : 'inherit', fontWeight: tone ? 600 : 'inherit' }}
+    >
+      {children}
+    </Box>
+  );
+}
 
 const donorDialogColumns = [
   { key: 'donorCode', header: 'Code' },
@@ -59,7 +72,20 @@ const grantDialogColumns = [
 ];
 
 const recentColumns = [
-  { key: 'agreementName', header: 'Agreement' },
+  {
+    key: 'agreementName',
+    header: 'Agreement',
+    render: (row) => (
+      <Box>
+        <Box component="span" sx={{ display: 'block' }}>
+          {row.grantCode}
+        </Box>
+        <Box component="span" sx={{ display: 'block', color: 'text.secondary', fontSize: 12 }}>
+          {row.agreementName}
+        </Box>
+      </Box>
+    ),
+  },
   { key: 'donorName', header: 'Donor' },
   { key: 'programmeName', header: 'Programme', render: (row) => row.programmeName || '—' },
   {
@@ -115,8 +141,17 @@ export function DashboardPage() {
     return <ErrorState error={grantsQuery.error} onRetry={grantsQuery.refetch} />;
   }
 
-  const donors = donorsQuery.data;
-  const grants = grantsQuery.data;
+  // Live donor/grant data when the backend has a real portfolio; otherwise fall
+  // back to the illustrative "Master Workbook" so a fresh database still renders
+  // the approved demo dashboard. The fallback is all-or-nothing: donors and
+  // grants are linked by donorId, so mixing live donors with mock grants (or
+  // vice versa) would break referential integrity — if either side is empty we
+  // use the whole mock workbook. (Received/utilised/available are illustrative
+  // in both cases — see mockFunding.js.)
+  const usingMock = isEmpty(donorsQuery.data) || isEmpty(grantsQuery.data);
+  const donors = usingMock ? MOCK_DONORS : donorsQuery.data;
+  const grants = usingMock ? MOCK_GRANTS : grantsQuery.data;
+
   const metrics = computeDashboardMetrics(donors, grants);
   const funding = computeFundingTotals(grants);
   const clashGrants = grantsWithDonorStatusClash(donors, grants);
@@ -125,10 +160,17 @@ export function DashboardPage() {
     <>
       <PageHeader
         title="Dashboard"
-        subtitle="Live donor-module position — click a KPI for a quick look"
+        subtitle="Live donor-module position · click any number, status or chain stage for a quick look — nothing leaves this page"
       />
 
       <Stack spacing={3}>
+        {usingMock ? (
+          <Alert severity="info" variant="outlined" icon={false} sx={{ py: 0.5 }}>
+            Design preview · data from the “Donor Module Master Workbook” (illustrative). Figures
+            switch to live records as soon as the backend has donors and grants.
+          </Alert>
+        ) : null}
+
         {clashGrants.length > 0 ? (
           <Alert
             severity="error"
@@ -149,7 +191,18 @@ export function DashboardPage() {
             <StatCard
               label="Donors"
               value={metrics.donorCount}
-              hint={`${metrics.activeDonorCount} active`}
+              hint={
+                <>
+                  <Stat tone="success">{metrics.activeDonorCount} active</Stat>
+                  {metrics.draftDonorCount > 0 ? (
+                    <>
+                      {' · '}
+                      {metrics.draftDonorCount} draft{' '}
+                      <Stat tone="error">(blocking {formatInr(metrics.draftBlockingAmount)})</Stat>
+                    </>
+                  ) : null}
+                </>
+              }
               onClick={() => setDialog('donors')}
             />
           </Grid>
@@ -157,24 +210,35 @@ export function DashboardPage() {
             <StatCard
               label="Grant agreements"
               value={metrics.grantCount}
-              hint={`${metrics.openGrantCount} open`}
+              hint={
+                <>
+                  <Stat tone="success">{metrics.activeGrantCount} active</Stat>
+                  {metrics.closedGrantCount > 0 ? <> · {metrics.closedGrantCount} closed</> : null}
+                  {metrics.blockedGrantCount > 0 ? (
+                    <>
+                      {' · '}
+                      <Stat tone="error">{metrics.blockedGrantCount} blocked</Stat>
+                    </>
+                  ) : null}
+                </>
+              }
               onClick={() => setDialog('grants')}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <StatCard
-              label="Funding committed"
-              value={formatInr(metrics.totalCommitted)}
-              hint="contracted · receivable"
+              label="Funding committed (receivable)"
+              value={formatInr(funding.committed)}
+              hint="outstanding pipeline · not yet income"
               onClick={() => setDialog('grants')}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <StatCard
-              label="Available (illustrative)"
+              label="Available (unspent, realised)"
               value={formatInr(funding.available)}
-              hint="received − utilised"
-              highlight
+              hint="received − utilised · see utilisation"
+              accent
               onClick={() => setDialog('grants')}
             />
           </Grid>
@@ -186,7 +250,7 @@ export function DashboardPage() {
           <DataTable
             title="Recent grant agreements"
             columns={recentColumns}
-            rows={recentGrants(grants)}
+            rows={recentGrants(grants, 6)}
             getRowKey={(row) => row.id}
             emptyTitle="No grant agreements yet"
             emptyDescription="Once grants are recorded they will appear here."

@@ -60,6 +60,23 @@ export function deriveGrantFunding(grant) {
   const status = grant?.grantStatus;
   const blocked = isBlockedGrant(grant);
 
+  // Mock-workbook grants carry explicit realised figures (mockReceived /
+  // mockUtilised); honour them verbatim so the illustrative dashboard matches
+  // the approved design exactly. Real backend grants fall through to the
+  // status-ratio derivation below.
+  if (grant?.mockReceived != null) {
+    const receivedInr = blocked ? 0 : Math.round(Number(grant.mockReceived) || 0);
+    const utilisedInr = blocked ? 0 : Math.round(Number(grant.mockUtilised) || 0);
+    return {
+      committedInr,
+      receivedInr,
+      utilisedInr,
+      availableInr: receivedInr - utilisedInr,
+      outstandingInr: Math.max(0, committedInr - receivedInr),
+      blocked,
+    };
+  }
+
   const rr = blocked ? 0 : clamp01((RECEIVED_RATIO[status] ?? 0) + jitter(grant?.id));
   const receivedInr = Math.round(committedInr * rr);
   const utilisedInr = Math.round(receivedInr * (UTILISED_OF_RECEIVED[status] ?? 0));

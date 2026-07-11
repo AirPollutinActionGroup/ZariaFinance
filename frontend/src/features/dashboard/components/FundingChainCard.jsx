@@ -43,8 +43,8 @@ export function FundingChainCard({ totals }) {
           The funding chain
         </Typography>
         <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 0.25 }}>
-          A commitment is a promise, not income; only received money can be utilised. Received,
-          utilised and available are illustrative — not yet tracked by the backend.
+          Every grant moves through four states. A commitment is a promise, not income; only
+          received money can be utilised.
         </Typography>
       </Box>
 
@@ -57,8 +57,24 @@ export function FundingChainCard({ totals }) {
           py: 1,
         }}
       >
-        {STEPS.map(([key, label, desc]) => (
-          <Box key={key}>
+        {STEPS.map(([key, label, desc], i) => (
+          <Box key={key} sx={{ position: 'relative' }}>
+            {i > 0 ? (
+              <Box
+                aria-hidden
+                sx={{
+                  position: 'absolute',
+                  left: -8,
+                  top: 20,
+                  color: 'text.disabled',
+                  fontSize: 15,
+                  lineHeight: 1,
+                  display: { xs: 'none', sm: 'block' },
+                }}
+              >
+                →
+              </Box>
+            ) : null}
             <Typography variant="overline" sx={{ fontSize: 9.5, display: 'block' }}>
               {label}
             </Typography>
@@ -122,7 +138,7 @@ export function FundingChainCard({ totals }) {
         {totals.blocked > 0 ? (
           <span>
             <Dot color="error.main" />
-            Blocked{' '}
+            Blocked (draft donor){' '}
             <Box component="b" sx={{ color: 'text.primary' }}>
               {formatInr(totals.blocked)}
             </Box>{' '}
@@ -130,6 +146,27 @@ export function FundingChainCard({ totals }) {
           </span>
         ) : null}
       </Stack>
+
+      <Box
+        sx={{
+          mx: 2.5,
+          mb: 2,
+          px: 1.75,
+          py: 1.25,
+          borderRadius: 1.5,
+          bgcolor: 'var(--card2)',
+          borderLeft: '3px solid',
+          borderColor: 'divider',
+          fontSize: 11.5,
+          color: 'text.secondary',
+        }}
+      >
+        <Box component="b" sx={{ color: 'text.primary' }}>
+          Funding committed (receivable) — income side.
+        </Box>{' '}
+        Money donors have contractually promised. Sits in the trading / committed layer as pipeline;
+        becomes income only when received.
+      </Box>
     </Card>
   );
 }

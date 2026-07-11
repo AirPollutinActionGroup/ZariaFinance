@@ -52,7 +52,7 @@ export function SideNav() {
             textTransform: 'uppercase',
           }}
         >
-          Budgeting · Trading · Reporting
+          Donor Module · Master
         </Typography>
       </Box>
 
@@ -119,7 +119,7 @@ export function SideNav() {
       </Box>
 
       <Box sx={{ px: 2.25, py: 1.75, borderTop: '1px solid', borderColor: 'divider' }}>
-        <Typography sx={{ color: 'text.secondary', fontSize: 10.5 }}>v0.1 · Review Draft</Typography>
+        <Typography sx={{ color: 'text.secondary', fontSize: 10.5 }}>Donor Module v2 · Preview</Typography>
         <Typography sx={{ color: 'text.secondary', fontSize: 10.5 }}>A-PAG · TCF</Typography>
       </Box>
     </Drawer>
