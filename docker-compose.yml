@@ -49,6 +49,8 @@ services:
     volumes:
       - ./frontend:/app
       - ~/.npm:/.npm
+    environment:
+      - VITE_PROXY_TARGET=http://backend:5174
     ports:
       - "127.0.0.1:5173:5173" # Bind frontend only to localhost
     command: sh -c "npm install && npm run dev -- --host"

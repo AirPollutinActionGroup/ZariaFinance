@@ -22,6 +22,7 @@ import { formatDate, formatDateTime } from '../../../lib/format/date.js';
 import { formatInr } from '../../../lib/format/currency.js';
 import { useDonor, useDonorLifecycle } from '../hooks/useDonors.js';
 import { useGrants } from '../hooks/useGrants.js';
+import { FundProfilesPanel } from '../components/FundProfilesPanel.jsx';
 import {
   DONOR_STATUS_TONE,
   FUND_CLASS_TONE,
@@ -130,6 +131,8 @@ export function DonorDetailPage() {
               <Field label="Registration no." value={donor.registrationNumber} />
               <Field label="Tax ID" value={donor.taxId} />
               <Field label="Address" value={donor.address} />
+              <Field label="City" value={donor.cityName} />
+              <Field label="State" value={donor.stateName} />
               <Field label="Country" value={donor.country} />
               <Field label="Postal code" value={donor.postalCode} />
               <Field label="Created" value={formatDateTime(donor.createdAt)} />
@@ -137,6 +140,8 @@ export function DonorDetailPage() {
             </Grid>
           </CardContent>
         </Card>
+
+        <FundProfilesPanel donorId={donor.id} />
 
         <DataTable
           title="Grant agreements"

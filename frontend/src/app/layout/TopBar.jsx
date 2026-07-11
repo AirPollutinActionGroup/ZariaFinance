@@ -1,21 +1,11 @@
-import {
-  AppBar,
-  Avatar,
-  Box,
-  Chip,
-  IconButton,
-  Menu,
-  MenuItem,
-  Stack,
-  Toolbar,
-  Typography,
-} from '@mui/material';
-import LogoutIcon from '@mui/icons-material/Logout';
-import { useState } from 'react';
+import { Avatar, Box, Button, Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material';
+import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/auth/index.js';
 import { ROLES } from '../../core/permissions/index.js';
-import { accent, graphite, layout } from '../../theme/tokens.js';
+import { useColorMode } from '../../theme/ColorMode.jsx';
 
 const ROLE_LABELS = {
   [ROLES.CEO]: 'CEO',
@@ -23,11 +13,18 @@ const ROLE_LABELS = {
   [ROLES.FUNDRAISING_LEAD]: 'Fund Raising Lead',
 };
 
-/** Top application bar: identity, review-mode flag and sign-out. */
+/** Short access descriptor shown under the role, mirroring the design preview. */
+const ROLE_ACCESS = {
+  [ROLES.CEO]: 'full access · approver',
+  [ROLES.FINANCE_OFFICER]: 'full edit · approver',
+  [ROLES.FUNDRAISING_LEAD]: 'edit · submit',
+};
+
+/** Top application bar: identity, review-mode flag, theme toggle and sign-out. */
 export function TopBar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [anchorEl, setAnchorEl] = useState(null);
+  const { mode, toggleColorMode } = useColorMode();
 
   const initials = (user?.name || '?')
     .split(/\s+/)
@@ -37,59 +34,88 @@ export function TopBar() {
     .toUpperCase();
 
   const handleLogout = () => {
-    setAnchorEl(null);
     logout();
     navigate('/login', { replace: true });
   };
 
+  const roleLabel = ROLE_LABELS[user?.role] || user?.role || 'Member';
+  const roleAccess = ROLE_ACCESS[user?.role] || null;
+
   return (
-    <AppBar
-      position="sticky"
-      elevation={0}
+    <Box
+      component="header"
       sx={{
-        backgroundColor: 'background.paper',
-        color: 'text.primary',
-        borderBottom: `1px solid ${graphite[200]}`,
-        height: layout.topbarHeight,
-        justifyContent: 'center',
+        height: 56,
+        px: { xs: 2, md: 3.25 },
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 1.75,
+        borderBottom: 1,
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+        position: 'sticky',
+        top: 0,
+        zIndex: 6,
       }}
     >
-      <Toolbar sx={{ gap: 2 }}>
-        <Box sx={{ flex: 1 }} />
-        {user?.mode === 'review' ? (
-          <Chip
-            size="small"
-            label="Review mode — backend sign-in pending"
-            sx={{ background: accent.gradient, color: accent.platinum }}
-          />
-        ) : null}
-        <Stack
-          direction="row"
-          spacing={1.5}
-          alignItems="center"
-          sx={{ cursor: 'pointer' }}
-          onClick={(event) => setAnchorEl(event.currentTarget)}
-          role="button"
-          aria-label="Account menu"
+      {user?.mode === 'review' ? (
+        <Chip
+          size="small"
+          label="Review mode — backend sign-in pending"
+          variant="outlined"
+          color="warning"
+          sx={{ mr: 'auto', fontWeight: 600 }}
+        />
+      ) : null}
+
+      <Tooltip title={mode === 'dark' ? 'Switch to light' : 'Switch to dark'}>
+        <IconButton
+          onClick={toggleColorMode}
+          size="small"
+          aria-label="Toggle colour theme"
+          sx={{ color: 'text.secondary' }}
         >
-          <Avatar sx={{ width: 34, height: 34, background: accent.gradient, fontSize: 13 }}>
-            {initials}
-          </Avatar>
-          <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>
-              {user?.name}
-            </Typography>
-            <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>
-              {ROLE_LABELS[user?.role] || user?.role}
-            </Typography>
-          </Box>
-        </Stack>
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-          <MenuItem onClick={handleLogout}>
-            <LogoutIcon fontSize="small" sx={{ mr: 1 }} /> Sign out
-          </MenuItem>
-        </Menu>
-      </Toolbar>
-    </AppBar>
+          {mode === 'dark' ? (
+            <LightModeOutlinedIcon sx={{ fontSize: 18 }} />
+          ) : (
+            <DarkModeOutlinedIcon sx={{ fontSize: 18 }} />
+          )}
+        </IconButton>
+      </Tooltip>
+
+      <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+        <Avatar
+          sx={{
+            width: 30,
+            height: 30,
+            fontSize: 11,
+            fontWeight: 700,
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+          }}
+        >
+          {initials}
+        </Avatar>
+        <Box sx={{ textAlign: 'right' }}>
+          <Typography variant="body2" fontWeight={600} lineHeight={1.2}>
+            {roleLabel}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" lineHeight={1.2}>
+            {roleAccess || user?.name}
+          </Typography>
+        </Box>
+      </Stack>
+
+      <Button
+        variant="outlined"
+        size="small"
+        color="inherit"
+        startIcon={<LogoutRoundedIcon sx={{ fontSize: 16 }} />}
+        onClick={handleLogout}
+      >
+        Sign out
+      </Button>
+    </Box>
   );
 }

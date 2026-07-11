@@ -31,8 +31,12 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Grants", description = "Grant Agreement Management APIs")
 public class GrantController {
 
+    private final GrantService grantService;
+
     @Autowired
-    private GrantService grantService;
+    public GrantController(GrantService grantService) {
+        this.grantService = grantService;
+    }
 
     @PostMapping
     @Operation(summary = "Create a new grant agreement")
@@ -78,9 +82,8 @@ public class GrantController {
             @PathVariable Long id,
             @Valid @RequestBody CreateGrantRequest request) {
         log.info("PUT /api/v1/grants/{} - Updating grant", id);
-        // Implementation would involve updating existing grant
-        // For now, creating new grant with same ID would need merge logic
-        return ResponseEntity.noContent().build();
+        GrantDetailsResponse response = grantService.updateGrant(id, request);
+        return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/{id}/approve")

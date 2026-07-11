@@ -3,6 +3,7 @@ import {
   fromDonorResponse,
   toCreateDonorRequest,
   toUpdateDonorRequest,
+  toDonorFormValues,
 } from './donorMapper.js';
 
 describe('donorMapper', () => {
@@ -56,5 +57,18 @@ describe('donorMapper', () => {
     });
     expect(request).not.toHaveProperty('donorCode');
     expect(request.donorName).toBe('Gates Foundation');
+  });
+
+  it('maps donor details to form values including stateId and cityId', () => {
+    const donor = {
+      id: 1,
+      donorCode: 'DNR-001',
+      donorName: 'Tata Foundation',
+      cityId: 10,
+      stateId: 5,
+    };
+    const formValues = toDonorFormValues(donor);
+    expect(formValues.cityId).toBe(10);
+    expect(formValues.stateId).toBe(5);
   });
 });

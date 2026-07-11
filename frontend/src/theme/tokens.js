@@ -1,58 +1,52 @@
-/**
- * Zariya design tokens — "Premium Graphite" edition.
- *
- * The original review-draft design used a yellow accent. Per the approved
- * direction the accent is now a premium graphite black: deep charcoal
- * surfaces with a subtle metallic gradient and platinum foreground.
- * All colour decisions flow from this file; components never hardcode hex.
- */
+import { light } from './palette.js';
 
-export const graphite = {
-  25: '#FAFAFB',
-  50: '#F6F7F8',
-  100: '#EDEEF1',
-  200: '#DFE1E5',
-  300: '#C6C9CF',
-  400: '#9BA0A8',
-  500: '#6F747D',
-  600: '#4C5158',
-  700: '#33373D',
-  800: '#232629',
-  900: '#17191C',
-  950: '#0C0D0F',
-};
+// Layout metrics and a light-mode convenience view of the palette. Colour-aware
+// surfaces should prefer the MUI theme (useTheme()) or CSS custom properties so
+// they adapt to dark mode; these constants are for static light-mode chrome.
 
 export const accent = {
-  /** Primary interactive colour (buttons, active states). */
-  main: graphite[900],
-  dark: graphite[950],
-  light: graphite[700],
-  contrastText: '#FFFFFF',
-  /** Metallic sheen used on brand tile, active nav pill and highlight card. */
-  gradient: 'linear-gradient(135deg, #2B2F35 0%, #17191C 55%, #202329 100%)',
-  gradientHover: 'linear-gradient(135deg, #33383F 0%, #1C1F23 55%, #262A30 100%)',
-  /** Platinum foreground for text sitting on graphite surfaces. */
-  platinum: '#E8EAED',
-  silver: '#B7BCC3',
-  hairline: 'rgba(255, 255, 255, 0.08)',
+  main: light.ink,
+  dark: light.ink,
+  light: light.muted,
+  contrastText: light.darkInk,
+  gradient: light.card2,
+  gradientHover: light.line,
+  platinum: light.ink,
+  silver: light.muted,
+  hairline: light.line,
+};
+
+export const graphite = {
+  25: light.card,
+  50: light.paper,
+  100: light.line,
+  200: light.line,
+  300: light.line,
+  400: light.warn,
+  500: light.muted,
+  600: light.muted,
+  700: light.ink,
+  800: light.ink,
+  900: light.ink,
+  950: light.card,
 };
 
 export const semantic = {
-  success: { main: '#0F7B4D', light: '#E6F4EE', dark: '#0A5C3A' },
-  error: { main: '#C4362A', light: '#FBEAE8', dark: '#96291F' },
-  warning: { main: '#9A6700', light: '#FBF3E0', dark: '#7A5200' },
-  info: { main: '#2F5FA8', light: '#E9F0FA', dark: '#234A85' },
+  success: { main: light.ok, light: light.okBg, dark: light.ok },
+  error: { main: light.err, light: light.errBg, dark: light.err },
+  warning: { main: light.warn, light: light.warnBg, dark: light.warn },
+  info: { main: light.info, light: light.infoBg, dark: light.info },
 };
 
 export const layout = {
-  sidebarWidth: 256,
-  topbarHeight: 64,
-  contentMaxWidth: 1280,
-  radius: { sm: 8, md: 12, lg: 16, pill: 999 },
+  sidebarWidth: 224,
+  topbarHeight: 56,
+  contentMaxWidth: 1180,
+  radius: { sm: 8, md: 12, lg: 14, pill: 999 },
 };
 
 export const shadows = {
-  card: '0 1px 2px rgba(12, 13, 15, 0.05), 0 1px 3px rgba(12, 13, 15, 0.06)',
-  raised: '0 4px 16px rgba(12, 13, 15, 0.10)',
-  graphiteGlow: '0 8px 24px rgba(12, 13, 15, 0.35)',
+  card: light.shadow,
+  raised: light.shadow,
+  graphiteGlow: 'none',
 };

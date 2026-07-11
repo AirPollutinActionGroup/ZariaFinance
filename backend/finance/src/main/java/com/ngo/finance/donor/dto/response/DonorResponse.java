@@ -40,7 +40,31 @@ public class DonorResponse {
 
     private String taxId;
 
+    private String donorSource;
+
+    private String fundSourceDomicile;
+
+    private Boolean fcraApplicable;
+
+    private String foreignFundSourceType;
+
+    private String foreignCountryName;
+
+    private String panCardNumber;
+
+    private String bankAccountRef;
+
+    private String mouLink;
+
     private String address;
+
+    private Long cityId;
+
+    private String cityName;
+
+    private Long stateId;
+
+    private String stateName;
 
     private String country;
 

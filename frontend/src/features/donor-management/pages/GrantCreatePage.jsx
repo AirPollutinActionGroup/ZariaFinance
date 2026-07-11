@@ -10,7 +10,7 @@ export function GrantCreatePage() {
   const donorsQuery = useDonors('');
   const createGrant = useCreateGrant();
 
-  if (donorsQuery.isPending) return <LoadingState label="Loading donors…" />;
+  if (donorsQuery.isPending) return <LoadingState label="Loading grant options…" />;
   if (donorsQuery.isError) {
     return <ErrorState error={donorsQuery.error} onRetry={donorsQuery.refetch} />;
   }

@@ -3,6 +3,7 @@ import { Alert, Box, Button, Divider, Link, Stack, TextField, Typography } from 
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/auth/index.js';
 import { AuthLayout } from './AuthLayout.jsx';
+import { DevSampleUsers } from './DevSampleUsers.jsx';
 
 /**
  * Sign-in screen. Submits to the auth repository; while the backend login
@@ -88,6 +89,16 @@ export function LoginPage() {
           </Link>
         </Typography>
       </Stack>
+
+      {import.meta.env.DEV ? (
+        <DevSampleUsers
+          onPick={(user) => {
+            setUsername(user.username);
+            setPassword(user.password);
+            setError(null);
+          }}
+        />
+      ) : null}
     </AuthLayout>
   );
 }

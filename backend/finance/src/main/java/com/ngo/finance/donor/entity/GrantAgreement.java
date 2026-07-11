@@ -34,8 +34,8 @@ import lombok.ToString;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"donor", "programme", "rules", "reporting", "tranches", "documents", "budgetHeads", "kpis", "geographies"}, callSuper = true)
-@ToString(exclude = {"donor", "programme", "rules", "reporting", "tranches", "documents", "budgetHeads", "kpis", "geographies"})
+@EqualsAndHashCode(exclude = {"donor", "programme", "fundProfile", "rules", "reporting", "tranches", "documents", "budgetHeads", "kpis", "geographies"}, callSuper = true)
+@ToString(exclude = {"donor", "programme", "fundProfile", "rules", "reporting", "tranches", "documents", "budgetHeads", "kpis", "geographies"})
 public class GrantAgreement extends AuditEntity {
 
     @Column(nullable = false, unique = true, length = 20)
@@ -45,9 +45,15 @@ public class GrantAgreement extends AuditEntity {
     @JoinColumn(name = "donor_id", nullable = false, foreignKey = @ForeignKey(name = "fk_grant_donor"))
     private DonorMaster donor;
 
+    // Nullable: untied grants have no programme (inherited from the fund profile).
     @ManyToOne
-    @JoinColumn(name = "programme_id", nullable = false, foreignKey = @ForeignKey(name = "fk_grant_programme"))
+    @JoinColumn(name = "programme_id", foreignKey = @ForeignKey(name = "fk_grant_programme"))
     private Programme programme;
+
+    // The fund profile this grant inherits (donor, programme, class A/B/C, rules).
+    @ManyToOne
+    @JoinColumn(name = "fund_profile_id", foreignKey = @ForeignKey(name = "fk_grant_fund_profile"))
+    private DonorFundProfile fundProfile;
 
     @Column(nullable = false, length = 255)
     private String agreementName;
@@ -64,7 +70,25 @@ public class GrantAgreement extends AuditEntity {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal totalGrantAmount;
 
-    @Column(nullable = false, length = 50)
+    // Multi-currency + donor-locked FX (workbook sheet 07 / architecture §6.3).
+    @Column(name = "grant_currency", length = 10)
+    @Builder.Default
+    private String grantCurrency = "INR";
+
+    @Column(name = "fx_locked_rate", precision = 12, scale = 4)
+    @Builder.Default
+    private BigDecimal fxLockedRate = BigDecimal.ONE;
+
+    @Column(name = "reporting_amount_inr", precision = 18, scale = 2)
+    private BigDecimal reportingAmountInr;
+
+    // Seeded illustrative "utilised" placeholder until a real actuals module ships.
+    @Column(name = "utilised_amount", precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal utilisedAmount = BigDecimal.ZERO;
+
+    // Superseded by fundProfile.fundClassCode (A/B/C); retained nullable for now.
+    @Column(length = 50)
     @Enumerated(EnumType.STRING)
     private FundClass fundClass;
 

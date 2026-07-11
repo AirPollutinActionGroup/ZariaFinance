@@ -54,4 +54,16 @@ public class GrantTranche extends AuditEntity {
     @Column(length = 50, nullable = false)
     @Builder.Default
     private String trancheStatus = "PENDING";
+
+    // Workbook sheet 08 fields (added in V16): the amount actually received (may
+    // differ from the expected trancheAmount), the prior-utilisation gate %, and
+    // whether the release condition has been met.
+    @Column(name = "actual_amount", precision = 18, scale = 2)
+    private BigDecimal actualAmount;
+
+    @Column(name = "prior_utilisation_required", precision = 5, scale = 2)
+    private BigDecimal priorUtilisationRequired;
+
+    @Column(name = "condition_met", length = 20)
+    private String conditionMet;
 }

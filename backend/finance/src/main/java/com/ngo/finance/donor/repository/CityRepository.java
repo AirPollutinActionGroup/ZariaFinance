@@ -14,4 +14,9 @@ public interface CityRepository extends JpaRepository<CityMaster, Long> {
     List<CityMaster> findByDistrictId(Long districtId);
 
     List<CityMaster> findByDistrictIdAndIsActive(Long districtId, Boolean isActive);
+
+    List<CityMaster> findByIsActive(Boolean isActive);
+
+    @org.springframework.data.jpa.repository.Query("SELECT c FROM CityMaster c WHERE c.district.state.id = :stateId AND c.isActive = true")
+    List<CityMaster> findActiveCitiesByStateId(@org.springframework.data.repository.query.Param("stateId") Long stateId);
 }

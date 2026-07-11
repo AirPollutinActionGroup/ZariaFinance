@@ -16,6 +16,10 @@ public interface GrantMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "donor", ignore = true)
     @Mapping(target = "programme", ignore = true)
+    @Mapping(target = "fundProfile", ignore = true)
+    @Mapping(target = "fundClass", ignore = true)
+    @Mapping(target = "reportingAmountInr", ignore = true)
+    @Mapping(target = "utilisedAmount", ignore = true)
     @Mapping(target = "rules", ignore = true)
     @Mapping(target = "reporting", ignore = true)
     @Mapping(target = "tranches", ignore = true)
@@ -34,10 +38,12 @@ public interface GrantMapper {
     @Mapping(source = "donor.donorName", target = "donorName")
     @Mapping(source = "programme.id", target = "programmeId")
     @Mapping(source = "programme.programmeName", target = "programmeName")
+    @Mapping(source = "fundProfile.id", target = "fundProfileId")
+    @Mapping(source = "fundProfile.fundClassCode", target = "fundClassCode")
     GrantDetailsResponse toDetailsResponse(GrantAgreement entity);
 
-    @Mapping(target = "id", ignore = true)
     @Mapping(source = "donor.donorName", target = "donorName")
     @Mapping(source = "programme.programmeName", target = "programmeName")
+    @Mapping(source = "fundProfile.fundClassCode", target = "fundClassCode")
     GrantListResponse toListResponse(GrantAgreement entity);
 }

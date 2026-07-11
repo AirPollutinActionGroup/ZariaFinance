@@ -65,6 +65,13 @@ export const DONOR_STATUS_TONE = Object.freeze({
   TERMINATED: 'error',
 });
 
+/** Tone for the fund-profile restriction class A/B/C (distinct from FUND_CLASS_TONE). */
+export const FUND_CLASS_CODE_TONE = Object.freeze({
+  A: 'error',
+  B: 'warning',
+  C: 'success',
+});
+
 export const GRANT_STATUS_TONE = Object.freeze({
   DRAFT: 'neutral',
   PENDING_APPROVAL: 'warning',

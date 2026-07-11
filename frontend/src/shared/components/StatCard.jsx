@@ -1,46 +1,61 @@
-import { Card, CardContent, Typography } from '@mui/material';
-import { accent, shadows } from '../../theme/tokens.js';
+import { Card, CardActionArea, CardContent, Typography } from '@mui/material';
 
 /**
- * KPI tile used on dashboards. `highlight` renders the premium graphite
- * variant (the card that was yellow in the review-draft design).
+ * KPI tile used on dashboards. Pass `onClick` to make the whole tile an
+ * accessible button (e.g. to open a quick-look pop-up).
  */
-export function StatCard({ label, value, hint = null, highlight = false }) {
+export function StatCard({
+  label,
+  value,
+  hint = null,
+  emphasis = false,
+  highlight = false,
+  accent = false,
+  onClick = null,
+}) {
+  const isEmphasis = emphasis || highlight;
+
+  const softColor = isEmphasis ? { color: 'primary.contrastText', opacity: 0.7 } : { color: 'text.secondary' };
+
+  const body = (
+    <CardContent sx={{ p: 2.25, '&:last-child': { pb: 2.25 } }}>
+      <Typography variant="overline" component="p" sx={{ ...softColor, mb: 0.75 }}>
+        {label}
+      </Typography>
+      <Typography
+        variant="h3"
+        component="p"
+        sx={{
+          color: accent && !isEmphasis ? 'success.main' : 'inherit',
+          fontSize: 26,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {value}
+      </Typography>
+      {hint ? (
+        <Typography variant="caption" sx={{ ...softColor, display: 'block', mt: 0.5 }}>
+          {hint}
+        </Typography>
+      ) : null}
+    </CardContent>
+  );
+
   return (
     <Card
       sx={
-        highlight
-          ? {
-              background: accent.gradient,
-              border: `1px solid ${accent.hairline}`,
-              boxShadow: shadows.graphiteGlow,
-            }
+        isEmphasis
+          ? { bgcolor: 'primary.main', color: 'primary.contrastText', borderColor: 'primary.main' }
           : undefined
       }
     >
-      <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-        <Typography
-          variant="body2"
-          sx={{ color: highlight ? accent.silver : 'text.secondary', mb: 1 }}
-        >
-          {label}
-        </Typography>
-        <Typography
-          variant="h2"
-          component="p"
-          sx={{ color: highlight ? accent.platinum : 'text.primary' }}
-        >
-          {value}
-        </Typography>
-        {hint ? (
-          <Typography
-            variant="caption"
-            sx={{ color: highlight ? accent.silver : 'text.secondary' }}
-          >
-            {hint}
-          </Typography>
-        ) : null}
-      </CardContent>
+      {onClick ? (
+        <CardActionArea onClick={onClick} sx={{ height: '100%' }}>
+          {body}
+        </CardActionArea>
+      ) : (
+        body
+      )}
     </Card>
   );
 }
