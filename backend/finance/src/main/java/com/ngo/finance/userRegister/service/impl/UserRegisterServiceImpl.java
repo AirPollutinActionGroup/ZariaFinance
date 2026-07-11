@@ -24,17 +24,17 @@ public class UserRegisterServiceImpl implements UserRegisterService {
         userRegister.setMobileNo(addUserRegisterDto.getMobileNo());
         userRegister.setUsername(addUserRegisterDto.getUsername());
         userRegister.setPassword(addUserRegisterDto.getPassword());
-        userRegisterRepo.save(userRegister);
+        UserRegister saved = userRegisterRepo.save(userRegister);
 
         UserRegisterDto userRegisterDto = new UserRegisterDto();
-        userRegisterDto.setId(userRegister.getId());
-        userRegisterDto.setFirstName(userRegister.getFirstName());
-        userRegisterDto.setLastName(userRegister.getLastName());
-        userRegisterDto.setEmailId(userRegister.getEmailId());
-        userRegisterDto.setMobileNo(userRegister.getMobileNo());
-        userRegisterDto.setUsername(userRegister.getUsername());
-        userRegisterDto.setRole(userRegister.getRole());
-        userRegisterDto.setStatus(userRegister.getStatus());
+        userRegisterDto.setId(saved.getId());
+        userRegisterDto.setFirstName(saved.getFirstName());
+        userRegisterDto.setLastName(saved.getLastName());
+        userRegisterDto.setEmailId(saved.getEmailId());
+        userRegisterDto.setMobileNo(saved.getMobileNo());
+        userRegisterDto.setUsername(saved.getUsername());
+        userRegisterDto.setRole(saved.getRole());
+        userRegisterDto.setStatus(saved.getStatus());
 
         return userRegisterDto;
     }
