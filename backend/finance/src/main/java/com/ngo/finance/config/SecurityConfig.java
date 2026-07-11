@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -21,7 +22,8 @@ public class SecurityConfig {
         // APP_CORS_ALLOWED_ORIGINS env var — comma-separated, no trailing slash.
         @Value("${app.cors.allowed-origins:"
                         + "http://localhost:83,http://localhost:5173,http://localhost:5174,http://localhost:5175,"
-                        + "http://127.0.0.1:83,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175}")
+                        + "http://127.0.0.1:83,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175,"
+                        + "http://74.225.180.0:83}")
         private List<String> allowedOrigins;
 
         @Bean
@@ -48,6 +50,7 @@ public class SecurityConfig {
                                                 "/api/v1/programmes",
                                                 "/api/v1/programmes/**"))
                                 .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                                 .requestMatchers(
                                                                 "/",
                                                                 "/api/public/**",
