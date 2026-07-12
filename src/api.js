@@ -62,6 +62,7 @@ export const endpoints = {
   listGrants: (filters = {}) => http('GET', '/v1/grants', null, filters),
   getGrant: (id) => http('GET', `/v1/grants/${id}`),
   createGrant: (req) => http('POST', '/v1/grants', req),
+  updateGrant: (id, req) => http('PUT', `/v1/grants/${id}`, req),
   approveGrant: (id) => http('PATCH', `/v1/grants/${id}/approve`),
   activateGrant: (id) => http('PATCH', `/v1/grants/${id}/activate`),
   closeGrant: (id) => http('PATCH', `/v1/grants/${id}/close`),
@@ -193,5 +194,45 @@ export async function fetchAll() {
     programmes: programmeDtos.map(mapProgramme),
     tranches: [], /* no tranche endpoint on this branch */
     drules: [],   /* no disbursement-rule endpoint on this branch */
+  };
+}
+
+/* ── app-form → backend request DTOs (field names verbatim to the controllers) ── */
+
+/** Donor form → CreateDonorRequest / UpdateDonorRequest. */
+export function toDonorRequest(form) {
+  return {
+    donorCode: form.code,
+    donorName: form.name,
+    donorType: form.type || form.source || 'Other',
+    fundClass: form.domicile === 'Foreign' ? 'INTERNATIONAL' : 'DOMESTIC',
+    email: form.email,
+    phoneNumber: form.phone || null,
+    website: form.website || null,
+    registrationNumber: form.registrationNumber || null,
+    taxId: form.pan || null,
+    address: form.address || null,
+    cityId: null,
+    stateId: null,
+    country: form.country || null,
+    postalCode: form.postalCode || null,
+  };
+}
+
+/** Grant form → CreateGrantRequest. programmeId resolved from the selected programme. */
+export function toGrantRequest(form, donor) {
+  const amount = Number(form.amount) || 0;
+  return {
+    grantCode: form.ref,
+    donorId: donor ? Number(donor.id) : null,
+    programmeId: form.progId ? Number(form.progId) : null,
+    agreementName: form.name,
+    agreementDate: form.agreementDate || form.start,
+    startDate: form.start,
+    endDate: form.end,
+    totalGrantAmount: amount,
+    fundClass: donor && donor.domicile === 'Foreign' ? 'INTERNATIONAL' : 'DOMESTIC',
+    description: form.description || null,
+    agreementDocumentPath: form.docPath || null,
   };
 }

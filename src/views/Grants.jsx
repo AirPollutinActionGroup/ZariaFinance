@@ -17,7 +17,7 @@ export function GrantList() {
       <PageHead
         title="Grant Agreements"
         sub="Signed and pipeline agreements — committed, received, utilised and available per grant"
-        right={<button className="btn dark" onClick={() => toast('Grant creation requires an Active donor with a confirmed fund profile')}>+ New grant</button>}
+        right={<button className="btn dark" onClick={() => go('grant-new')}>+ New grant</button>}
       />
       <div className="search">🔍<input placeholder="Search grants…" value={grantQ} onChange={(e) => setGrantQ(e.target.value)} aria-label="Search grants" /></div>
       {grantStatusF && (
@@ -131,7 +131,8 @@ export function GrantDetail({ id }) {
   return (
     <>
       <button className="backlink" onClick={() => go('grants')}>← Grant Agreements</button>
-      <PageHead title={x.ref} sub={x.name} right={<GrantStatusChip status={x.status} />} />
+      <PageHead title={x.ref} sub={x.name}
+        right={<div style={{ display: 'flex', gap: 9, alignItems: 'center' }}><GrantStatusChip status={x.status} /><button className="btn ghost sm" onClick={() => go('grant-edit', x.id)}>Edit</button></div>} />
 
       {x.status === 'Blocked' && (
         <div className="exc err">
@@ -149,12 +150,15 @@ export function GrantDetail({ id }) {
           <KV rows={[
             ['Donor', `${d.name} (${d.code})`],
             ['Programme', fp.prog ? `${P(fp.prog).code} — ${P(fp.prog).name}` : 'Core / unrestricted'],
+            x.agreementDate ? ['Agreement (signing) date', dtf(x.agreementDate)] : null,
             ['Period', `${dtf(x.start)} → ${dtf(x.end)}`],
             ['Currency (CCY)', x.ccy],
             ['FX-locked rate (at signing)', x.fx !== 1 ? `₹${x.fx.toFixed(2)} per ${x.ccy}` : '— (INR grant)'],
             ['Total grant amount', money(x.amount, x.ccy)],
             ['Reporting amount (INR)', inr(f.committedInr)],
             ['Approved by', x.approved],
+            x.description ? ['Description', x.description] : null,
+            x.docPath ? ['Agreement document', x.docPath] : null,
             ['Status', <GrantStatusChip status={x.status} />],
           ]} />
         </div>

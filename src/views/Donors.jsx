@@ -1,6 +1,6 @@
 /** Donor Register (list) + Donor detail — consolidated master data, tabular. */
 import { useApp } from '../store.jsx';
-import { P, GEO, URULES } from '../data.js';
+import { P } from '../data.js';
 import { gFig, inr, money, dtf } from '../lib.js';
 import { Chip, DonorStatusChip, FundClassChip, GrantStatusChip, KV, PageHead, useModal, useToast } from '../ui.jsx';
 
@@ -17,7 +17,7 @@ export function DonorRegister() {
       <PageHead
         title="Donor Register"
         sub="One consolidated register — programme and fund-profile attributes folded in; click a donor for the full profile"
-        right={<button className="btn dark" onClick={() => toast('Opens donor intake — mandatory fields gate Activate')}>+ Register donor</button>}
+        right={<button className="btn dark" onClick={() => go('donor-new')}>+ Register donor</button>}
       />
       <div className="search">🔍<input placeholder="Search donors…" value={donorQ} onChange={(e) => setDonorQ(e.target.value)} aria-label="Search donors" /></div>
       {donorStatusF && (
@@ -72,8 +72,8 @@ export function DonorDetail({ id }) {
   const d = db.donors.find((x) => x.id === id);
   if (!d) return <p>Not found</p>;
   const fp = db.profiles.find((f) => f.donorId === d.id);
-  const geos = fp ? GEO.filter((g) => g.fp === fp.id) : [];
-  const ur = fp ? URULES.filter((r) => r.fp === fp.id) : [];
+  const geos = fp ? db.geos.filter((g) => g.fp === fp.id) : [];
+  const ur = fp ? db.urules.filter((r) => r.fp === fp.id) : [];
   const dr = fp ? db.drules.find((r) => r.fp === fp.id) : null;
   const gs = db.grants.filter((g) => g.donorId === d.id);
   const ob = d.onboarding;
@@ -109,7 +109,7 @@ export function DonorDetail({ id }) {
     <>
       <button className="backlink" onClick={() => go('donors')}>← Donor Register</button>
       <PageHead title={d.name} sub={d.code}
-        right={<div style={{ display: 'flex', gap: 9, alignItems: 'center' }}>{fp && <FundClassChip fp={fp} />}<DonorStatusChip donor={d} /></div>} />
+        right={<div style={{ display: 'flex', gap: 9, alignItems: 'center' }}>{fp && <FundClassChip fp={fp} />}<DonorStatusChip donor={d} /><button className="btn ghost sm" onClick={() => go('donor-edit', d.id)}>Edit</button></div>} />
 
       {ob && (
         <div className="card">
@@ -153,6 +153,8 @@ export function DonorDetail({ id }) {
             ['Contact person', d.contact],
             ['Email', d.email],
             ['Phone', d.phone],
+            d.website ? ['Website', d.website] : null,
+            d.registrationNumber ? ['Registration no.', d.registrationNumber] : null,
             ['Address', d.address],
             ['PAN', d.pan || <span className="em">missing</span>],
             ['Bank account ref', d.bankRef || <span className="em">missing</span>],

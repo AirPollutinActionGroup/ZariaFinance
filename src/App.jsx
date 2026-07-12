@@ -4,6 +4,7 @@ import { ModalProvider, ToastProvider } from './ui.jsx';
 import { Dashboard } from './views/Dashboard.jsx';
 import { DonorRegister, DonorDetail } from './views/Donors.jsx';
 import { GrantList, GrantDetail } from './views/Grants.jsx';
+import { DonorForm, GrantForm } from './views/Forms.jsx';
 import { useState } from 'react';
 
 const NAV = [
@@ -19,8 +20,8 @@ function Shell() {
   const [railOpen, setRailOpen] = useState(false);
   const current = (key) =>
     route.name === key ||
-    (key === 'donors' && route.name === 'donor') ||
-    (key === 'grants' && route.name === 'grant');
+    (key === 'donors' && ['donor', 'donor-new', 'donor-edit'].includes(route.name)) ||
+    (key === 'grants' && ['grant', 'grant-new', 'grant-edit'].includes(route.name));
 
   return (
     <div className="frame">
@@ -56,8 +57,12 @@ function Shell() {
           {route.name === 'dashboard' && <Dashboard />}
           {route.name === 'donors' && <DonorRegister />}
           {route.name === 'donor' && <DonorDetail id={route.id} />}
+          {route.name === 'donor-new' && <DonorForm />}
+          {route.name === 'donor-edit' && <DonorForm id={route.id} />}
           {route.name === 'grants' && <GrantList />}
           {route.name === 'grant' && <GrantDetail id={route.id} />}
+          {route.name === 'grant-new' && <GrantForm />}
+          {route.name === 'grant-edit' && <GrantForm id={route.id} />}
         </main>
       </div>
     </div>

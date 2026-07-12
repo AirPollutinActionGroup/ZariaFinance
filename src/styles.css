@@ -214,3 +214,36 @@
     .burger{display:inline-grid !important}
   }
   .burger{display:none; place-items:center; width:32px;height:32px; border-radius:8px; background:none; border:1px solid var(--line); color:var(--ink); cursor:pointer; margin-right:auto}
+
+/* ── forms (donor / grant create & edit) ── */
+.fgrid{display:grid; grid-template-columns:1fr 1fr; gap:14px 18px; padding:8px 20px 18px}
+@media (max-width:720px){.fgrid{grid-template-columns:1fr}}
+.fld{display:flex; flex-direction:column; gap:4px; min-width:0}
+.fld.full{grid-column:1/-1}
+.fld>label{font-size:10px; letter-spacing:.11em; text-transform:uppercase; font-weight:700; color:var(--muted)}
+.fld>label b{color:var(--err); font-weight:700}
+.fld input,.fld select,.fld textarea{
+  font:inherit; font-size:13px; color:var(--ink); background:var(--paper);
+  border:1px solid var(--line); border-radius:8px; padding:8px 10px; outline:none; width:100%;
+}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--ink)}
+.fld.invalid input,.fld.invalid select,.fld.invalid textarea{border-color:var(--err)}
+.fld .msg{font-size:11px; color:var(--err); min-height:13px}
+.fld .hint{font-size:11px; color:var(--muted)}
+.fld .row{display:flex; gap:8px; align-items:center}
+.fld .row input[type=checkbox]{width:auto}
+.formfoot{display:flex; gap:10px; justify-content:flex-end; align-items:center; padding:14px 20px 18px; border-top:1px solid var(--line2)}
+.formfoot .spacer{margin-right:auto; font-size:11.5px; color:var(--muted)}
+
+/* ── repeatable form rows (geographies, rules, tranches) ── */
+.rowlist{display:flex; flex-direction:column; gap:8px; padding:8px 20px 4px}
+.rowlist-row{display:flex; gap:8px; align-items:center}
+.rowlist-row .cell{display:flex; flex-direction:column; gap:3px; min-width:0}
+.rowlist-row .cell.grow{flex:1}
+.rowlist-row .cell>span{font-size:9.5px; letter-spacing:.09em; text-transform:uppercase; font-weight:700; color:var(--muted)}
+.rowlist-row input,.rowlist-row select{font:inherit; font-size:13px; color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:7px 9px; width:100%; min-width:70px}
+.rowlist .rowdel{flex:0 0 auto; align-self:flex-end; border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:8px; padding:7px 10px; cursor:pointer; font:inherit}
+.rowlist .rowdel:hover{border-color:var(--err); color:var(--err)}
+.rowlist .rowadd{align-self:flex-start; margin-top:2px}
+.rowlist .empty-row{font-size:12px; color:var(--muted); padding:2px 0}
+.fld .rowcheck{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink); white-space:nowrap}
