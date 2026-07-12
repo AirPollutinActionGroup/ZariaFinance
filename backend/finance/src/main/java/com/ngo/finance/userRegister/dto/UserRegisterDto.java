@@ -14,7 +14,6 @@ public class UserRegisterDto {
     private String emailId;
     private String mobileNo;
     private String username;
-    private String password;
     private String role;
     private Boolean status;
 }

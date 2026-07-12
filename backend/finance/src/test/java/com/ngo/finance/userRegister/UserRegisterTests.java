@@ -10,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +27,9 @@ class UserRegisterTests {
 
     @Mock
     private UserRegisterRepo userRegisterRepo;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private UserRegisterServiceImpl userRegisterService;
@@ -47,8 +51,9 @@ class UserRegisterTests {
         saved.setEmailId(request.getEmailId());
         saved.setMobileNo(request.getMobileNo());
         saved.setUsername(request.getUsername());
-        saved.setPassword(request.getPassword());
+        saved.setPassword("hashed-password");
 
+        when(passwordEncoder.encode("Password123")).thenReturn("hashed-password");
         when(userRegisterRepo.save(any(UserRegister.class))).thenReturn(saved);
 
         UserRegisterDto result = userRegisterService.registerUser(request);
