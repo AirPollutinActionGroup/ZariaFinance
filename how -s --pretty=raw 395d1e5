@@ -1,0 +1,35 @@
+[33m395d1e5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mbugsSolveLogin[m[33m, [m[1;31morigin/bugsSolveLogin[m[33m)[m password plaintext implement in User passwords end-to-end use database hashing. Invalid credentials manage wrong status, message swallowed solve than use give Exact message than problam
+[33m65bcc5b[m[33m ([m[1;33mtag: [m[1;33mreview[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m CORS fix
+[33mebd3512[m feat: Update CORS configuration to use allowed origins from environment variable
+[33m16bc165[m[33m ([m[1;31morigin/main_ci[m[33m)[m Merge pull request #9 from AirPollutinActionGroup/loginSignInUpdate
+[33mda86aae[m[33m ([m[1;31morigin/loginSignInUpdate[m[33m)[m feat: Refactor application structure by removing unused code and adding data initializer for message seeding
+[33m560bb32[m[33m ([m[1;31morigin/8-infra-add-code-coverage-infrastructure-for-frontend-and-backend[m[33m)[m feat: Refactor dashboard components to remove mock data and enhance funding chain logic
+[33m4fb57f7[m feat: Update security configuration and enhance grant detail page with funding position and disbursement rule components
+[33ma4db7ed[m feat: Add donor management features including fund profiles, tranches, and reports
+[33m96c1a6d[m feat: update UI components and add sample user functionality for development
+[33me964e4b[m feat: add governance rule for active grants with inactive donors
+[33m2a45d1b[m[33m ([m[1;31morigin/margeFrontendBackend[m[33m)[m user login approvel section add
+[33mf5c6501[m Merge branch 'fet--UserAndDonorModule' of https://github.com/AirPollutinActionGroup/ZariaFinance into loginSignInUpdate
+[33mdc3e1ed[m[33m ([m[1;31morigin/fet--UserAndDonorModule[m[33m)[m add grant and list show grant
+[33m91f6871[m add grant and list show grant
+[33m112be71[m feat: implement geography lookup API and integrate state/city selection into Donor management forms
+[33mb614ada[m donor regestion ,edit ,and listing
+[33m014a716[m feat: implement authentication login, update user DTOs with role/status fields, and configure CORS and proxy settings.
+[33mda5248f[m Refactor UI components for improved design consistency and accessibility
+[33m8d2dc6d[m Merge branch 'ashu' (resolving conflicts to modular layout)
+[33m1027c24[m Merge pull request #4 from AirPollutinActionGroup/claude/enterprise-saas-frontend-xd7xbw
+[33m5a32647[m docs(frontend): add interactive design preview and donor-register schema gap
+[33me8e7a69[m Merge pull request #3 from AirPollutinActionGroup/claude/enterprise-saas-frontend-xd7xbw
+[33mdcc285a[m feat(frontend): enterprise SaaS platform with graphite design system
+[33m7b6b4e1[m backend work UserRegister,UserLogin,Role worke compliteite
+[33m95dca7b[m backend work UserRegister,UserLogin,Role worke compliteite
+[33mb2023d5[m Merge branch 'Fet--donorModule' of https://github.com/Jaimin020/ZariaFinance
+[33m3f77cb1[m userRegister worke
+[33me1beb4f[m[33m ([m[1;31morigin/Fet--donorModule[m[33m)[m feat: add Database Admin link and display Adminer connection credentials in App UI
+[33m0a4aa34[m feat: add Adminer service to docker-compose for database management
+[33m188a31a[m test: implement unit and integration tests for donor service and controller with CI pipeline setup
+[33mb4a92e1[m feat: add Swagger API documentation link to UI when connected
+[33m981c68b[m docs: add Swagger UI and OpenAPI documentation links to README
+[33mbc24417[m feat: implement comprehensive donor and grant management modules with associated entities, repositories, and APIs
+[33m0331643[m docs: use direct docker compose command in readme
+[33mff9a7da[m Initial commit: Zariya Dockerized Development Environment with Flyway

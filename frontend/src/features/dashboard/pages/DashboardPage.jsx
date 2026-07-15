@@ -121,7 +121,6 @@ export function DashboardPage() {
   const summary = summaryQuery.data;
   const donors = donorsQuery.data;
   const grants = grantsQuery.data;
-  const metrics = summary;
   const funding = summary;
   const clashGrants = grantsWithDonorStatusClash(donors, grants);
 
@@ -149,6 +148,7 @@ export function DashboardPage() {
         ) : null}
 
         <Grid container spacing={2.5}>
+          {/*
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <StatCard
               label="Donors"
@@ -187,7 +187,8 @@ export function DashboardPage() {
               onClick={() => setDialog('grants')}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          */}
+          <Grid size={{ xs: 12, sm: 6, md: 6 }}>
             <StatCard
               label="Funding committed (receivable)"
               value={formatInr(funding.committed)}
@@ -195,7 +196,7 @@ export function DashboardPage() {
               onClick={() => setDialog('grants')}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 6 }}>
             <StatCard
               label="Available (unspent, realised)"
               value={formatInr(funding.available)}
