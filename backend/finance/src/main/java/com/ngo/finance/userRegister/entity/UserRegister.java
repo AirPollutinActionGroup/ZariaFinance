@@ -41,7 +41,6 @@ public class UserRegister {
     private String username;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 4, max = 20, message = "Password must be between 4 and 20 characters")
     @Column(nullable = false, length = 255)
     private String password;
 

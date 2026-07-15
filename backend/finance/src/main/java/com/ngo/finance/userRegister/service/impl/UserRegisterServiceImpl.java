@@ -1,5 +1,6 @@
 package com.ngo.finance.userRegister.service.impl;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.ngo.finance.userRegister.dto.AddUserRegisterDto;
 import com.ngo.finance.userRegister.dto.UserRegisterDto;
@@ -14,6 +15,7 @@ import com.ngo.finance.userRegister.entity.UserRegister;
 public class UserRegisterServiceImpl implements UserRegisterService {
 
     private final UserRegisterRepo userRegisterRepo;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public UserRegisterDto registerUser(AddUserRegisterDto addUserRegisterDto) {
@@ -23,7 +25,7 @@ public class UserRegisterServiceImpl implements UserRegisterService {
         userRegister.setEmailId(addUserRegisterDto.getEmailId());
         userRegister.setMobileNo(addUserRegisterDto.getMobileNo());
         userRegister.setUsername(addUserRegisterDto.getUsername());
-        userRegister.setPassword(addUserRegisterDto.getPassword());
+        userRegister.setPassword(passwordEncoder.encode(addUserRegisterDto.getPassword()));
         UserRegister saved = userRegisterRepo.save(userRegister);
 
         UserRegisterDto userRegisterDto = new UserRegisterDto();
@@ -61,7 +63,6 @@ public class UserRegisterServiceImpl implements UserRegisterService {
         userRegisterDto.setEmailId(userRegister.getEmailId());
         userRegisterDto.setMobileNo(userRegister.getMobileNo());
         userRegisterDto.setUsername(userRegister.getUsername());
-        userRegisterDto.setPassword(userRegister.getPassword());
         userRegisterDto.setRole(userRegister.getRole());
         userRegisterDto.setStatus(userRegister.getStatus());
 
@@ -80,7 +81,6 @@ public class UserRegisterServiceImpl implements UserRegisterService {
                         user.getEmailId(),
                         user.getMobileNo(),
                         user.getUsername(),
-                        user.getPassword(),
                         user.getRole(),
                         user.getStatus()))
                 .toList();
@@ -105,7 +105,6 @@ public class UserRegisterServiceImpl implements UserRegisterService {
                         user.getEmailId(),
                         user.getMobileNo(),
                         user.getUsername(),
-                        user.getPassword(),
                         user.getRole(),
                         user.getStatus()))
                 .toList();
