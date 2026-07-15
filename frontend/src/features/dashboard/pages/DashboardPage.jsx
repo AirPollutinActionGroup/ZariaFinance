@@ -121,7 +121,6 @@ export function DashboardPage() {
   const summary = summaryQuery.data;
   const donors = donorsQuery.data;
   const grants = grantsQuery.data;
-  const metrics = summary;
   const funding = summary;
   const clashGrants = grantsWithDonorStatusClash(donors, grants);
 
