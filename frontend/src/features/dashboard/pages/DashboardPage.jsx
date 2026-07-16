@@ -12,7 +12,7 @@ import {
 import { formatInr } from '../../../lib/format/currency.js';
 import { useDonors } from '../../donor-management/hooks/useDonors.js';
 import { useGrants } from '../../donor-management/hooks/useGrants.js';
-import { DONOR_STATUS_TONE, GRANT_STATUS_TONE } from '../../donor-management/constants.js';
+import { DONOR_ACTIVE_TONE, GRANT_STATUS_TONE } from '../../donor-management/constants.js';
 import { grantsWithDonorStatusClash, recentGrants } from '../services/dashboardService.js';
 import { useDashboardSummary } from '../hooks/useDashboardSummary.js';
 import { FundingChainCard } from '../components/FundingChainCard.jsx';
@@ -35,10 +35,13 @@ const donorDialogColumns = [
   { key: 'donorName', header: 'Donor' },
   { key: 'donorType', header: 'Type' },
   {
-    key: 'status',
+    key: 'isActive',
     header: 'Status',
     render: (row) => (
-      <StatusChip label={row.statusLabel || row.status} tone={DONOR_STATUS_TONE[row.status] || 'neutral'} />
+      <StatusChip
+        label={row.isActive ? 'Active' : 'Inactive'}
+        tone={DONOR_ACTIVE_TONE[row.isActive] || 'neutral'}
+      />
     ),
   },
 ];

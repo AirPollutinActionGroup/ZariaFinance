@@ -6,26 +6,25 @@ import { ACTIONS, PermissionGate } from '../../../core/permissions/index.js';
 import { DataTable, PageHeader, SearchField, StatusChip } from '../../../shared/components/index.js';
 import { useDonors } from '../hooks/useDonors.js';
 import {
-  DONOR_STATUS_TONE,
-  FUND_CLASS_TONE,
+  FUND_SOURCE_DOMICILE_TONE,
   MODULE_ID,
 } from '../constants.js';
 
 const columns = [
-  { key: 'donorCode', header: 'Code', width: 110 },
-  { key: 'donorName', header: 'Donor' },
-  { key: 'donorType', header: 'Type' },
+  { key: 'serialNo', header: 'S.No', width: 60, render: (row) => row.serialNo },
+  { key: 'donorCode', header: 'Donor Code', width: 110 },
+  { key: 'donorName', header: 'Donor Name' },
+  { key: 'donorType', header: 'Donor Type', render: (row) => row.donorTypeLabel },
   {
-    key: 'fundClass',
-    header: 'Fund class',
-    render: (row) => <StatusChip label={row.fundClassLabel} tone={FUND_CLASS_TONE[row.fundClass] || 'neutral'} />,
+    key: 'fundSourceDomicile',
+    header: 'Fund source',
+    render: (row) => (
+      <StatusChip
+        label={row.fundSourceDomicileLabel}
+        tone={FUND_SOURCE_DOMICILE_TONE[row.fundSourceDomicile] || 'neutral'}
+      />
+    ),
   },
-  {
-    key: 'status',
-    header: 'Status',
-    render: (row) => <StatusChip label={row.statusLabel} tone={DONOR_STATUS_TONE[row.status] || 'neutral'} />,
-  },
-  { key: 'email', header: 'Email' },
 ];
 
 /** Donor register — /donors. */
@@ -33,6 +32,9 @@ export function DonorsListPage() {
   const [search, setSearch] = useState('');
   const donorsQuery = useDonors(search);
   const navigate = useNavigate();
+
+  const rows = (donorsQuery.data || [])
+    .map((donor, index) => ({ ...donor, serialNo: index + 1 }));
 
   return (
     <>
@@ -56,7 +58,7 @@ export function DonorsListPage() {
       </Box>
       <DataTable
         columns={columns}
-        rows={donorsQuery.data || []}
+        rows={rows}
         getRowKey={(row) => row.id}
         isLoading={donorsQuery.isPending}
         error={donorsQuery.isError ? donorsQuery.error : null}

@@ -1,8 +1,10 @@
 package com.ngo.finance.userRegister.service.impl;
 
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
+import com.ngo.finance.common.exception.AccountPendingApprovalException;
+import com.ngo.finance.common.exception.AccountRejectedException;
+import com.ngo.finance.common.exception.InvalidCredentialsException;
 import com.ngo.finance.userRegister.dto.UserRegisterDto;
 import com.ngo.finance.userRegister.entity.UserRegister;
 import com.ngo.finance.userRegister.repository.LoginRepository;
@@ -18,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 public class LoginServiceImpl implements LoginService {
 
     private final LoginRepository loginRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public UserRegisterDto login(String username, String password) {
@@ -26,12 +29,15 @@ public class LoginServiceImpl implements LoginService {
         }
 
         UserRegister user = loginRepository.findByUsername(username);
-        if (user == null || !password.equals(user.getPassword())) {
-            throw new IllegalArgumentException("Invalid username or password");
+        if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
+            throw new InvalidCredentialsException("Invalid username or password");
         }
 
         if (!user.getIsApproved().equals(1)) { // 1 = approved, 2 = pending, 3 = rejected
-            throw new AccessDeniedException("User is not approved");
+            if (user.getIsApproved().equals(2)) {
+                throw new AccountPendingApprovalException("User account is pending for approval");
+            }
+            throw new AccountRejectedException("User account has been rejected");
         }
 
         UserRegisterDto userRegisterDto = new UserRegisterDto();

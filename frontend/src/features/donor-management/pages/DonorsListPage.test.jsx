@@ -31,17 +31,17 @@ describe('DonorsListPage', () => {
     window.sessionStorage.clear();
   });
 
-  it('renders donors from the service with status and fund class chips', async () => {
+  it('renders donors from the service with status and fund source chips', async () => {
     donorService.listDonors.mockResolvedValue([
       {
         id: 1,
         donorCode: 'DNR-001',
         donorName: 'Tata Foundation',
-        donorType: 'Foundation',
-        fundClass: 'DOMESTIC',
-        fundClassLabel: 'Domestic',
-        status: 'ACTIVE',
-        statusLabel: 'Active',
+        donorType: 'FOUNDATION',
+        donorTypeLabel: 'Foundation',
+        fundSourceDomicile: 'DOMESTIC',
+        fundSourceDomicileLabel: 'Domestic',
+        isActive: true,
         email: 'grants@tata.org',
       },
     ]);

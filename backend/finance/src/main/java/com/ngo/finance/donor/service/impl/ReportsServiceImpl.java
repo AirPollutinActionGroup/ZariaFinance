@@ -5,6 +5,7 @@ import com.ngo.finance.donor.dto.response.UtilisationComplianceEntry;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.GrantAgreement;
 import com.ngo.finance.donor.entity.GrantTranche;
+import com.ngo.finance.donor.enums.FundSourceDomicile;
 import com.ngo.finance.donor.repository.GrantRepository;
 import com.ngo.finance.donor.service.ReportsService;
 import java.math.BigDecimal;
@@ -34,15 +35,14 @@ public class ReportsServiceImpl implements ReportsService {
             var donor = grant.getDonor();
             if (donor == null) continue;
             boolean foreign = Boolean.TRUE.equals(donor.getFcraApplicable())
-                    || "Foreign".equalsIgnoreCase(donor.getFundSourceDomicile());
+                    || donor.getFundSourceDomicile() == FundSourceDomicile.FOREIGN;
             if (!foreign) continue;
 
             entries.add(FcraRegisterEntry.builder()
                     .donorCode(donor.getDonorCode())
                     .donorName(donor.getDonorName())
                     .foreignFundSourceType(donor.getForeignFundSourceType())
-                    .foreignCountryName(donor.getForeignCountryName())
-                    .bankAccountRef(donor.getBankAccountRef())
+                    .foreignCountryName(donor.getForeignCountryId())
                     .grantCode(grant.getGrantCode())
                     .grantCurrency(grant.getGrantCurrency())
                     .totalGrantAmount(grant.getTotalGrantAmount())

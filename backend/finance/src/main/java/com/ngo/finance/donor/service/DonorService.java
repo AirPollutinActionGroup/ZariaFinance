@@ -24,7 +24,7 @@ public interface DonorService {
 
     void activateDonor(Long id);
 
-    void deactivateDonor(Long id);
+    void deActivateDonor(Long id);
 
-    void advanceOnboardingStep(Long donorId);
+    // void advanceOnboardingStep(Long donorId);
 }

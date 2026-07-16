@@ -1,8 +1,6 @@
 package com.ngo.finance.donor.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.ngo.finance.donor.enums.DonorStatus;
-import com.ngo.finance.donor.enums.FundClass;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -28,7 +26,17 @@ public class DonorResponse {
 
     private String donorType;
 
-    private FundClass fundClass;
+    private String fundSourceDomicile;
+
+    private Boolean fcraApplicable;
+
+    private String foreignFundSourceType;
+
+    private String foreignCountryId;
+
+    private String panCardNumber;
+
+    private String foreignTaxIdentifier;
 
     private String email;
 
@@ -36,27 +44,15 @@ public class DonorResponse {
 
     private String website;
 
-    private String registrationNumber;
+    private String spocNameOfThePerson;
 
-    private String taxId;
+    private String spocPhoneNumber;
 
-    private String donorSource;
-
-    private String fundSourceDomicile;
-
-    private Boolean fcraApplicable;
-
-    private String foreignFundSourceType;
-
-    private String foreignCountryName;
-
-    private String panCardNumber;
-
-    private String bankAccountRef;
-
-    private String mouLink;
+    private String spocEmail;
 
     private String address;
+
+    private String address2;
 
     private Long cityId;
 
@@ -66,13 +62,13 @@ public class DonorResponse {
 
     private String stateName;
 
-    private String country;
+    private Long countryId;
+
+    private String countryName;
 
     private String postalCode;
 
-    private DonorStatus status;
-
-    private Integer onboardingStep;
+    private String registrationNumber;
 
     private Boolean isActive;
 

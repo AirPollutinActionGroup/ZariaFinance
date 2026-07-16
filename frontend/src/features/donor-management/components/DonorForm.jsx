@@ -1,10 +1,10 @@
-import { Alert, Button, Card, CardContent, Grid, Stack, Typography } from '@mui/material';
+import { Alert, Button, Card, CardContent, Grid, Stack, TextField, Typography } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
 import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
 import { donorSchema, donorFormDefaults } from '../validation/donorSchema.js';
-import { FUND_CLASS, toOptions } from '../constants.js';
+import { DONOR_TYPE, FUND_SOURCE_DOMICILE, toOptions } from '../constants.js';
 import { donorService } from '../services/donorService.js';
 import { useState, useEffect } from 'react';
 import { geographyService } from '../services/geographyService.js';
@@ -22,16 +22,32 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
     defaultValues: defaultValues || donorFormDefaults,
   });
 
+  const fundSourceDomicile = watch('fundSourceDomicile');
+  const countryId = watch('countryId');
   const stateId = watch('stateId');
+  const [prevCountryId, setPrevCountryId] = useState(defaultValues?.countryId || '');
   const [prevStateId, setPrevStateId] = useState(defaultValues?.stateId || '');
+  const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
 
   useEffect(() => {
-    geographyService.listStates()
-      .then(setStates)
-      .catch((err) => console.error('Error loading states', err));
+    geographyService.listCountries()
+      .then(setCountries)
+      .catch((err) => console.error('Error loading countries', err));
   }, []);
+
+  useEffect(() => {
+    geographyService.listStates(countryId || undefined)
+      .then((data) => {
+        setStates(data);
+        if (countryId !== prevCountryId) {
+          setValue('stateId', '');
+          setPrevCountryId(countryId);
+        }
+      })
+      .catch((err) => console.error('Error loading states', err));
+  }, [countryId, prevCountryId, setValue]);
 
   useEffect(() => {
     if (stateId) {
@@ -52,6 +68,16 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
       }
     }
   }, [stateId, prevStateId, setValue]);
+
+  const isForeign = fundSourceDomicile === 'FOREIGN';
+  const foreignCountryOptions = countries.map((c) => ({ value: c.label, label: c.label }));
+
+  useEffect(() => {
+    setValue('fcraApplicable', isForeign);
+    if (!isForeign) {
+      setValue('registrationNumber', '');
+    }
+  }, [isForeign, setValue]);
 
   const submit = handleSubmit(async (values) => {
     try {
@@ -93,30 +119,78 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
               <Grid size={{ xs: 12, sm: 8 }}>
                 <RhfTextField name="donorName" control={control} label="Donor name" required />
               </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <RhfTextField
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <RhfSelect
                   name="donorType"
                   control={control}
                   label="Donor type"
                   required
-                  helperText="e.g. Foundation, CSR, Individual"
+                  options={toOptions(DONOR_TYPE)}
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <RhfSelect
-                  name="fundClass"
+                  name="fundSourceDomicile"
                   control={control}
-                  label="Fund class"
+                  label="Fund source domicile"
                   required
-                  options={toOptions(FUND_CLASS)}
+                  options={toOptions(FUND_SOURCE_DOMICILE)}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  label="FCRA applicable"
+                  value={isForeign ? 'Yes' : 'No'}
+                  disabled
+                  fullWidth
+                  helperText="Derived from fund source domicile"
                 />
               </Grid>
             </Grid>
           </section>
 
+          {isForeign ? (
+            <section>
+              <Typography variant="h4" component="h2" sx={{ mb: 2 }}>
+                Foreign fund source
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <RhfTextField
+                    name="foreignFundSourceType"
+                    control={control}
+                    label="Foreign fund source type"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <RhfSelect
+                    name="foreignCountryId"
+                    control={control}
+                    label="Foreign country"
+                    options={foreignCountryOptions}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <RhfTextField
+                    name="foreignTaxIdentifier"
+                    control={control}
+                    label="Foreign tax identifier"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <RhfTextField
+                    name="registrationNumber"
+                    control={control}
+                    label="Registration/Incorporation Number"
+                  />
+                </Grid>
+              </Grid>
+            </section>
+          ) : null}
+
           <section>
             <Typography variant="h4" component="h2" sx={{ mb: 2 }}>
-              Contact & compliance
+              Contact
             </Typography>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -129,14 +203,39 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                 <RhfTextField name="website" control={control} label="Website" />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
+                <RhfTextField name="panCardNumber" control={control} label="PAN card number" />
+              </Grid>
+            </Grid>
+          </section>
+
+          <section>
+            <Typography variant="h4" component="h2" sx={{ mb: 2 }}>
+              Point Of Contact
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <RhfTextField
-                  name="registrationNumber"
+                  name="spocNameOfThePerson"
                   control={control}
-                  label="Registration number"
+                  label="SPOC name"
+                  required
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <RhfTextField name="taxId" control={control} label="Tax ID" />
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <RhfTextField
+                  name="spocPhoneNumber"
+                  control={control}
+                  label="SPOC phone number"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <RhfTextField
+                  name="spocEmail"
+                  control={control}
+                  label="SPOC email"
+                  type="email"
+                  required
+                />
               </Grid>
             </Grid>
           </section>
@@ -146,8 +245,19 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
               Address
             </Typography>
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12 }}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <RhfTextField name="address" control={control} label="Street address" />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <RhfTextField name="address2" control={control} label="Street address 2" />
+              </Grid>
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <RhfSelect
+                  name="countryId"
+                  control={control}
+                  label="Country"
+                  options={countries}
+                />
               </Grid>
               <Grid size={{ xs: 6, sm: 3 }}>
                 <RhfSelect
@@ -165,9 +275,6 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                   options={cities}
                   disabled={!stateId}
                 />
-              </Grid>
-              <Grid size={{ xs: 6, sm: 3 }}>
-                <RhfTextField name="country" control={control} label="Country" />
               </Grid>
               <Grid size={{ xs: 6, sm: 3 }}>
                 <RhfTextField name="postalCode" control={control} label="Postal code" />

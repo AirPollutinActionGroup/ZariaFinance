@@ -4,8 +4,8 @@ import com.ngo.finance.common.exception.ResourceNotFoundException;
 import com.ngo.finance.donor.dto.request.CreateDonorRequest;
 import com.ngo.finance.donor.dto.request.UpdateDonorRequest;
 import com.ngo.finance.donor.dto.response.DonorResponse;
+import com.ngo.finance.donor.entity.CountryMaster;
 import com.ngo.finance.donor.entity.DonorMaster;
-import com.ngo.finance.donor.enums.DonorStatus;
 import com.ngo.finance.donor.mapper.DonorMapper;
 import com.ngo.finance.donor.repository.CityRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ngo.finance.donor.repository.CountryRepository;
 
 /**
  * Service implementation for Donor operations
@@ -27,6 +28,9 @@ public class DonorServiceImpl implements DonorService {
 
     @Autowired
     private DonorRepository donorRepository;
+
+    @Autowired
+    private CountryRepository countryRepository;
 
     @Autowired
     private StateRepository stateRepository;
@@ -43,6 +47,11 @@ public class DonorServiceImpl implements DonorService {
 
         DonorMaster donor = donorMapper.toEntity(request);
 
+        if (request.getCountryId() != null) {
+            donor.setCountry(countryRepository.findById(request.getCountryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Country", request.getCountryId())));
+        }
+
         if (request.getStateId() != null) {
             donor.setState(stateRepository.findById(request.getStateId())
                     .orElseThrow(() -> new ResourceNotFoundException("State", request.getStateId())));
@@ -53,8 +62,6 @@ public class DonorServiceImpl implements DonorService {
                     .orElseThrow(() -> new ResourceNotFoundException("City", request.getCityId())));
         }
 
-        donor.setStatus(DonorStatus.DRAFT);
-        donor.setOnboardingStep(1);
         donor.setIsActive(false);
 
         DonorMaster savedDonor = donorRepository.save(donor);
@@ -106,6 +113,11 @@ public class DonorServiceImpl implements DonorService {
         DonorMaster donor = donorRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Donor", id));
 
+        if (request.getCountryId() != null) {
+            donor.setCountry(countryRepository.findById(request.getCountryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Country", request.getCountryId())));
+        }
+
         if (request.getStateId() != null) {
             donor.setState(stateRepository.findById(request.getStateId())
                     .orElseThrow(() -> new ResourceNotFoundException("State", request.getStateId())));
@@ -120,18 +132,26 @@ public class DonorServiceImpl implements DonorService {
                 donor.getDonorCode(),
                 request.getDonorName(),
                 request.getDonorType(),
-                request.getFundClass(),
+                request.getFundSourceDomicile(),
+                request.getFcraApplicable(),
+                request.getForeignFundSourceType(),
+                request.getForeignCountryId(),
+                request.getPanCardNumber(),
+                request.getForeignTaxIdentifier(),
                 request.getEmail(),
                 request.getPhoneNumber(),
                 request.getWebsite(),
-                request.getRegistrationNumber(),
-                request.getTaxId(),
+                request.getSpocNameOfThePerson(),
+                request.getSpocPhoneNumber(),
+                request.getSpocEmail(),
                 request.getAddress(),
+                request.getAddress2(),
                 request.getCityId(),
                 request.getStateId(),
-                request.getCountry(),
-                request.getPostalCode()
-        ), donor);
+                request.getCountryId(),
+                request.getPostalCode(),
+                request.getRegistrationNumber(),
+                request.getIsActive()), donor);
 
         DonorMaster updated = donorRepository.save(donor);
         log.info("Donor updated successfully");
@@ -147,37 +167,35 @@ public class DonorServiceImpl implements DonorService {
                 .orElseThrow(() -> new ResourceNotFoundException("Donor", id));
 
         donor.setIsActive(true);
-        donor.setStatus(DonorStatus.ACTIVE);
         donorRepository.save(donor);
 
         log.info("Donor activated successfully");
     }
 
     @Override
-    public void deactivateDonor(Long id) {
+    public void deActivateDonor(Long id) {
         log.info("Deactivating donor with id: {}", id);
 
         DonorMaster donor = donorRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Donor", id));
 
         donor.setIsActive(false);
-        donor.setStatus(DonorStatus.INACTIVE);
         donorRepository.save(donor);
 
         log.info("Donor deactivated successfully");
     }
 
-    @Override
-    public void advanceOnboardingStep(Long donorId) {
-        log.info("Advancing onboarding step for donor with id: {}", donorId);
+    // @Override
+    // public void advanceOnboardingStep(Long donorId) {
+    // log.info("Advancing onboarding step for donor with id: {}", donorId);
 
-        DonorMaster donor = donorRepository.findById(donorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Donor", donorId));
+    // DonorMaster donor = donorRepository.findById(donorId)
+    // .orElseThrow(() -> new ResourceNotFoundException("Donor", donorId));
 
-        if (donor.getOnboardingStep() < 10) {
-            donor.setOnboardingStep(donor.getOnboardingStep() + 1);
-            donorRepository.save(donor);
-            log.info("Onboarding step advanced to: {}", donor.getOnboardingStep());
-        }
-    }
+    // if (donor.getOnboardingStep() < 10) {
+    // donor.setOnboardingStep(donor.getOnboardingStep() + 1);
+    // donorRepository.save(donor);
+    // log.info("Onboarding step advanced to: {}", donor.getOnboardingStep());
+    // }
+    // }
 }
