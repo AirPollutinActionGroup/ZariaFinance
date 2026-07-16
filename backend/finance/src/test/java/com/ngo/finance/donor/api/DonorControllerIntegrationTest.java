@@ -8,7 +8,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngo.finance.donor.dto.request.CreateDonorRequest;
-import com.ngo.finance.donor.enums.FundClass;
+import com.ngo.finance.donor.enums.DonorType;
+import com.ngo.finance.donor.enums.FundSourceDomicile;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -34,9 +35,11 @@ public class DonorControllerIntegrationTest {
         CreateDonorRequest request = new CreateDonorRequest();
         request.setDonorCode("DN-999");
         request.setDonorName("Integration Test Donor");
-        request.setDonorType("Corporate");
-        request.setFundClass(FundClass.CORPORATE);
+        request.setDonorType(DonorType.CORPORATE);
+        request.setFundSourceDomicile(FundSourceDomicile.DOMESTIC);
         request.setEmail("test@example.com");
+        request.setSpocNameOfThePerson("Test SPOC");
+        request.setSpocEmail("spoc@example.com");
 
         mockMvc.perform(post("/api/v1/donors")
                 .with(csrf())
@@ -46,7 +49,7 @@ public class DonorControllerIntegrationTest {
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.donorCode").value("DN-999"))
                 .andExpect(jsonPath("$.donorName").value("Integration Test Donor"))
-                .andExpect(jsonPath("$.status").value("DRAFT"));
+                .andExpect(jsonPath("$.isActive").value(false));
     }
 
     @Test
