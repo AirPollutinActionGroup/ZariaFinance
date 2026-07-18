@@ -24,7 +24,9 @@ public class UserRegisterServiceImpl implements UserRegisterService {
         userRegister.setMobileNo(addUserRegisterDto.getMobileNo());
         userRegister.setUsername(addUserRegisterDto.getUsername());
         userRegister.setPassword(addUserRegisterDto.getPassword());
-        userRegisterRepo.save(userRegister);
+        // Use the persisted instance returned by save() — it carries the
+        // generated id and any store-populated fields.
+        userRegister = userRegisterRepo.save(userRegister);
 
         UserRegisterDto userRegisterDto = new UserRegisterDto();
         userRegisterDto.setId(userRegister.getId());
