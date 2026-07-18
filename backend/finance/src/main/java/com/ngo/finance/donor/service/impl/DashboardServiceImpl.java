@@ -1,16 +1,22 @@
 package com.ngo.finance.donor.service.impl;
 
+import com.ngo.finance.donor.FundingClassifier;
 import com.ngo.finance.donor.dto.response.DashboardSummaryResponse;
+import com.ngo.finance.donor.dto.response.FundingClassBreakdown;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.GrantAgreement;
 import com.ngo.finance.donor.entity.GrantTranche;
 import com.ngo.finance.donor.enums.DonorStatus;
+import com.ngo.finance.donor.enums.FundingBucket;
 import com.ngo.finance.donor.enums.GrantStatus;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.GrantRepository;
 import com.ngo.finance.donor.service.DashboardService;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +62,11 @@ public class DashboardServiceImpl implements DashboardService {
         BigDecimal blocked = BigDecimal.ZERO;
         long blockedGrantCount = 0;
 
+        // FC / DC / CSR breakdown accumulates over the same non-blocked grants as
+        // the funding chain, so each bucket's committed / received sums back to
+        // the chain totals.
+        Map<FundingBucket, BucketAcc> byClass = new EnumMap<>(FundingBucket.class);
+
         for (GrantAgreement grant : grants) {
             BigDecimal committedAmount = grant.getReportingAmountInr() != null
                     ? grant.getReportingAmountInr()
@@ -72,9 +83,14 @@ public class DashboardServiceImpl implements DashboardService {
             // Tranche receipts are in the grant currency → convert to INR via the locked FX rate.
             BigDecimal fx = nz(grant.getFxLockedRate());
             if (fx.signum() == 0) fx = BigDecimal.ONE;
+            BigDecimal grantReceived = BigDecimal.ZERO;
             for (GrantTranche tranche : grant.getTranches()) {
-                received = received.add(nz(tranche.getActualAmount()).multiply(fx));
+                grantReceived = grantReceived.add(nz(tranche.getActualAmount()).multiply(fx));
             }
+            received = received.add(grantReceived);
+
+            byClass.computeIfAbsent(FundingClassifier.classify(grant.getDonor()), b -> new BucketAcc())
+                    .add(committedAmount, grantReceived);
         }
 
         // Active count excludes blocked grants (active status but on an inactive
@@ -99,7 +115,40 @@ public class DashboardServiceImpl implements DashboardService {
                 .available(received.subtract(utilised))
                 .open(committed.subtract(received))
                 .blocked(blocked)
+                .fundingByClass(buildFundingByClass(byClass))
                 .build();
+    }
+
+    /**
+     * Emit one row per bucket in FC → CSR → DC order, always present (zeroed
+     * when a bucket has no grants) so the client can render a stable layout.
+     */
+    private List<FundingClassBreakdown> buildFundingByClass(Map<FundingBucket, BucketAcc> byClass) {
+        List<FundingClassBreakdown> rows = new ArrayList<>();
+        for (FundingBucket bucket : FundingBucket.values()) {
+            BucketAcc acc = byClass.getOrDefault(bucket, new BucketAcc());
+            rows.add(FundingClassBreakdown.builder()
+                    .bucket(bucket.getCode())
+                    .label(bucket.getLabel())
+                    .grantCount(acc.count)
+                    .committed(acc.committed)
+                    .received(acc.received)
+                    .build());
+        }
+        return rows;
+    }
+
+    /** Mutable per-bucket accumulator used while walking the grant list. */
+    private static final class BucketAcc {
+        private long count;
+        private BigDecimal committed = BigDecimal.ZERO;
+        private BigDecimal received = BigDecimal.ZERO;
+
+        private void add(BigDecimal committedAmount, BigDecimal receivedAmount) {
+            count++;
+            committed = committed.add(committedAmount);
+            received = received.add(receivedAmount);
+        }
     }
 
     private boolean isInactive(DonorMaster donor) {

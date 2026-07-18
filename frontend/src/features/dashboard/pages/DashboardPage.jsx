@@ -13,9 +13,14 @@ import { formatInr } from '../../../lib/format/currency.js';
 import { useDonors } from '../../donor-management/hooks/useDonors.js';
 import { useGrants } from '../../donor-management/hooks/useGrants.js';
 import { DONOR_STATUS_TONE, GRANT_STATUS_TONE } from '../../donor-management/constants.js';
-import { grantsWithDonorStatusClash, recentGrants } from '../services/dashboardService.js';
+import {
+  fundingClassRows,
+  grantsWithDonorStatusClash,
+  recentGrants,
+} from '../services/dashboardService.js';
 import { useDashboardSummary } from '../hooks/useDashboardSummary.js';
 import { FundingChainCard } from '../components/FundingChainCard.jsx';
+import { FundingByClassCard } from '../components/FundingByClassCard.jsx';
 import { RecordsDialog } from '../components/RecordsDialog.jsx';
 
 /** Coloured inline fragment for the multi-part KPI hints. */
@@ -125,6 +130,7 @@ export function DashboardPage() {
   const donors = donorsQuery.data.filter((donor) => donor.status !== 'DRAFT');
   const grants = grantsQuery.data.filter((grant) => grant.grantStatus !== 'DRAFT');
   const funding = summary;
+  const fundingClasses = fundingClassRows(summary);
   const clashGrants = grantsWithDonorStatusClash(donors, grants);
 
   return (
@@ -211,6 +217,8 @@ export function DashboardPage() {
         </Grid>
 
         <FundingChainCard totals={funding} />
+
+        {fundingClasses.length > 0 ? <FundingByClassCard rows={fundingClasses} /> : null}
 
         <DataTable
           title="Recent grant agreements"
