@@ -41,7 +41,6 @@ export function GrantEditPage() {
         submitError={updateGrant.error}
         onCancel={() => navigate(`/grants/${id}`)}
         submitLabel="Save changes"
-        disableGrantCode
       />
     </>
   );

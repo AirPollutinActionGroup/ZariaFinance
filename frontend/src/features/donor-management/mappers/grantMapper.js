@@ -26,6 +26,7 @@ export function toGrantFormValues(grant) {
     grantCode: grant.grantCode || '',
     donorId: grant.donorId != null ? String(grant.donorId) : '',
     fundProfileId: grant.fundProfileId != null ? String(grant.fundProfileId) : '',
+    programmeId: grant.programmeId != null ? String(grant.programmeId) : '',
     agreementName: grant.agreementName || '',
     agreementDate: grant.agreementDate || '',
     startDate: grant.startDate || '',
@@ -38,11 +39,13 @@ export function toGrantFormValues(grant) {
   };
 }
 
-/** Form values → CreateGrantRequest (donor/programme/class derived from the profile server-side). */
+/** Form values → CreateGrantRequest (donor/class derived from the profile server-side). */
 export function toCreateGrantRequest(values) {
   return {
-    grantCode: values.grantCode.trim(),
+    // Omitted on create → backend auto-generates ZRY/GA/YYYY/NNN.
+    grantCode: values.grantCode?.trim() || undefined,
     fundProfileId: Number(values.fundProfileId),
+    programmeId: values.programmeId ? Number(values.programmeId) : null,
     agreementName: values.agreementName.trim(),
     agreementDate: values.agreementDate,
     startDate: values.startDate,
