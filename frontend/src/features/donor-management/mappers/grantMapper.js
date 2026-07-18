@@ -20,6 +20,24 @@ export function fromGrantDetailsResponse(dto) {
   return fromGrantListResponse(dto);
 }
 
+/** GrantDetailsResponse → edit-form values (strings, mirroring grantFormDefaults). */
+export function toGrantFormValues(grant) {
+  return {
+    grantCode: grant.grantCode || '',
+    donorId: grant.donorId != null ? String(grant.donorId) : '',
+    fundProfileId: grant.fundProfileId != null ? String(grant.fundProfileId) : '',
+    agreementName: grant.agreementName || '',
+    agreementDate: grant.agreementDate || '',
+    startDate: grant.startDate || '',
+    endDate: grant.endDate || '',
+    totalGrantAmount: grant.totalGrantAmount != null ? String(grant.totalGrantAmount) : '',
+    grantCurrency: grant.grantCurrency || 'INR',
+    fxLockedRate: grant.fxLockedRate != null ? String(grant.fxLockedRate) : '1',
+    description: grant.description || '',
+    agreementDocumentPath: grant.agreementDocumentPath || '',
+  };
+}
+
 /** Form values → CreateGrantRequest (donor/programme/class derived from the profile server-side). */
 export function toCreateGrantRequest(values) {
   return {

@@ -39,6 +39,8 @@ public class TrancheMapper {
                 .priorUtilisationRequired(t.getPriorUtilisationRequired())
                 .conditionMet(t.getConditionMet())
                 .trancheStatus(t.getTrancheStatus())
+                .utilisedAmount(t.getUtilisedAmount())
+                .utilisationEndDate(t.getUtilisationEndDate())
                 .build();
     }
 }

@@ -32,8 +32,12 @@ export function TranchesPanel({ grantId, grantCurrency }) {
     { key: 'trancheNumber', header: '#', width: 50 },
     { key: 'trancheAmount', header: 'Expected', align: 'right', render: (r) => money(grantCurrency, r.trancheAmount) },
     { key: 'plannedReleaseDate', header: 'Expected date', render: (r) => formatDate(r.plannedReleaseDate) },
-    { key: 'actualAmount', header: 'Actual', align: 'right', render: (r) => money(grantCurrency, r.actualAmount) },
-    { key: 'actualReleaseDate', header: 'Actual date', render: (r) => formatDate(r.actualReleaseDate) },
+    { key: 'actualAmount', header: 'Received', align: 'right', render: (r) => money(grantCurrency, r.actualAmount) },
+    { key: 'actualReleaseDate', header: 'Received date', render: (r) => formatDate(r.actualReleaseDate) },
+    // Tranche-on-UC funding cycle (issue #21, item 13): amount utilised up to the
+    // end of this tranche's period — the basis for the tranche Utilisation Certificate.
+    { key: 'utilisedAmount', header: 'Utilised', align: 'right', render: (r) => money(grantCurrency, r.utilisedAmount) },
+    { key: 'utilisationEndDate', header: 'Utilised to', render: (r) => formatDate(r.utilisationEndDate) },
     {
       key: 'conditionsToRelease',
       header: 'Release condition',
@@ -82,6 +86,8 @@ export function TranchesPanel({ grantId, grantCurrency }) {
         />
         <Typography variant="caption" color="text.secondary">
           Amounts are in the grant currency. Recording a receipt updates the funding position above.
+          For Tranche-on-UC grants, "Utilised" (up to "Utilised to") is the basis for each tranche's
+          Utilisation Certificate.
         </Typography>
       </Stack>
     </Box>

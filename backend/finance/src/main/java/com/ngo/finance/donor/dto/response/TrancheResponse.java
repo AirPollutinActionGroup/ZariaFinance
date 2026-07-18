@@ -30,4 +30,6 @@ public class TrancheResponse {
     private BigDecimal priorUtilisationRequired;
     private String conditionMet;
     private String trancheStatus;
+    private BigDecimal utilisedAmount; // utilised up to the end of this tranche's period
+    private LocalDate utilisationEndDate;
 }

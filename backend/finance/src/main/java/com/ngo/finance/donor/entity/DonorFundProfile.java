@@ -49,7 +49,7 @@ public class DonorFundProfile extends AuditEntity {
     @Column(name = "fund_class_code", length = 1)
     private String fundClassCode;
 
-    @Column(length = 255)
+    @Column(columnDefinition = "TEXT")
     private String purpose;
 
     @Column(name = "programme_tied")

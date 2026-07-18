@@ -16,6 +16,7 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import EditIcon from '@mui/icons-material/Edit';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { ACTIONS, PermissionGate } from '../../../core/permissions/index.js';
 import {
@@ -298,6 +299,15 @@ export function GrantDetailPage() {
               label={grant.statusLabel}
               tone={GRANT_STATUS_TONE[grant.grantStatus] || 'neutral'}
             />
+            <PermissionGate action={ACTIONS.EDIT} moduleId={MODULE_ID}>
+              <Button
+                variant="outlined"
+                startIcon={<EditIcon />}
+                onClick={() => navigate(`/grants/${grant.id}/edit`)}
+              >
+                Edit
+              </Button>
+            </PermissionGate>
             <PermissionGate action={ACTIONS.APPROVE} moduleId={MODULE_ID}>
               <Stack direction="row" spacing={1.5}>
                 {actions.map((action) => (

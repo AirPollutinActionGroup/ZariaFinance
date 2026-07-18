@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Alert, Button, Card, CardContent, Grid, Stack, Typography } from '@mui/material';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,7 +17,16 @@ const CURRENCY_OPTIONS = ['INR', 'USD', 'GBP', 'EUR'].map((c) => ({ value: c, la
  * Foreign grants carry a currency + locked FX rate; the server computes the INR
  * reporting amount.
  */
-export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitError, onCancel }) {
+export function GrantForm({
+  donors,
+  defaultValues,
+  onSubmit,
+  submitting,
+  submitError,
+  onCancel,
+  submitLabel = 'Create grant',
+  disableGrantCode = false,
+}) {
   const { control, handleSubmit, setValue, setError } = useForm({
     resolver: zodResolver(grantSchema),
     defaultValues: defaultValues || grantFormDefaults,
@@ -26,8 +35,14 @@ export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitE
   const donorId = useWatch({ control, name: 'donorId' });
   const profilesQuery = useFundProfilesByDonor(donorId ? Number(donorId) : null);
 
-  // When the donor changes, clear a now-invalid fund-profile selection.
+  // When the donor changes, clear a now-invalid fund-profile selection — but not
+  // on the initial render, which would wipe a profile prefilled in edit mode.
+  const firstRender = useRef(true);
   useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
     setValue('fundProfileId', '');
   }, [donorId, setValue]);
 
@@ -68,7 +83,14 @@ export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitE
             </Typography>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 4 }}>
-                <RhfTextField name="grantCode" control={control} label="Grant code" required />
+                <RhfTextField
+                  name="grantCode"
+                  control={control}
+                  label="Grant code"
+                  required
+                  disabled={disableGrantCode}
+                  helperText={disableGrantCode ? 'Grant code cannot be changed' : undefined}
+                />
               </Grid>
               <Grid size={{ xs: 12, sm: 8 }}>
                 <RhfTextField name="agreementName" control={control} label="Agreement name" required />
@@ -161,7 +183,7 @@ export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitE
               Cancel
             </Button>
             <Button type="submit" variant="contained" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Create grant'}
+              {submitting ? 'Saving…' : submitLabel}
             </Button>
           </Stack>
         </Stack>

@@ -2,14 +2,13 @@ import { http } from '../../../lib/api/apiClient.js';
 
 /**
  * Repository for /api/v1/grants (GrantController).
- *
- * Note: the backend's PUT /api/v1/grants/{id} is currently a stub that
- * returns 204 without persisting (see GrantController.updateGrant). The
- * frontend therefore does not offer grant editing — docs/BACKEND_GAPS.md #5.
  */
 export const grantApi = {
   /** POST /api/v1/grants — body: CreateGrantRequest → GrantDetailsResponse (201). */
   create: (payload) => http.post('/v1/grants', payload),
+
+  /** PUT /api/v1/grants/{id} — body: CreateGrantRequest → GrantDetailsResponse. */
+  update: (id, payload) => http.put(`/v1/grants/${id}`, payload),
 
   /** GET /api/v1/grants/{id} → GrantDetailsResponse. */
   getById: (id) => http.get(`/v1/grants/${id}`),
