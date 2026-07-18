@@ -25,4 +25,8 @@ public interface GrantRepository extends JpaRepository<GrantAgreement, Long> {
 
     @Query("SELECT g FROM GrantAgreement g WHERE g.grantCode LIKE %:searchTerm% OR g.agreementName LIKE %:searchTerm%")
     List<GrantAgreement> searchByCodeOrName(@Param("searchTerm") String searchTerm);
+
+    /** Grant codes sharing a prefix (e.g. "ZRY/GA/2026/") — used to derive the next sequence. */
+    @Query("SELECT g.grantCode FROM GrantAgreement g WHERE g.grantCode LIKE CONCAT(:prefix, '%')")
+    List<String> findGrantCodesByPrefix(@Param("prefix") String prefix);
 }
