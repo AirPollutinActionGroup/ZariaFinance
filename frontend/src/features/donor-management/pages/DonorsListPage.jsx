@@ -25,7 +25,6 @@ const columns = [
     header: 'Status',
     render: (row) => <StatusChip label={row.statusLabel} tone={DONOR_STATUS_TONE[row.status] || 'neutral'} />,
   },
-  { key: 'email', header: 'Email' },
 ];
 
 /** Donor register — /donors. */

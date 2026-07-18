@@ -86,6 +86,7 @@ public class DonorServiceImpl implements DonorService {
     public List<DonorResponse> getAllDonors() {
         log.debug("Fetching all donors");
         return donorRepository.findAll().stream()
+                .filter(donor -> donor.getStatus() != DonorStatus.DRAFT)
                 .map(donorMapper::toResponse)
                 .toList();
     }
@@ -95,6 +96,7 @@ public class DonorServiceImpl implements DonorService {
     public List<DonorResponse> searchDonors(String searchTerm) {
         log.debug("Searching donors with term: {}", searchTerm);
         return donorRepository.searchByCodeOrName(searchTerm).stream()
+                .filter(donor -> donor.getStatus() != DonorStatus.DRAFT)
                 .map(donorMapper::toResponse)
                 .toList();
     }

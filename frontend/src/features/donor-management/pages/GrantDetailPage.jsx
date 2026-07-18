@@ -269,6 +269,9 @@ export function GrantDetailPage() {
   const donor = donorQuery.data;
   const actions = grantService.availableActions(grant.grantStatus);
   const foreign = grant.grantCurrency && grant.grantCurrency !== 'INR';
+  // FX-locked rate is only meaningful for foreign-sourced funding. A domestic
+  // donor's grant is in INR, so the rate is shown as N/A (issue #21, item 12).
+  const domesticSource = (donor?.fundSourceDomicile || '').toLowerCase() === 'domestic';
 
   const runLifecycle = async () => {
     await lifecycle.mutateAsync(pendingAction);
@@ -331,7 +334,11 @@ export function GrantDetailPage() {
             </TermRow>
             <TermRow label="Currency (CCY)">{grant.grantCurrency || 'INR'}</TermRow>
             <TermRow label="FX-locked rate (at signing)">
-              {foreign ? String(grant.fxLockedRate ?? '—') : '— (INR grant)'}
+              {domesticSource
+                ? 'N/A'
+                : foreign
+                  ? String(grant.fxLockedRate ?? '—')
+                  : '— (INR grant)'}
             </TermRow>
             <TermRow label="Total grant amount">
               {foreign

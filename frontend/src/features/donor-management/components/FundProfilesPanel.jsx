@@ -11,7 +11,7 @@ const CLASS_TONE = { A: 'error', B: 'warning', C: 'success' };
 const columns = [
   {
     key: 'fundClassCode',
-    header: 'Class',
+    header: 'Fund Class',
     width: 90,
     render: (row) =>
       row.fundClassCode ? (
