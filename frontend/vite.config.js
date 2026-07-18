@@ -35,5 +35,22 @@ export default defineConfig({
     setupFiles: ['./src/test/setupTests.js'],
     include: ['src/**/*.test.{js,jsx}'],
     css: false,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{js,jsx}'],
+      // Non-testable / generated sources are excluded so the ratio reflects
+      // real application logic.
+      exclude: [
+        'src/**/*.test.{js,jsx}',
+        'src/**/*.stories.{js,jsx}',
+        'src/test/**',
+        'src/main.jsx',
+        'src/**/*.d.ts',
+      ],
+      // No thresholds here on purpose: `test:coverage` is report-only (safe for
+      // CI). The 60% gate is opt-in via the `coverage:check` script.
+    },
   },
 });

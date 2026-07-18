@@ -1,5 +1,6 @@
 plugins {
 	id 'java'
+	id 'jacoco'
 	id 'org.springframework.boot' version '4.1.0'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -54,6 +55,63 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+jacoco {
+	toolVersion = '0.8.12'
+}
+
+// Classes excluded from coverage: framework bootstrap, config, and code with
+// no meaningful branches (DTOs, JPA entities, enums) plus MapStruct-generated
+// mapper implementations. Applied consistently to the report and the gate.
+def coverageExclusions = [
+	'**/FinanceApplication*',
+	'**/config/**',
+	'**/dto/**',
+	'**/entity/**',
+	'**/enums/**',
+	'**/*MapperImpl*',
+]
+
+// Class output filtered down to the coverage-relevant sources. Built from
+// sourceSets (available at configuration time) instead of afterEvaluate.
+def coverageClassDirs = files(sourceSets.main.output.classesDirs.collect {
+	fileTree(dir: it, exclude: coverageExclusions)
+})
+
+// Coverage is intentionally NOT wired into `test` or `check`, so a normal
+// build never computes it. Run it on demand with `./gradlew coverage`.
+tasks.named('jacocoTestReport') {
+	dependsOn tasks.named('test')
+	reports {
+		xml.required = true
+		html.required = true
+	}
+	classDirectories.setFrom(coverageClassDirs)
+}
+
+// Opt-in gate: `./gradlew jacocoTestCoverageVerification` fails below 75% line
+// coverage. Kept available for local use but never run automatically (CI is
+// report-only).
+tasks.named('jacocoTestCoverageVerification') {
+	dependsOn tasks.named('jacocoTestReport')
+	violationRules {
+		rule {
+			limit {
+				counter = 'LINE'
+				value = 'COVEREDRATIO'
+				minimum = 0.75
+			}
+		}
+	}
+	classDirectories.setFrom(coverageClassDirs)
+}
+
+// Convenience alias: run tests and produce the coverage report only.
+tasks.register('coverage') {
+	group = 'verification'
+	description = 'Runs tests and generates the JaCoCo coverage report.'
+	dependsOn tasks.named('jacocoTestReport')
 }
 
 compileJava {

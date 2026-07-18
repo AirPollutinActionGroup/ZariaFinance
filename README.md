@@ -97,6 +97,32 @@ We manage the database structure using **Flyway Database Migrations**.
 
 ---
 
+## 📊 Code Coverage
+
+Coverage is **decoupled from the normal build** — a regular `./gradlew test` or `npm run build`/`npm test` never computes it. Instead, a dedicated **`coverage` job** runs on every push/PR and publishes the HTML/XML reports as downloadable CI artifacts. That job is **report-only** and never fails the pipeline.
+
+The threshold gates (backend **75%**, frontend **60%**) are documented targets you can enforce **on demand** locally.
+
+### ☕ Backend (JaCoCo)
+```bash
+cd backend/finance
+./gradlew coverage                        # run tests + generate the report (report-only)
+./gradlew jacocoTestCoverageVerification  # opt-in gate: fails if line coverage < 75%
+```
+*   **Report:** `backend/finance/build/reports/jacoco/test/html/index.html` (XML alongside for tooling).
+*   **Excluded from coverage:** the application bootstrap, `config/`, DTOs, JPA entities, enums, and generated MapStruct mappers.
+
+### 🎨 Frontend (Vitest + v8)
+```bash
+cd frontend
+npm run test:coverage    # generate the report (report-only)
+npm run coverage:check   # opt-in gate: fails if lines/functions/branches/statements < 60%
+```
+*   **Report:** `frontend/coverage/index.html` (plus `lcov.info` for tooling).
+*   **Excluded from coverage:** test files, Storybook stories, the test setup, and the `main.jsx` entry point.
+
+---
+
 ## 🤝 Git & Team Collaboration Pipeline
 
 When working in a team, the pipeline remains simple:
