@@ -36,8 +36,16 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public DashboardSummaryResponse getSummary() {
-        List<DonorMaster> donors = donorRepository.findAll();
-        List<GrantAgreement> grants = grantRepository.findAll();
+        // Draft records never contribute to any dashboard metric — exclude them
+        // at the source so every downstream count and funding-chain figure is
+        // Draft-free. (Non-draft grants on inactive/draft donors remain in the
+        // "blocked" bucket handled separately.)
+        List<DonorMaster> donors = donorRepository.findAll().stream()
+                .filter(d -> d.getStatus() != DonorStatus.DRAFT)
+                .toList();
+        List<GrantAgreement> grants = grantRepository.findAll().stream()
+                .filter(g -> g.getGrantStatus() != GrantStatus.DRAFT)
+                .toList();
 
         long activeDonors = donors.stream().filter(d -> !isInactive(d)).count();
         long draftDonors = donors.stream().filter(d -> d.getStatus() == DonorStatus.DRAFT).count();

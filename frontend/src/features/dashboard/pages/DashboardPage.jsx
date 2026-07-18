@@ -119,8 +119,11 @@ export function DashboardPage() {
   // real (sum of tranche receipts), utilised is the seeded placeholder. The
   // summary's field names match what the cards / funding-chain card expect.
   const summary = summaryQuery.data;
-  const donors = donorsQuery.data;
-  const grants = grantsQuery.data;
+  // Draft records are excluded from every dashboard surface — KPIs and the
+  // funding chain come from the Draft-free backend summary; the drill-down
+  // dialogs and recent list use these Draft-filtered views.
+  const donors = donorsQuery.data.filter((donor) => donor.status !== 'DRAFT');
+  const grants = grantsQuery.data.filter((grant) => grant.grantStatus !== 'DRAFT');
   const funding = summary;
   const clashGrants = grantsWithDonorStatusClash(donors, grants);
 
