@@ -2,6 +2,7 @@ package com.ngo.finance.donor.api;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -92,7 +93,7 @@ public class GrantControllerIntegrationTest {
                 .build();
 
         // A grant inherits its donor & programme from the fund profile.
-        mockMvc.perform(post("/api/v1/grants")
+        String createResponse = mockMvc.perform(post("/api/v1/grants")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -100,9 +101,24 @@ public class GrantControllerIntegrationTest {
                 .andExpect(jsonPath("$.grantCode").value("GR-TEST-1"))
                 .andExpect(jsonPath("$.donorId").value(donor.getId()))
                 .andExpect(jsonPath("$.fundProfileId").value(profile.getId()))
-                .andExpect(jsonPath("$.fundClassCode").value("A"));
+                .andExpect(jsonPath("$.fundClassCode").value("A"))
+                .andReturn().getResponse().getContentAsString();
 
-        // Robust against seeded data: filter the list by the unique grant code.
+        long grantId = objectMapper.readTree(createResponse).path("id").asLong();
+
+        // A newly created grant is a DRAFT and must NOT surface on the dashboard /
+        // search list (issue #21, item 15). Search filters by the unique code, so
+        // an empty result confirms the draft is excluded rather than merely absent.
+        mockMvc.perform(get("/api/v1/grants").param("search", "GR-TEST-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        // Once approved and activated it becomes a live agreement and is listed.
+        mockMvc.perform(patch("/api/v1/grants/{id}/approve", grantId).with(csrf()))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(patch("/api/v1/grants/{id}/activate", grantId).with(csrf()))
+                .andExpect(status().isNoContent());
+
         mockMvc.perform(get("/api/v1/grants").param("search", "GR-TEST-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].grantCode").value("GR-TEST-1"));
