@@ -16,7 +16,7 @@ jobs:
       - name: Start Database Service
         run: |
           docker compose up -d db
-          
+
       - name: Wait for Database to be Healthy
         run: |
           # Wait up to 30 seconds for the database to be healthy
@@ -64,3 +64,112 @@ jobs:
         run: |
           cd frontend
           npm run build
+
+  # Dedicated, report-only coverage job. Runs on every push/PR alongside the
+  # build jobs but is kept separate so a normal build never computes coverage.
+  # Thresholds (backend 75% / frontend 60%) are documented targets and are NOT
+  # enforced here — see build.gradle `jacocoTestCoverageVerification` and the
+  # frontend `coverage:check` script for the opt-in gates.
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # ---- Backend coverage (JaCoCo) ----
+      - name: Start Database Service
+        run: |
+          docker compose up -d db
+
+      - name: Wait for Database to be Healthy
+        run: |
+          for i in {1..30}; do
+            if [ "$(docker inspect --format='{{json .State.Health.Status}}' zariya-db)" = "\"healthy\"" ]; then
+              echo "Database is healthy!"
+              break
+            fi
+            echo "Waiting for database..."
+            sleep 1
+          done
+
+      - name: Generate Backend Coverage Report
+        run: |
+          docker compose run --entrypoint "./gradlew coverage --no-daemon" backend
+
+      - name: Upload Backend Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/finance/build/reports/jacoco/test/
+          if-no-files-found: warn
+
+      # ---- Frontend coverage (Vitest v8) ----
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Generate Frontend Coverage Report
+        run: |
+          cd frontend
+          npm run test:coverage
+
+      - name: Upload Frontend Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          if-no-files-found: warn
+
+      # ---- Combined summary (rendered on the run's summary page) ----
+      - name: Publish Coverage Summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, xml.etree.ElementTree as ET
+
+          def pct(cov, mis):
+              tot = cov + mis
+              return (cov * 100.0 / tot) if tot else 0.0
+
+          print("## 📊 Coverage Summary\n")
+
+          # Backend (JaCoCo) — report-level counters are direct children of <report>.
+          print("### ☕ Backend (JaCoCo) — target 75%\n")
+          try:
+              root = ET.parse("backend/finance/build/reports/jacoco/test/jacocoTestReport.xml").getroot()
+              counters = {c.get("type"): c for c in root.findall("counter")}
+              print("| Metric | Coverage |")
+              print("|--------|----------|")
+              for t, label in [("LINE", "Lines"), ("BRANCH", "Branches"),
+                               ("METHOD", "Methods"), ("INSTRUCTION", "Instructions")]:
+                  c = counters.get(t)
+                  if c is not None:
+                      cov, mis = int(c.get("covered")), int(c.get("missed"))
+                      print(f"| {label} | {pct(cov, mis):.2f}% ({cov}/{cov + mis}) |")
+          except Exception as e:
+              print(f"_Report not available: {e}_")
+          print()
+
+          # Frontend (Vitest v8) — coverage-summary.json total.
+          print("### 🎨 Frontend (Vitest v8) — target 60%\n")
+          try:
+              total = json.load(open("frontend/coverage/coverage-summary.json"))["total"]
+              print("| Metric | Coverage |")
+              print("|--------|----------|")
+              for key, label in [("lines", "Lines"), ("branches", "Branches"),
+                                 ("functions", "Functions"), ("statements", "Statements")]:
+                  m = total[key]
+                  print(f"| {label} | {m['pct']}% ({m['covered']}/{m['total']}) |")
+          except Exception as e:
+              print(f"_Report not available: {e}_")
+          PY

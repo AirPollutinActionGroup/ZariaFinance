@@ -18,6 +18,9 @@ Thumbs.db
 node_modules/
 dist/
 
+# Coverage reports
+**/coverage/
+
 # Logs and databases
 *.log
 postgres_data/

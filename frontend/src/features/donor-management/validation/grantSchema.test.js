@@ -4,13 +4,14 @@ import { grantSchema } from './grantSchema.js';
 const valid = {
   grantCode: 'GR-1',
   donorId: '1',
-  programmeId: '2',
+  fundProfileId: '2',
   agreementName: 'Clean Air',
   agreementDate: '2026-01-01',
   startDate: '2026-02-01',
   endDate: '2026-12-31',
   totalGrantAmount: '100000',
-  fundClass: 'DOMESTIC',
+  grantCurrency: 'INR',
+  fxLockedRate: '1',
   description: '',
   agreementDocumentPath: '',
 };
@@ -31,7 +32,7 @@ describe('grantSchema', () => {
     expect(grantSchema.safeParse({ ...valid, totalGrantAmount: '-5' }).success).toBe(false);
   });
 
-  it('rejects non-numeric programme ids', () => {
-    expect(grantSchema.safeParse({ ...valid, programmeId: 'abc' }).success).toBe(false);
+  it('rejects a missing fund profile', () => {
+    expect(grantSchema.safeParse({ ...valid, fundProfileId: '' }).success).toBe(false);
   });
 });
