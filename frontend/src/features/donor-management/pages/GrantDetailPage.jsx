@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   CardContent,
+  Collapse,
   Grid,
   LinearProgress,
   Link,
@@ -36,6 +37,8 @@ import { grantService } from '../services/grantService.js';
 import { FUND_CLASS_CODE_TONE, GRANT_STATUS_TONE, MODULE_ID } from '../constants.js';
 import { DocumentsPanel } from '../components/DocumentsPanel.jsx';
 import { TranchesPanel } from '../components/TranchesPanel.jsx';
+import { FundingDonut } from '../components/FundingDonut.jsx';
+import { deriveDisbursementType, deriveReleaseCriteria } from '../lib/disbursement.js';
 
 const ACTION_COPY = {
   approve: {
@@ -110,8 +113,45 @@ function SectionCard({ title, children }) {
   );
 }
 
-/** Committed / Received / Utilised / Available table driven by live tranche data. */
-function FundingPosition({ grant, tranches }) {
+/** Per-tranche Committed → Received → Utilised → Available strip (Advanced view). */
+function TrancheCycle({ tranche, currency }) {
+  const committed = Number(tranche.trancheAmount) || 0;
+  const received = Number(tranche.actualAmount) || 0;
+  const utilised = Number(tranche.utilisedAmount) || 0;
+  const available = received - utilised;
+  const utilisedPct = received > 0 ? Math.min(100, Math.round((utilised / received) * 100)) : 0;
+  const money = (n) => (currency && currency !== 'INR' ? `${currency} ` : '₹') + Number(n).toLocaleString('en-IN');
+
+  return (
+    <Box sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          Tranche {tranche.trancheNumber}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          committed {money(committed)} · received {money(received)}
+        </Typography>
+      </Stack>
+      <LinearProgress
+        variant="determinate"
+        value={utilisedPct}
+        sx={{ height: 6, borderRadius: 3 }}
+      />
+      <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
+        <Typography variant="caption" color="text.secondary">
+          utilised {money(utilised)} ({utilisedPct}%)
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'var(--ok)', fontWeight: 600 }}>
+          available {money(available)}
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
+
+/** Committed / Received / Utilised / Available driven by live tranche data. */
+function FundingPosition({ grant, tranches, rule }) {
+  const [advanced, setAdvanced] = useState(false);
   const fx = grant.grantCurrency && grant.grantCurrency !== 'INR' ? Number(grant.fxLockedRate || 1) : 1;
   const committedInr = Number(grant.reportingAmountInr ?? grant.totalGrantAmount) || 0;
   const received = tranches.filter((t) => t.actualAmount != null);
@@ -120,12 +160,12 @@ function FundingPosition({ grant, tranches }) {
   const availableInr = receivedInr - utilisedInr;
   const utilisedPct = committedInr > 0 ? Math.round((utilisedInr / committedInr) * 100) : 0;
 
+  // Per-tranche breakdown is only meaningful for tranche-based disbursement
+  // (spec §3): a lump-sum grant has a single release, so hide the toggle.
+  const isTranched = deriveDisbursementType(rule, tranches) === 'Tranches' && tranches.length > 0;
+
   const rows = [
-    {
-      stage: 'Committed',
-      amount: committedInr,
-      basis: 'contracted / signed (receivable)',
-    },
+    { stage: 'Committed', amount: committedInr, basis: 'contracted / signed (receivable)' },
     {
       stage: 'Received',
       amount: receivedInr,
@@ -141,45 +181,69 @@ function FundingPosition({ grant, tranches }) {
   ];
 
   return (
-    <Table size="small" sx={{ '& td, & th': { borderColor: 'divider' } }}>
-      <TableHead>
-        <TableRow>
-          <TableCell sx={{ pl: 0 }}>Stage</TableCell>
-          <TableCell align="right">Amount (INR)</TableCell>
-          <TableCell>Basis</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {rows.map((row) => (
-          <TableRow key={row.stage}>
-            <TableCell sx={{ pl: 0, py: 2 }}>{row.stage}</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
-              {formatInr(row.amount)}
-            </TableCell>
-            <TableCell sx={{ color: 'text.secondary' }}>{row.basis}</TableCell>
+    <Stack spacing={2}>
+      <FundingDonut committed={committedInr} received={receivedInr} utilised={utilisedInr} />
+
+      <Table size="small" sx={{ '& td, & th': { borderColor: 'divider' } }}>
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ pl: 0 }}>Stage</TableCell>
+            <TableCell align="right">Amount (INR)</TableCell>
+            <TableCell>Basis</TableCell>
           </TableRow>
-        ))}
-        <TableRow>
-          <TableCell sx={{ pl: 0, py: 2, fontWeight: 700, border: 0 }}>
-            Available (realised)
-          </TableCell>
-          <TableCell
-            align="right"
-            sx={{ fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--ok)', border: 0 }}
-          >
-            {formatInr(availableInr)}
-          </TableCell>
-          <TableCell sx={{ color: 'text.secondary', border: 0 }}>
-            received − utilised · spendable now
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.stage}>
+              <TableCell sx={{ pl: 0, py: 2 }}>{row.stage}</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                {formatInr(row.amount)}
+              </TableCell>
+              <TableCell sx={{ color: 'text.secondary' }}>{row.basis}</TableCell>
+            </TableRow>
+          ))}
+          <TableRow>
+            <TableCell sx={{ pl: 0, py: 2, fontWeight: 700, border: 0 }}>Available (realised)</TableCell>
+            <TableCell
+              align="right"
+              sx={{ fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--ok)', border: 0 }}
+            >
+              {formatInr(availableInr)}
+            </TableCell>
+            <TableCell sx={{ color: 'text.secondary', border: 0 }}>
+              received − utilised · spendable now
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+
+      {isTranched ? (
+        <Box>
+          <Button size="small" onClick={() => setAdvanced((v) => !v)} sx={{ px: 0 }}>
+            {advanced ? 'Hide per-tranche breakdown' : 'Advanced — per-tranche breakdown'}
+          </Button>
+          <Collapse in={advanced} unmountOnExit>
+            <Box sx={{ mt: 1 }}>
+              {tranches.map((t) => (
+                <TrancheCycle key={t.id} tranche={t} currency={grant.grantCurrency} />
+              ))}
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                Per-tranche amounts are in the grant currency. Received & utilised originate from Tally.
+              </Typography>
+            </Box>
+          </Collapse>
+        </Box>
+      ) : null}
+    </Stack>
   );
 }
 
-/** First disbursement rule of the inherited fund profile + live gate check. */
-function DisbursementRule({ rule, grant, tranches }) {
+/**
+ * Box 4 — disbursement model inherited live from the fund profile. Per the spec
+ * this shows the disbursement type and, for tranche-based grants, the release
+ * criteria as a list (implicit AND) rather than the old flat Type/Trigger/Gate.
+ */
+function DisbursementRule({ rule, tranches }) {
   if (!rule) {
     return (
       <Typography color="text.secondary" sx={{ py: 2 }}>
@@ -188,63 +252,55 @@ function DisbursementRule({ rule, grant, tranches }) {
     );
   }
 
-  const gate = rule.minPriorUtilisationRequired != null ? Number(rule.minPriorUtilisationRequired) : null;
-  const gateLabel =
-    gate != null
-      ? `≥${gate}% prior-tranche utilisation${rule.milestoneRequired ? ' + milestone / UC' : ''}`
-      : rule.milestoneRequired
-        ? 'milestone / UC'
-        : '—';
-
-  // Gate check — utilisation against funds received so far.
-  const fx = grant.grantCurrency && grant.grantCurrency !== 'INR' ? Number(grant.fxLockedRate || 1) : 1;
-  const receivedInr =
-    tranches
-      .filter((t) => t.actualAmount != null)
-      .reduce((sum, t) => sum + Number(t.actualAmount || 0), 0) * fx;
-  const utilisedInr = Number(grant.utilisedAmount || 0);
-  const utilisedPct = receivedInr > 0 ? Math.round((utilisedInr / receivedInr) * 100) : 0;
-  const gateMet = gate != null && utilisedPct >= gate;
+  const disbursementType = deriveDisbursementType(rule, tranches);
+  const isTranched = disbursementType === 'Tranches';
+  const criteria = deriveReleaseCriteria(rule);
+  const firstDate = tranches.find((t) => t.plannedReleaseDate)?.plannedReleaseDate;
 
   return (
     <>
-      <TermRow label="Type">{rule.ruleType || '—'}</TermRow>
-      <TermRow label="Trigger">{rule.releaseTrigger || '—'}</TermRow>
-      <TermRow label="Gate" last={gate == null}>
-        {gateLabel}
+      <TermRow label="Disbursement type">
+        <StatusChip label={disbursementType} tone={isTranched ? 'info' : 'neutral'} />
       </TermRow>
-      {gate != null ? (
-        <Box sx={{ pt: 2.5 }}>
-          <Typography
-            variant="caption"
-            sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.secondary' }}
-          >
-            Gate check — utilisation of received funds
+      {isTranched ? (
+        <TermRow label="Schedule">{`${tranches.length || 0} tranche${tranches.length === 1 ? '' : 's'}`}</TermRow>
+      ) : (
+        <TermRow label="Receiving date">{formatDate(firstDate)}</TermRow>
+      )}
+
+      <Box sx={{ pt: 2 }}>
+        <Typography
+          variant="caption"
+          sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.secondary' }}
+        >
+          Release criteria — all must be met
+        </Typography>
+        <Stack spacing={1} sx={{ mt: 1.25 }}>
+          {criteria.map((c, i) => (
+            <Stack key={`${c.label}-${i}`} direction="row" spacing={1.25} sx={{ alignItems: 'baseline' }}>
+              <Box
+                component="span"
+                sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'var(--info)', mt: 0.75, flexShrink: 0 }}
+              />
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {c.label}
+                </Typography>
+                {c.detail ? (
+                  <Typography variant="caption" color="text.secondary">
+                    {c.detail}
+                  </Typography>
+                ) : null}
+              </Box>
+            </Stack>
+          ))}
+        </Stack>
+        {rule.ruleDescription ? (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+            {rule.ruleDescription}
           </Typography>
-          <LinearProgress
-            variant="determinate"
-            value={Math.min(100, utilisedPct)}
-            color={gateMet ? 'success' : 'primary'}
-            sx={{ mt: 1.5, height: 6, borderRadius: 3 }}
-          />
-          <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.75 }}>
-            <Typography variant="body2">
-              <Box component="span" sx={{ fontWeight: 700, color: gateMet ? 'var(--ok)' : 'var(--warn)' }}>
-                {utilisedPct}%
-              </Box>{' '}
-              utilised
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              gate {gate}%
-            </Typography>
-          </Stack>
-          {rule.ruleDescription ? (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-              {rule.ruleDescription}
-            </Typography>
-          ) : null}
-        </Box>
-      ) : null}
+        ) : null}
+      </Box>
     </>
   );
 }
@@ -268,6 +324,7 @@ export function GrantDetailPage() {
   const tranches = tranchesQuery.data || [];
   const profile = profileQuery.data;
   const donor = donorQuery.data;
+  const rule = profile?.disbursementRules?.[0];
   const actions = grantService.availableActions(grant.grantStatus);
   const foreign = grant.grantCurrency && grant.grantCurrency !== 'INR';
   // FX-locked rate is only meaningful for foreign-sourced funding. A domestic
@@ -338,7 +395,17 @@ export function GrantDetailPage() {
                 grant.donorName || '—'
               )}
             </TermRow>
+            <TermRow label="Fund profile">
+              {profile
+                ? [profile.fundClassLabel, profile.fundModeLabel, profile.purpose]
+                    .filter(Boolean)
+                    .join(' · ')
+                : grant.fundClassCode
+                  ? `Class ${grant.fundClassCode}`
+                  : '—'}
+            </TermRow>
             <TermRow label="Programme">{grant.programmeName || 'Untied'}</TermRow>
+            <TermRow label="Agreement date">{formatDate(grant.agreementDate)}</TermRow>
             <TermRow label="Period">
               {`${formatDate(grant.startDate)} → ${formatDate(grant.endDate)}`}
             </TermRow>
@@ -372,7 +439,7 @@ export function GrantDetailPage() {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <SectionCard title="Funding position">
-            <FundingPosition grant={grant} tranches={tranches} />
+            <FundingPosition grant={grant} tranches={tranches} rule={rule} />
           </SectionCard>
         </Grid>
 
@@ -413,11 +480,7 @@ export function GrantDetailPage() {
             {profileQuery.isPending && grant.fundProfileId ? (
               <LoadingState label="Loading disbursement rule…" />
             ) : (
-              <DisbursementRule
-                rule={profile?.disbursementRules?.[0]}
-                grant={grant}
-                tranches={tranches}
-              />
+              <DisbursementRule rule={rule} tranches={tranches} />
             )}
           </SectionCard>
         </Grid>
