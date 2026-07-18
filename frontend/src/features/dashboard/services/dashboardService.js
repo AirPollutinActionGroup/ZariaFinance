@@ -12,7 +12,12 @@ function isInactiveDonor(donor) {
   return donor.isActive === false || donor.status === 'DRAFT';
 }
 
-export function computeDashboardMetrics(donors, grants) {
+export function computeDashboardMetrics(allDonors, allGrants) {
+  // Draft records never contribute to any dashboard metric — drop them before
+  // aggregating so counts and amounts match the Draft-free backend summary.
+  const donors = allDonors.filter((donor) => donor.status !== 'DRAFT');
+  const grants = allGrants.filter((grant) => grant.grantStatus !== 'DRAFT');
+
   const activeDonors = donors.filter((donor) => !isInactiveDonor(donor));
   const draftDonorCount = donors.filter((donor) => donor.status === 'DRAFT').length;
 
