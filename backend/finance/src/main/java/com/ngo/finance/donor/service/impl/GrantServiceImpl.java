@@ -117,6 +117,7 @@ public class GrantServiceImpl implements GrantService {
     public List<GrantListResponse> getAllGrants() {
         log.debug("Fetching all grants");
         return grantRepository.findAll().stream()
+                .filter(grant -> grant.getGrantStatus() != GrantStatus.DRAFT)
                 .map(grantMapper::toListResponse)
                 .toList();
     }
@@ -144,6 +145,7 @@ public class GrantServiceImpl implements GrantService {
     public List<GrantListResponse> searchGrants(String searchTerm) {
         log.debug("Searching grants with term: {}", searchTerm);
         return grantRepository.searchByCodeOrName(searchTerm).stream()
+                .filter(grant -> grant.getGrantStatus() != GrantStatus.DRAFT)
                 .map(grantMapper::toListResponse)
                 .toList();
     }

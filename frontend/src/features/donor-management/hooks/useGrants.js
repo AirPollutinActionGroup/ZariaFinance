@@ -25,6 +25,14 @@ export function useCreateGrant() {
   });
 }
 
+export function useUpdateGrant(id) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (formValues) => grantService.updateGrant(id, formValues),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.grants.all() }),
+  });
+}
+
 /** approve | activate | close with shared invalidation. */
 export function useGrantLifecycle(id) {
   const queryClient = useQueryClient();

@@ -3,6 +3,7 @@ package com.ngo.finance.donor.dto.response;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.ngo.finance.donor.enums.DonorStatus;
 import com.ngo.finance.donor.enums.FundClass;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -78,6 +79,19 @@ public class DonorResponse {
 
     private List<DonorContactResponse> contacts;
 
+    /**
+     * Register-only aggregates (issue #21). Populated for the donor list; left
+     * null (and omitted) on the single-donor detail response.
+     */
+    // Distinct fund-profile restriction classes (A/B/C) held by this donor.
+    private List<String> fundClassCodes;
+
+    // Total committed (INR) across the donor's non-draft grant agreements.
+    private BigDecimal totalCommitted;
+
+    // Committed amount + fund-profile count split by restriction (Restricted / Unrestricted).
+    private List<CommitmentBucket> commitmentBreakdown;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
@@ -85,4 +99,15 @@ public class DonorResponse {
     private String createdBy;
 
     private String updatedBy;
+
+    /** One restriction bucket of a donor's committed funding. */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CommitmentBucket {
+        private String fundMode;
+        private BigDecimal committed;
+        private Integer fundProfileCount;
+    }
 }

@@ -66,4 +66,13 @@ public class GrantTranche extends AuditEntity {
 
     @Column(name = "condition_met", length = 20)
     private String conditionMet;
+
+    // Tranche-on-UC funding cycle (V23, issue #21 item 13): the amount utilised up
+    // to the end of this tranche's period, and that period-end date. Together with
+    // actualAmount (received) these drive the per-tranche Utilisation Certificate.
+    @Column(name = "utilised_amount", precision = 18, scale = 2)
+    private BigDecimal utilisedAmount;
+
+    @Column(name = "utilisation_end_date")
+    private LocalDate utilisationEndDate;
 }

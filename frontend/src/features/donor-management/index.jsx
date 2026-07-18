@@ -8,6 +8,7 @@ import { DonorEditPage } from './pages/DonorEditPage.jsx';
 import { GrantsListPage } from './pages/GrantsListPage.jsx';
 import { GrantCreatePage } from './pages/GrantCreatePage.jsx';
 import { GrantDetailPage } from './pages/GrantDetailPage.jsx';
+import { GrantEditPage } from './pages/GrantEditPage.jsx';
 import { FundProfileFormPage } from './pages/FundProfileFormPage.jsx';
 import { ReportsPage } from './pages/ReportsPage.jsx';
 import { MODULE_ID } from './constants.js';
@@ -35,6 +36,7 @@ export const donorManagementModule = {
     { path: '/grants', element: <GrantsListPage /> },
     { path: '/grants/new', element: <GrantCreatePage /> },
     { path: '/grants/:id', element: <GrantDetailPage /> },
+    { path: '/grants/:id/edit', element: <GrantEditPage /> },
     { path: '/reports', element: <ReportsPage /> },
   ],
 };

@@ -1,5 +1,6 @@
-import { Box, Button, Chip, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useNavigate } from 'react-router-dom';
 import { DataTable, StatusChip } from '../../../shared/components/index.js';
 import { ACTIONS, PermissionGate } from '../../../core/permissions/index.js';
@@ -11,7 +12,7 @@ const CLASS_TONE = { A: 'error', B: 'warning', C: 'success' };
 const columns = [
   {
     key: 'fundClassCode',
-    header: 'Class',
+    header: 'Fund Class',
     width: 90,
     render: (row) =>
       row.fundClassCode ? (
@@ -21,9 +22,30 @@ const columns = [
       ),
   },
   { key: 'fundMode', header: 'Mode', render: (row) => row.fundModeLabel },
-  { key: 'purpose', header: 'Purpose', render: (row) => row.purpose || '—' },
+  {
+    key: 'purpose',
+    header: 'Purpose',
+    // Full description shown even when it exceeds 50 words: wrap within a capped
+    // width so long text never overflows or breaks the table layout (issue #21, item 8).
+    render: (row) => (
+      <Box sx={{ minWidth: 220, maxWidth: 360, whiteSpace: 'normal', wordBreak: 'break-word' }}>
+        {row.purpose || '—'}
+      </Box>
+    ),
+  },
   { key: 'programmeName', header: 'Programme', render: (row) => row.programmeName || 'Untied' },
-  { key: 'reportingFrequency', header: 'Reporting', render: (row) => row.reportingFrequency || '—' },
+  {
+    key: 'reportingFrequency',
+    header: (
+      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+        Reporting frequency
+        <Tooltip title="How often the organisation must submit progress and utilisation reports to the donor for this fund profile (e.g. Quarterly, Half-yearly, Annual).">
+          <InfoOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary', cursor: 'help' }} />
+        </Tooltip>
+      </Box>
+    ),
+    render: (row) => row.reportingFrequency || '—',
+  },
   {
     key: 'overheadLimitPercent',
     header: 'Overhead cap',

@@ -16,6 +16,7 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import EditIcon from '@mui/icons-material/Edit';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { ACTIONS, PermissionGate } from '../../../core/permissions/index.js';
 import {
@@ -269,6 +270,9 @@ export function GrantDetailPage() {
   const donor = donorQuery.data;
   const actions = grantService.availableActions(grant.grantStatus);
   const foreign = grant.grantCurrency && grant.grantCurrency !== 'INR';
+  // FX-locked rate is only meaningful for foreign-sourced funding. A domestic
+  // donor's grant is in INR, so the rate is shown as N/A (issue #21, item 12).
+  const domesticSource = (donor?.fundSourceDomicile || '').toLowerCase() === 'domestic';
 
   const runLifecycle = async () => {
     await lifecycle.mutateAsync(pendingAction);
@@ -295,6 +299,15 @@ export function GrantDetailPage() {
               label={grant.statusLabel}
               tone={GRANT_STATUS_TONE[grant.grantStatus] || 'neutral'}
             />
+            <PermissionGate action={ACTIONS.EDIT} moduleId={MODULE_ID}>
+              <Button
+                variant="outlined"
+                startIcon={<EditIcon />}
+                onClick={() => navigate(`/grants/${grant.id}/edit`)}
+              >
+                Edit
+              </Button>
+            </PermissionGate>
             <PermissionGate action={ACTIONS.APPROVE} moduleId={MODULE_ID}>
               <Stack direction="row" spacing={1.5}>
                 {actions.map((action) => (
@@ -331,7 +344,11 @@ export function GrantDetailPage() {
             </TermRow>
             <TermRow label="Currency (CCY)">{grant.grantCurrency || 'INR'}</TermRow>
             <TermRow label="FX-locked rate (at signing)">
-              {foreign ? String(grant.fxLockedRate ?? '—') : '— (INR grant)'}
+              {domesticSource
+                ? 'N/A'
+                : foreign
+                  ? String(grant.fxLockedRate ?? '—')
+                  : '— (INR grant)'}
             </TermRow>
             <TermRow label="Total grant amount">
               {foreign

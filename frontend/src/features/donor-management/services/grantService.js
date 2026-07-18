@@ -3,6 +3,7 @@ import {
   fromGrantDetailsResponse,
   fromGrantListResponse,
   toCreateGrantRequest,
+  toGrantFormValues,
 } from '../mappers/grantMapper.js';
 
 /** Grant domain service: lifecycle + aggregation logic for grant agreements. */
@@ -18,6 +19,15 @@ export const grantService = {
 
   async createGrant(formValues) {
     return fromGrantDetailsResponse(await grantApi.create(toCreateGrantRequest(formValues)));
+  },
+
+  async updateGrant(id, formValues) {
+    return fromGrantDetailsResponse(await grantApi.update(id, toCreateGrantRequest(formValues)));
+  },
+
+  /** GrantDetailsResponse view model → edit-form values. */
+  toFormValues(grant) {
+    return toGrantFormValues(grant);
   },
 
   async approveGrant(id) {
