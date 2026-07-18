@@ -7,6 +7,35 @@
 const OPEN_GRANT_STATUSES = new Set(['APPROVED', 'ACTIVE', 'ON_HOLD']);
 const CLOSED_GRANT_STATUSES = new Set(['CLOSED', 'COMPLETED']);
 
+/** Canonical FC / DC / CSR order + labels for the funding-class breakdown. */
+export const FUNDING_CLASS_ORDER = ['FC', 'DC', 'CSR'];
+const FUNDING_CLASS_LABEL = {
+  FC: 'Foreign Contribution',
+  DC: 'Domestic Contribution',
+  CSR: 'Corporate Social Responsibility',
+};
+
+/**
+ * Normalise the server's funding-by-class rows into a stable FC → DC → CSR
+ * order with numeric amounts, filling absent buckets with zeroes so the card
+ * always renders all three. Returns [] when the summary carries no breakdown.
+ */
+export function fundingClassRows(summary) {
+  const rows = summary?.fundingByClass;
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+  const byBucket = new Map(rows.map((row) => [row.bucket, row]));
+  return FUNDING_CLASS_ORDER.map((bucket) => {
+    const row = byBucket.get(bucket);
+    return {
+      bucket,
+      label: row?.label || FUNDING_CLASS_LABEL[bucket],
+      grantCount: Number(row?.grantCount) || 0,
+      committed: Number(row?.committed) || 0,
+      received: Number(row?.received) || 0,
+    };
+  });
+}
+
 /** A donor is "inactive" (and therefore blocking) when draft or explicitly deactivated. */
 function isInactiveDonor(donor) {
   return donor.isActive === false || donor.status === 'DRAFT';

@@ -1,5 +1,6 @@
 package com.ngo.finance.donor.service.impl;
 
+import com.ngo.finance.donor.FundingClassifier;
 import com.ngo.finance.donor.dto.response.FcraRegisterEntry;
 import com.ngo.finance.donor.dto.response.UtilisationComplianceEntry;
 import com.ngo.finance.donor.entity.DonorFundProfile;
@@ -33,9 +34,7 @@ public class ReportsServiceImpl implements ReportsService {
         for (GrantAgreement grant : grantRepository.findAll()) {
             var donor = grant.getDonor();
             if (donor == null) continue;
-            boolean foreign = Boolean.TRUE.equals(donor.getFcraApplicable())
-                    || "Foreign".equalsIgnoreCase(donor.getFundSourceDomicile());
-            if (!foreign) continue;
+            if (!FundingClassifier.isForeign(donor)) continue;
 
             entries.add(FcraRegisterEntry.builder()
                     .donorCode(donor.getDonorCode())
