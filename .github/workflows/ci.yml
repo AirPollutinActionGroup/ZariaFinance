@@ -129,3 +129,47 @@ jobs:
           name: frontend-coverage
           path: frontend/coverage/
           if-no-files-found: warn
+
+      # ---- Combined summary (rendered on the run's summary page) ----
+      - name: Publish Coverage Summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, xml.etree.ElementTree as ET
+
+          def pct(cov, mis):
+              tot = cov + mis
+              return (cov * 100.0 / tot) if tot else 0.0
+
+          print("## 📊 Coverage Summary\n")
+
+          # Backend (JaCoCo) — report-level counters are direct children of <report>.
+          print("### ☕ Backend (JaCoCo) — target 75%\n")
+          try:
+              root = ET.parse("backend/finance/build/reports/jacoco/test/jacocoTestReport.xml").getroot()
+              counters = {c.get("type"): c for c in root.findall("counter")}
+              print("| Metric | Coverage |")
+              print("|--------|----------|")
+              for t, label in [("LINE", "Lines"), ("BRANCH", "Branches"),
+                               ("METHOD", "Methods"), ("INSTRUCTION", "Instructions")]:
+                  c = counters.get(t)
+                  if c is not None:
+                      cov, mis = int(c.get("covered")), int(c.get("missed"))
+                      print(f"| {label} | {pct(cov, mis):.2f}% ({cov}/{cov + mis}) |")
+          except Exception as e:
+              print(f"_Report not available: {e}_")
+          print()
+
+          # Frontend (Vitest v8) — coverage-summary.json total.
+          print("### 🎨 Frontend (Vitest v8) — target 60%\n")
+          try:
+              total = json.load(open("frontend/coverage/coverage-summary.json"))["total"]
+              print("| Metric | Coverage |")
+              print("|--------|----------|")
+              for key, label in [("lines", "Lines"), ("branches", "Branches"),
+                                 ("functions", "Functions"), ("statements", "Statements")]:
+                  m = total[key]
+                  print(f"| {label} | {m['pct']}% ({m['covered']}/{m['total']}) |")
+          except Exception as e:
+              print(f"_Report not available: {e}_")
+          PY

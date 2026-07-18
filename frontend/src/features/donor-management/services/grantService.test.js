@@ -18,12 +18,12 @@ describe('grantService', () => {
 
   it('maps list responses to view models', async () => {
     grantApi.list.mockResolvedValue([
-      { id: 7, grantCode: 'GR-7', fundClass: 'INTERNATIONAL', grantStatus: 'ACTIVE' },
+      { id: 7, grantCode: 'GR-7', fundClassCode: 'A', grantStatus: 'ACTIVE' },
     ]);
     const grants = await grantService.listGrants({ donorId: 3 });
     expect(grantApi.list).toHaveBeenCalledWith({ donorId: 3 });
     expect(grants[0].statusLabel).toBe('Active');
-    expect(grants[0].fundClassLabel).toBe('International');
+    expect(grants[0].fundClassLabel).toBe('Class A');
   });
 
   it('serialises CreateGrantRequest with numeric ids and amount', async () => {
@@ -31,20 +31,20 @@ describe('grantService', () => {
     await grantService.createGrant({
       grantCode: 'GR-9',
       donorId: '3',
-      programmeId: '2',
+      fundProfileId: '5',
       agreementName: 'Clean Air 2026',
       agreementDate: '2026-01-15',
       startDate: '2026-02-01',
       endDate: '2026-12-31',
       totalGrantAmount: '9500000',
-      fundClass: 'DOMESTIC',
+      grantCurrency: 'INR',
+      fxLockedRate: '1',
       description: '',
       agreementDocumentPath: '',
     });
     expect(grantApi.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        donorId: 3,
-        programmeId: 2,
+        fundProfileId: 5,
         totalGrantAmount: 9500000,
         description: null,
         agreementDocumentPath: null,
