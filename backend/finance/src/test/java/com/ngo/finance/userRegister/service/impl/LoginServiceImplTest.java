@@ -7,7 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
+import com.ngo.finance.common.exception.AccountPendingApprovalException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -26,15 +26,15 @@ class LoginServiceImplTest {
     private LoginServiceImpl loginService;
 
     @Test
-    void login_throwsAccessDenied_whenUserIsNotApproved() {
+    void login_throwsAccountPending_whenUserIsNotApproved() {
         UserRegister user = new UserRegister();
         user.setUsername("testuser");
         user.setPassword("hashedPassword");
-        user.setIsApproved(2); // 1 = approved, 0 = pending, 2 = rejected
+        user.setIsApproved(2); // 1 = approved, 2 = pending, 3 = rejected
 
         when(loginRepository.findByUsername("testuser")).thenReturn(user);
         when(passwordEncoder.matches("password", "hashedPassword")).thenReturn(true);
 
-        assertThrows(AccessDeniedException.class, () -> loginService.login("testuser", "password"));
+        assertThrows(AccountPendingApprovalException.class, () -> loginService.login("testuser", "password"));
     }
 }
