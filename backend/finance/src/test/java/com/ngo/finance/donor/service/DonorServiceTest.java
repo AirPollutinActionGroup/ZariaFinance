@@ -9,9 +9,9 @@ import static org.mockito.Mockito.when;
 import com.ngo.finance.donor.dto.request.CreateDonorRequest;
 import com.ngo.finance.donor.dto.response.DonorResponse;
 import com.ngo.finance.donor.entity.DonorMaster;
-import com.ngo.finance.donor.enums.DonorStatus;
 import com.ngo.finance.donor.mapper.DonorMapper;
 import com.ngo.finance.donor.repository.CityRepository;
+import com.ngo.finance.donor.repository.CountryRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.StateRepository;
 import com.ngo.finance.donor.service.impl.DonorServiceImpl;
@@ -26,6 +26,9 @@ public class DonorServiceTest {
 
     @Mock
     private DonorRepository donorRepository;
+
+    @Mock
+    private CountryRepository countryRepository;
 
     @Mock
     private StateRepository stateRepository;
@@ -54,13 +57,11 @@ public class DonorServiceTest {
         savedEntity.setId(1L);
         savedEntity.setDonorCode("D001");
         savedEntity.setDonorName("Test Donor");
-        savedEntity.setStatus(DonorStatus.DRAFT);
 
         DonorResponse expectedResponse = new DonorResponse();
         expectedResponse.setId(1L);
         expectedResponse.setDonorCode("D001");
         expectedResponse.setDonorName("Test Donor");
-        expectedResponse.setStatus(DonorStatus.DRAFT);
 
         when(donorMapper.toEntity(request)).thenReturn(donorEntity);
         when(donorRepository.save(any(DonorMaster.class))).thenReturn(savedEntity);

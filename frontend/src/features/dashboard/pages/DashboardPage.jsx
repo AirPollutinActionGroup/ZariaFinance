@@ -12,15 +12,10 @@ import {
 import { formatInr } from '../../../lib/format/currency.js';
 import { useDonors } from '../../donor-management/hooks/useDonors.js';
 import { useGrants } from '../../donor-management/hooks/useGrants.js';
-import { DONOR_STATUS_TONE, GRANT_STATUS_TONE } from '../../donor-management/constants.js';
-import {
-  fundingClassRows,
-  grantsWithDonorStatusClash,
-  recentGrants,
-} from '../services/dashboardService.js';
+import { DONOR_ACTIVE_TONE, GRANT_STATUS_TONE } from '../../donor-management/constants.js';
+import { grantsWithDonorStatusClash, recentGrants } from '../services/dashboardService.js';
 import { useDashboardSummary } from '../hooks/useDashboardSummary.js';
 import { FundingChainCard } from '../components/FundingChainCard.jsx';
-import { FundingByClassCard } from '../components/FundingByClassCard.jsx';
 import { RecordsDialog } from '../components/RecordsDialog.jsx';
 
 /** Coloured inline fragment for the multi-part KPI hints. */
@@ -40,10 +35,13 @@ const donorDialogColumns = [
   { key: 'donorName', header: 'Donor' },
   { key: 'donorType', header: 'Type' },
   {
-    key: 'status',
+    key: 'isActive',
     header: 'Status',
     render: (row) => (
-      <StatusChip label={row.statusLabel || row.status} tone={DONOR_STATUS_TONE[row.status] || 'neutral'} />
+      <StatusChip
+        label={row.isActive ? 'Active' : 'Inactive'}
+        tone={DONOR_ACTIVE_TONE[row.isActive] || 'neutral'}
+      />
     ),
   },
 ];
@@ -124,13 +122,9 @@ export function DashboardPage() {
   // real (sum of tranche receipts), utilised is the seeded placeholder. The
   // summary's field names match what the cards / funding-chain card expect.
   const summary = summaryQuery.data;
-  // Draft records are excluded from every dashboard surface — KPIs and the
-  // funding chain come from the Draft-free backend summary; the drill-down
-  // dialogs and recent list use these Draft-filtered views.
-  const donors = donorsQuery.data.filter((donor) => donor.status !== 'DRAFT');
-  const grants = grantsQuery.data.filter((grant) => grant.grantStatus !== 'DRAFT');
+  const donors = donorsQuery.data;
+  const grants = grantsQuery.data;
   const funding = summary;
-  const fundingClasses = fundingClassRows(summary);
   const clashGrants = grantsWithDonorStatusClash(donors, grants);
 
   return (
@@ -217,8 +211,6 @@ export function DashboardPage() {
         </Grid>
 
         <FundingChainCard totals={funding} />
-
-        {fundingClasses.length > 0 ? <FundingByClassCard rows={fundingClasses} /> : null}
 
         <DataTable
           title="Recent grant agreements"

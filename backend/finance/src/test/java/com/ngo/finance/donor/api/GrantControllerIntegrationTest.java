@@ -12,8 +12,7 @@ import com.ngo.finance.donor.dto.request.CreateGrantRequest;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.Programme;
-import com.ngo.finance.donor.enums.DonorStatus;
-import com.ngo.finance.donor.enums.FundClass;
+import com.ngo.finance.donor.enums.DonorType;
 import com.ngo.finance.donor.repository.DonorFundProfileRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.ProgrammeRepository;
@@ -59,10 +58,10 @@ public class GrantControllerIntegrationTest {
         DonorMaster donor = donorRepository.save(DonorMaster.builder()
                 .donorCode("DN-TEST-1")
                 .donorName("Test Donor")
-                .donorType("Corporate")
-                .fundClass(FundClass.CORPORATE)
+                .donorType(DonorType.CORPORATE)
                 .email("donor@example.com")
-                .status(DonorStatus.ACTIVE)
+                .spocNameOfThePerson("Test SPOC")
+                .spocEmail("spoc@example.com")
                 .isActive(true)
                 .build());
 
