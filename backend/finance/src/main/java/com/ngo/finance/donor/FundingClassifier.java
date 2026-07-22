@@ -1,6 +1,7 @@
 package com.ngo.finance.donor;
 
 import com.ngo.finance.donor.entity.DonorMaster;
+import com.ngo.finance.donor.enums.FundSourceDomicile;
 import com.ngo.finance.donor.enums.FundingBucket;
 
 /**
@@ -22,7 +23,7 @@ public final class FundingClassifier {
             return false;
         }
         return Boolean.TRUE.equals(donor.getFcraApplicable())
-                || "Foreign".equalsIgnoreCase(donor.getFundSourceDomicile());
+                || donor.getFundSourceDomicile() == FundSourceDomicile.FOREIGN;
     }
 
     /** Classify a donor into its FC / DC / CSR bucket. */
@@ -30,6 +31,7 @@ public final class FundingClassifier {
         if (donor == null) {
             return FundingBucket.DC;
         }
-        return FundingBucket.classify(isForeign(donor), donor.getDonorType(), donor.getDonorSource());
+        String donorType = donor.getDonorType() != null ? donor.getDonorType().getLabel() : null;
+        return FundingBucket.classify(isForeign(donor), donorType, null);
     }
 }
