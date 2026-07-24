@@ -1,6 +1,8 @@
 package com.ngo.finance.donor.api;
 
+import com.ngo.finance.donor.dto.request.ApproveGrantRequest;
 import com.ngo.finance.donor.dto.request.CreateGrantRequest;
+import com.ngo.finance.donor.dto.request.GrantRemarksRequest;
 import com.ngo.finance.donor.dto.response.GrantDetailsResponse;
 import com.ngo.finance.donor.dto.response.GrantListResponse;
 import com.ngo.finance.donor.service.GrantService;
@@ -88,9 +90,11 @@ public class GrantController {
 
     @PatchMapping("/{id}/approve")
     @Operation(summary = "Approve a grant agreement")
-    public ResponseEntity<Void> approveGrant(@PathVariable Long id) {
+    public ResponseEntity<Void> approveGrant(
+            @PathVariable Long id,
+            @RequestBody(required = false) ApproveGrantRequest request) {
         log.info("PATCH /api/v1/grants/{}/approve - Approving grant", id);
-        grantService.approveGrant(id);
+        grantService.approveGrant(id, request);
         return ResponseEntity.noContent().build();
     }
 
@@ -107,6 +111,32 @@ public class GrantController {
     public ResponseEntity<Void> closeGrant(@PathVariable Long id) {
         log.info("PATCH /api/v1/grants/{}/close - Closing grant", id);
         grantService.closeGrant(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/hold")
+    @Operation(summary = "Put an approved grant agreement on hold")
+    public ResponseEntity<Void> holdGrant(
+            @PathVariable Long id,
+            @RequestBody(required = false) GrantRemarksRequest request) {
+        log.info("PATCH /api/v1/grants/{}/hold - Putting grant on hold", id);
+        grantService.holdGrant(id, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/resume")
+    @Operation(summary = "Resume a grant agreement that is on hold")
+    public ResponseEntity<Void> resumeGrant(@PathVariable Long id) {
+        log.info("PATCH /api/v1/grants/{}/resume - Resuming grant", id);
+        grantService.resumeGrant(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/complete")
+    @Operation(summary = "Mark a grant agreement as completed")
+    public ResponseEntity<Void> completeGrant(@PathVariable Long id) {
+        log.info("PATCH /api/v1/grants/{}/complete - Completing grant", id);
+        grantService.completeGrant(id);
         return ResponseEntity.noContent().build();
     }
 }

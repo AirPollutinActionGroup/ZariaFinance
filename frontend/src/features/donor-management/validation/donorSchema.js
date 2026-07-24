@@ -5,6 +5,8 @@ import { DONOR_TYPE, FUND_SOURCE_DOMICILE } from '../constants.js';
  * Mirrors CreateDonorRequest bean validation:
  * donorCode/donorName/donorType/fundSourceDomicile/email/spocNameOfThePerson/
  * spocEmail @NotBlank or @NotNull, email/spocEmail @Email; everything else optional.
+ * Exception: `address` is required client-side only — CreateDonorRequest does
+ * not enforce it server-side.
  */
 export const donorSchema = z.object({
   donorCode: z.string().trim().min(1, 'Donor code is required'),
@@ -21,10 +23,10 @@ export const donorSchema = z.object({
   email: z.string().trim().min(1, 'Email is required').email('Email must be valid'),
   phoneNumber: z.string().trim().optional().or(z.literal('')),
   website: z.string().trim().optional().or(z.literal('')),
-  spocNameOfThePerson: z.string().trim().min(1, 'SPOC name is required'),
+  spocNameOfThePerson: z.string().trim().min(1, 'POC name is required'),
   spocPhoneNumber: z.string().trim().optional().or(z.literal('')),
-  spocEmail: z.string().trim().min(1, 'SPOC email is required').email('SPOC email must be valid'),
-  address: z.string().trim().optional().or(z.literal('')),
+  spocEmail: z.string().trim().min(1, 'POC email is required').email('POC email must be valid'),
+  address: z.string().trim().min(1, 'Street address is required'),
   address2: z.string().trim().optional().or(z.literal('')),
   cityId: z.union([z.number(), z.string()]).optional().or(z.literal('')).nullable(),
   stateId: z.union([z.number(), z.string()]).optional().or(z.literal('')).nullable(),

@@ -4,9 +4,6 @@
  * dashboard is derived from backend records.
  */
 
-const OPEN_GRANT_STATUSES = new Set(['APPROVED', 'ACTIVE', 'ON_HOLD']);
-const CLOSED_GRANT_STATUSES = new Set(['CLOSED', 'COMPLETED']);
-
 /** Canonical FC / DC / CSR order + labels for the funding-class breakdown. */
 export const FUNDING_CLASS_ORDER = ['FC', 'DC', 'CSR'];
 const FUNDING_CLASS_LABEL = {
@@ -45,7 +42,7 @@ export function computeDashboardMetrics(allDonors, allGrants) {
   // Draft records never contribute to any dashboard metric — drop them before
   // aggregating so counts and amounts match the Draft-free backend summary.
   const donors = allDonors.filter((donor) => donor.status !== 'DRAFT');
-  const grants = allGrants.filter((grant) => grant.grantStatus !== 'DRAFT');
+  const grants = allGrants;
 
   const activeDonors = donors.filter((donor) => !isInactiveDonor(donor));
   const draftDonorCount = donors.filter((donor) => donor.status === 'DRAFT').length;
@@ -54,7 +51,7 @@ export function computeDashboardMetrics(allDonors, allGrants) {
     (sum, grant) => sum + (Number(grant.totalGrantAmount) || 0),
     0,
   );
-  const openGrants = grants.filter((grant) => OPEN_GRANT_STATUSES.has(grant.grantStatus));
+  const openGrants = grants.filter((grant) => grant.isActive === true);
   const openCommitted = openGrants.reduce(
     (sum, grant) => sum + (Number(grant.totalGrantAmount) || 0),
     0,
@@ -78,9 +75,8 @@ export function computeDashboardMetrics(allDonors, allGrants) {
     draftBlockingAmount: blockedCommitted,
     grantCount: grants.length,
     openGrantCount: openGrants.length,
-    activeGrantCount: grants.filter((grant) => grant.grantStatus === 'ACTIVE').length,
-    closedGrantCount: grants.filter((grant) => CLOSED_GRANT_STATUSES.has(grant.grantStatus))
-      .length,
+    activeGrantCount: grants.filter((grant) => grant.isActive === true).length,
+    closedGrantCount: grants.filter((grant) => grant.isActive === false).length,
     blockedGrantCount: blockedGrants.length,
     totalCommitted,
     openCommitted,
@@ -103,6 +99,6 @@ export function grantsWithDonorStatusClash(donors, grants) {
     donors.filter((donor) => donor.isActive === false).map((donor) => donor.id),
   );
   return grants.filter(
-    (grant) => grant.grantStatus === 'ACTIVE' && inactiveDonorIds.has(grant.donorId),
+    (grant) => grant.isActive === true && inactiveDonorIds.has(grant.donorId),
   );
 }

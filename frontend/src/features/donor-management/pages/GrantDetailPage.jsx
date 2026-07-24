@@ -14,6 +14,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -27,14 +28,14 @@ import {
   PageHeader,
   StatusChip,
 } from '../../../shared/components/index.js';
-import { formatDate } from '../../../lib/format/date.js';
+import { formatDate, formatDateTime } from '../../../lib/format/date.js';
 import { formatInr } from '../../../lib/format/currency.js';
 import { useGrant, useGrantLifecycle } from '../hooks/useGrants.js';
 import { useFundProfile } from '../hooks/useFundProfiles.js';
 import { useDonor } from '../hooks/useDonors.js';
 import { useTranchesByGrant } from '../hooks/useTranches.js';
 import { grantService } from '../services/grantService.js';
-import { FUND_CLASS_CODE_TONE, GRANT_STATUS_TONE, MODULE_ID } from '../constants.js';
+import { FUND_CLASS_CODE_TONE, GRANT_ACTIVE_TONE, MODULE_ID } from '../constants.js';
 import { DocumentsPanel } from '../components/DocumentsPanel.jsx';
 import { TranchesPanel } from '../components/TranchesPanel.jsx';
 import { FundingDonut } from '../components/FundingDonut.jsx';
@@ -59,10 +60,25 @@ const ACTION_COPY = {
     description: 'Close this grant agreement? No further transactions can reference it.',
     color: 'error',
   },
+  hold: {
+    label: 'Put on hold',
+    title: 'Put grant on hold',
+    description: 'Put this grant agreement on hold? It stays active but is flagged for review.',
+    color: 'warning',
+  },
+  resume: {
+    label: 'Resume',
+    title: 'Resume grant',
+    description: 'Resume this grant agreement from hold and return it to approved status?',
+    color: 'primary',
+  },
+  complete: {
+    label: 'Mark completed',
+    title: 'Mark grant completed',
+    description: 'Mark this grant agreement as completed? This reflects the grant has run its course.',
+    color: 'primary',
+  },
 };
-
-/** Statuses at or past approval — used to decide whether "Approved by" is meaningful. */
-const POST_APPROVAL = ['APPROVED', 'ACTIVE', 'ON_HOLD', 'COMPLETED', 'CLOSED'];
 
 /** Label/value row in the "register" style of the approved design. */
 function TermRow({ label, children, last = false }) {
@@ -312,6 +328,7 @@ export function GrantDetailPage() {
   const grantQuery = useGrant(id);
   const lifecycle = useGrantLifecycle(id);
   const [pendingAction, setPendingAction] = useState(null);
+  const [approvalRemarks, setApprovalRemarks] = useState('');
 
   const grant = grantQuery.data;
   const tranchesQuery = useTranchesByGrant(grant ? Number(id) : null);
@@ -325,15 +342,22 @@ export function GrantDetailPage() {
   const profile = profileQuery.data;
   const donor = donorQuery.data;
   const rule = profile?.disbursementRules?.[0];
-  const actions = grantService.availableActions(grant.grantStatus);
+  const actions = grantService.availableActions(grant.isApproved, grant.isActive);
   const foreign = grant.grantCurrency && grant.grantCurrency !== 'INR';
   // FX-locked rate is only meaningful for foreign-sourced funding. A domestic
   // donor's grant is in INR, so the rate is shown as N/A (issue #21, item 12).
   const domesticSource = (donor?.fundSourceDomicile || '').toLowerCase() === 'domestic';
 
   const runLifecycle = async () => {
-    await lifecycle.mutateAsync(pendingAction);
+    // approvedBy is a user id (no session id available yet — BACKEND_GAPS.md #1 —
+    // so it's left unset here rather than sending the session's display name).
+    const payload =
+      pendingAction === 'approve' || pendingAction === 'hold'
+        ? { remarks: approvalRemarks.trim() || undefined }
+        : undefined;
+    await lifecycle.mutateAsync({ action: pendingAction, payload });
     setPendingAction(null);
+    setApprovalRemarks('');
   };
 
   return (
@@ -354,7 +378,7 @@ export function GrantDetailPage() {
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
             <StatusChip
               label={grant.statusLabel}
-              tone={GRANT_STATUS_TONE[grant.grantStatus] || 'neutral'}
+              tone={GRANT_ACTIVE_TONE[grant.isActive] || 'neutral'}
             />
             <PermissionGate action={ACTIONS.EDIT} moduleId={MODULE_ID}>
               <Button
@@ -426,12 +450,18 @@ export function GrantDetailPage() {
               {formatInr(grant.reportingAmountInr ?? grant.totalGrantAmount)}
             </TermRow>
             <TermRow label="Approved by">
-              {POST_APPROVAL.includes(grant.grantStatus) && grant.updatedBy ? grant.updatedBy : '—'}
+              {grant.isApproved === 1 && grant.approvedBy ? grant.approvedBy : '—'}
             </TermRow>
+            {grant.isApproved === 1 && grant.approvalDate ? (
+              <TermRow label="Approval date">{formatDateTime(grant.approvalDate)}</TermRow>
+            ) : null}
+            {grant.isApproved === 1 && grant.approvalRemarks ? (
+              <TermRow label="Approval remarks">{grant.approvalRemarks}</TermRow>
+            ) : null}
             <TermRow label="Status" last>
               <StatusChip
                 label={grant.statusLabel}
-                tone={GRANT_STATUS_TONE[grant.grantStatus] || 'neutral'}
+                tone={GRANT_ACTIVE_TONE[grant.isActive] || 'neutral'}
               />
             </TermRow>
           </SectionCard>
@@ -502,8 +532,23 @@ export function GrantDetailPage() {
         confirmColor={pendingAction ? ACTION_COPY[pendingAction].color : 'primary'}
         busy={lifecycle.isPending}
         onConfirm={runLifecycle}
-        onClose={() => setPendingAction(null)}
-      />
+        onClose={() => {
+          setPendingAction(null);
+          setApprovalRemarks('');
+        }}
+      >
+        {pendingAction === 'approve' || pendingAction === 'hold' ? (
+          <TextField
+            label="Remarks (optional)"
+            value={approvalRemarks}
+            onChange={(e) => setApprovalRemarks(e.target.value)}
+            multiline
+            minRows={2}
+            fullWidth
+            sx={{ mt: 2 }}
+          />
+        ) : null}
+      </ConfirmDialog>
     </>
   );
 }

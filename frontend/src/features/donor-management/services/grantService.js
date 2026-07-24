@@ -30,8 +30,8 @@ export const grantService = {
     return toGrantFormValues(grant);
   },
 
-  async approveGrant(id) {
-    await grantApi.approve(id);
+  async approveGrant(id, { approvedBy, remarks } = {}) {
+    await grantApi.approve(id, { approvedBy, remarks });
   },
 
   async activateGrant(id) {
@@ -42,22 +42,28 @@ export const grantService = {
     await grantApi.close(id);
   },
 
+  async holdGrant(id, { remarks } = {}) {
+    await grantApi.hold(id, { remarks });
+  },
+
+  async resumeGrant(id) {
+    await grantApi.resume(id);
+  },
+
+  async completeGrant(id) {
+    await grantApi.complete(id);
+  },
+
   /**
-   * Lifecycle actions available for a grant in a given status, mirroring
-   * GrantController's transitions (approve, activate, close).
+   * Lifecycle actions available for a grant, mirroring GrantController's
+   * transitions (approve, activate, close, hold, resume, complete). Driven by
+   * isApproved (1 = approved, 2 = pending, 3 = on hold, 4 = completed) and
+   * isActive, not a status enum. Completed is terminal — no further actions.
    */
-  availableActions(grantStatus) {
-    switch (grantStatus) {
-      case 'DRAFT':
-      case 'PENDING_APPROVAL':
-        return ['approve'];
-      case 'APPROVED':
-        return ['activate', 'close'];
-      case 'ACTIVE':
-      case 'ON_HOLD':
-        return ['close'];
-      default:
-        return [];
-    }
+  availableActions(isApproved, isActive) {
+    if (isApproved === 2) return ['approve'];
+    if (isApproved === 1) return isActive ? ['hold', 'complete', 'close'] : ['activate'];
+    if (isApproved === 3) return ['resume'];
+    return [];
   },
 };

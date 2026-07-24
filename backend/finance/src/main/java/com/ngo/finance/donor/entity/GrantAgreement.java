@@ -2,7 +2,6 @@ package com.ngo.finance.donor.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
 import com.ngo.finance.donor.enums.FundClass;
-import com.ngo.finance.donor.enums.GrantStatus;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,6 +14,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -26,7 +26,8 @@ import lombok.ToString;
 
 /**
  * Grant Agreement entity - Aggregate Root
- * Owns: GrantRule, GrantReporting, GrantTranche, GrantDocument, GrantBudgetHead, GrantKPI, GrantGeography
+ * Owns: GrantRule, GrantReporting, GrantTranche, GrantDocument,
+ * GrantBudgetHead, GrantKPI, GrantGeography
  */
 @Entity
 @Table(name = "grant_agreement")
@@ -34,8 +35,10 @@ import lombok.ToString;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"donor", "programme", "fundProfile", "rules", "reporting", "tranches", "documents", "budgetHeads", "kpis", "geographies"}, callSuper = true)
-@ToString(exclude = {"donor", "programme", "fundProfile", "rules", "reporting", "tranches", "documents", "budgetHeads", "kpis", "geographies"})
+@EqualsAndHashCode(exclude = { "donor", "programme", "fundProfile", "rules", "reporting", "tranches", "documents",
+        "budgetHeads", "kpis", "geographies" }, callSuper = true)
+@ToString(exclude = { "donor", "programme", "fundProfile", "rules", "reporting", "tranches", "documents", "budgetHeads",
+        "kpis", "geographies" })
 public class GrantAgreement extends AuditEntity {
 
     @Column(nullable = false, unique = true, length = 20)
@@ -92,10 +95,9 @@ public class GrantAgreement extends AuditEntity {
     @Enumerated(EnumType.STRING)
     private FundClass fundClass;
 
-    @Column(length = 50, nullable = false)
-    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     @Builder.Default
-    private GrantStatus grantStatus = GrantStatus.DRAFT;
+    private Boolean isActive = true;
 
     @Column(columnDefinition = "TEXT")
     private String description;
@@ -130,4 +132,17 @@ public class GrantAgreement extends AuditEntity {
     @OneToMany(mappedBy = "grant", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<GrantGeography> geographies = new ArrayList<>();
+
+    @Column(name = "approved_by")
+    private Long approvedBy;
+
+    @Column(name = "approval_remarks", columnDefinition = "TEXT")
+    private String approvalRemarks;
+
+    @Column(name = "is_approved", nullable = false)
+    @Builder.Default
+    private Integer isApproved = 2; // 1 = approved, 2 = pending, 3 = on hold, 4 = completed
+
+    @Column(name = "approval_date")
+    private LocalDateTime approvalDate;
 }
