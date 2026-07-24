@@ -1,6 +1,8 @@
 package com.ngo.finance.donor.service;
 
+import com.ngo.finance.donor.dto.request.ApproveGrantRequest;
 import com.ngo.finance.donor.dto.request.CreateGrantRequest;
+import com.ngo.finance.donor.dto.request.GrantRemarksRequest;
 import com.ngo.finance.donor.dto.response.GrantDetailsResponse;
 import com.ngo.finance.donor.dto.response.GrantListResponse;
 import java.util.List;
@@ -26,9 +28,15 @@ public interface GrantService {
 
     List<GrantListResponse> searchGrants(String searchTerm);
 
-    void approveGrant(Long id);
+    void approveGrant(Long id, ApproveGrantRequest request);
 
     void activateGrant(Long id);
 
     void closeGrant(Long id);
+
+    void holdGrant(Long id, GrantRemarksRequest request);
+
+    void resumeGrant(Long id);
+
+    void completeGrant(Long id);
 }

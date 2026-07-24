@@ -1,5 +1,3 @@
-import { GRANT_STATUS } from '../constants.js';
-
 /**
  * GrantMapper — GrantListResponse / GrantDetailsResponse ↔ view models,
  * form values → CreateGrantRequest. Field names mirror the backend DTOs.
@@ -12,7 +10,7 @@ export function fromGrantListResponse(dto) {
   return {
     ...dto,
     fundClassLabel: dto.fundClassCode ? `Class ${dto.fundClassCode}` : '—',
-    statusLabel: GRANT_STATUS[dto.grantStatus] || dto.grantStatus || '—',
+    statusLabel: dto.isActive ? 'Active' : 'Inactive',
   };
 }
 
