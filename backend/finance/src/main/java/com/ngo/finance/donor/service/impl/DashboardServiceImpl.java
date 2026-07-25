@@ -4,13 +4,11 @@ import com.ngo.finance.donor.dto.response.DashboardSummaryResponse;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.GrantAgreement;
 import com.ngo.finance.donor.entity.GrantTranche;
-import com.ngo.finance.donor.enums.GrantStatus;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.GrantRepository;
 import com.ngo.finance.donor.service.DashboardService;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,8 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class DashboardServiceImpl implements DashboardService {
-
-    private static final Set<GrantStatus> CLOSED_STATUSES = Set.of(GrantStatus.CLOSED, GrantStatus.COMPLETED);
 
     @Autowired
     private DonorRepository donorRepository;
@@ -71,9 +67,9 @@ public class DashboardServiceImpl implements DashboardService {
         // Active count excludes blocked grants (active status but on an inactive
         // donor) so active / closed / blocked stay mutually exclusive.
         long activeGrants = grants.stream()
-                .filter(g -> g.getGrantStatus() == GrantStatus.ACTIVE && !isInactive(g.getDonor()))
+                .filter(g -> Boolean.TRUE.equals(g.getIsActive()) && !isInactive(g.getDonor()))
                 .count();
-        long closedGrants = grants.stream().filter(g -> CLOSED_STATUSES.contains(g.getGrantStatus())).count();
+        long closedGrants = grants.stream().filter(g -> Boolean.FALSE.equals(g.getIsActive())).count();
 
         return DashboardSummaryResponse.builder()
                 .donorCount(donors.size())

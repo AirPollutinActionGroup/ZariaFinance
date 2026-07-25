@@ -10,6 +10,9 @@ vi.mock('../api/grantApi.js', () => ({
     approve: vi.fn(),
     activate: vi.fn(),
     close: vi.fn(),
+    hold: vi.fn(),
+    resume: vi.fn(),
+    complete: vi.fn(),
   },
 }));
 
@@ -18,7 +21,7 @@ describe('grantService', () => {
 
   it('maps list responses to view models', async () => {
     grantApi.list.mockResolvedValue([
-      { id: 7, grantCode: 'GR-7', fundClassCode: 'A', grantStatus: 'ACTIVE' },
+      { id: 7, grantCode: 'GR-7', fundClassCode: 'A', isActive: true },
     ]);
     const grants = await grantService.listGrants({ donorId: 3 });
     expect(grantApi.list).toHaveBeenCalledWith({ donorId: 3 });
@@ -54,16 +57,17 @@ describe('grantService', () => {
 
   describe('availableActions mirrors GrantController transitions', () => {
     it.each([
-      ['DRAFT', ['approve']],
-      ['PENDING_APPROVAL', ['approve']],
-      ['APPROVED', ['activate', 'close']],
-      ['ACTIVE', ['close']],
-      ['ON_HOLD', ['close']],
-      ['CLOSED', []],
-      ['COMPLETED', []],
-      ['TERMINATED', []],
-    ])('%s → %j', (status, expected) => {
-      expect(grantService.availableActions(status)).toEqual(expected);
+      // [isApproved, isActive, expected]
+      [2, true, ['approve']],
+      [2, false, ['approve']],
+      [1, true, ['hold', 'complete', 'close']],
+      [1, false, ['activate']],
+      [3, true, ['resume']],
+      [3, false, ['resume']],
+      [4, true, []],
+      [undefined, true, []],
+    ])('isApproved=%s isActive=%s → %j', (isApproved, isActive, expected) => {
+      expect(grantService.availableActions(isApproved, isActive)).toEqual(expected);
     });
   });
 });

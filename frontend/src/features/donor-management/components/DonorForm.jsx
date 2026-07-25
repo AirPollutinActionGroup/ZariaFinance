@@ -217,7 +217,7 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                 <RhfTextField
                   name="spocNameOfThePerson"
                   control={control}
-                  label="SPOC name"
+                  label="POC name"
                   required
                 />
               </Grid>
@@ -225,14 +225,14 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                 <RhfTextField
                   name="spocPhoneNumber"
                   control={control}
-                  label="SPOC phone number"
+                  label="POC phone number"
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
                 <RhfTextField
                   name="spocEmail"
                   control={control}
-                  label="SPOC email"
+                  label="POC email"
                   type="email"
                   required
                 />
@@ -246,7 +246,7 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
             </Typography>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <RhfTextField name="address" control={control} label="Street address" />
+                <RhfTextField name="address" control={control} label="Street address" required />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <RhfTextField name="address2" control={control} label="Street address 2" />

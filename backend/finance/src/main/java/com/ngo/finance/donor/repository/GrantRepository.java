@@ -1,7 +1,6 @@
 package com.ngo.finance.donor.repository;
 
 import com.ngo.finance.donor.entity.GrantAgreement;
-import com.ngo.finance.donor.enums.GrantStatus;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,11 +16,6 @@ public interface GrantRepository extends JpaRepository<GrantAgreement, Long> {
     List<GrantAgreement> findByDonorId(Long donorId);
 
     List<GrantAgreement> findByProgrammeId(Long programmeId);
-
-    List<GrantAgreement> findByGrantStatus(GrantStatus status);
-
-    @Query("SELECT g FROM GrantAgreement g WHERE g.donor.id = :donorId AND g.grantStatus = :status")
-    List<GrantAgreement> findByDonorIdAndStatus(@Param("donorId") Long donorId, @Param("status") GrantStatus status);
 
     @Query("SELECT g FROM GrantAgreement g WHERE g.grantCode LIKE %:searchTerm% OR g.agreementName LIKE %:searchTerm%")
     List<GrantAgreement> searchByCodeOrName(@Param("searchTerm") String searchTerm);

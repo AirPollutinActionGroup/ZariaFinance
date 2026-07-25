@@ -1,19 +1,21 @@
 package com.ngo.finance.donor.service.impl;
 
 import com.ngo.finance.common.exception.ResourceNotFoundException;
+import com.ngo.finance.donor.dto.request.ApproveGrantRequest;
 import com.ngo.finance.donor.dto.request.CreateGrantRequest;
+import com.ngo.finance.donor.dto.request.GrantRemarksRequest;
 import com.ngo.finance.donor.dto.response.GrantDetailsResponse;
 import com.ngo.finance.donor.dto.response.GrantListResponse;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.GrantAgreement;
 import com.ngo.finance.donor.entity.Programme;
-import com.ngo.finance.donor.enums.GrantStatus;
 import com.ngo.finance.donor.mapper.GrantMapper;
 import com.ngo.finance.donor.repository.DonorFundProfileRepository;
 import com.ngo.finance.donor.repository.GrantRepository;
 import com.ngo.finance.donor.repository.ProgrammeRepository;
 import com.ngo.finance.donor.service.GrantService;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -53,7 +55,7 @@ public class GrantServiceImpl implements GrantService {
         log.info("Creating new grant with code: {}", grant.getGrantCode());
         applyFundProfile(grant, request.getFundProfileId(), request.getProgrammeId());
         applyFinancials(grant, request);
-        grant.setGrantStatus(GrantStatus.DRAFT);
+        grant.setIsActive(true);
 
         GrantAgreement savedGrant = grantRepository.save(grant);
         log.info("Grant created successfully with id: {}", savedGrant.getId());
@@ -160,7 +162,6 @@ public class GrantServiceImpl implements GrantService {
     public List<GrantListResponse> getAllGrants() {
         log.debug("Fetching all grants");
         return grantRepository.findAll().stream()
-                .filter(grant -> grant.getGrantStatus() != GrantStatus.DRAFT)
                 .map(grantMapper::toListResponse)
                 .toList();
     }
@@ -188,24 +189,26 @@ public class GrantServiceImpl implements GrantService {
     public List<GrantListResponse> searchGrants(String searchTerm) {
         log.debug("Searching grants with term: {}", searchTerm);
         return grantRepository.searchByCodeOrName(searchTerm).stream()
-                .filter(grant -> grant.getGrantStatus() != GrantStatus.DRAFT)
                 .map(grantMapper::toListResponse)
                 .toList();
     }
 
     @Override
-    public void approveGrant(Long id) {
+    public void approveGrant(Long id, ApproveGrantRequest request) {
         log.info("Approving grant with id: {}", id);
 
         GrantAgreement grant = grantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
 
-        if (grant.getGrantStatus() == GrantStatus.DRAFT) {
-            grant.setGrantStatus(GrantStatus.APPROVED);
+        if (grant.getIsApproved() == 2) {
+            grant.setIsApproved(1);
+            grant.setApprovedBy(request != null ? request.getApprovedBy() : null);
+            grant.setApprovalRemarks(request != null ? request.getRemarks() : null);
+            grant.setApprovalDate(LocalDateTime.now());
             grantRepository.save(grant);
             log.info("Grant approved successfully");
         } else {
-            log.warn("Cannot approve grant in status: {}", grant.getGrantStatus());
+            log.warn("Cannot approve grant with isApproved: {}", grant.getIsApproved());
         }
     }
 
@@ -216,12 +219,12 @@ public class GrantServiceImpl implements GrantService {
         GrantAgreement grant = grantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
 
-        if (grant.getGrantStatus() == GrantStatus.APPROVED) {
-            grant.setGrantStatus(GrantStatus.ACTIVE);
+        if (grant.getIsApproved() == 1) {
+            grant.setIsActive(true);
             grantRepository.save(grant);
             log.info("Grant activated successfully");
         } else {
-            log.warn("Cannot activate grant in status: {}", grant.getGrantStatus());
+            log.warn("Cannot activate grant that is not approved (isApproved: {})", grant.getIsApproved());
         }
     }
 
@@ -232,8 +235,59 @@ public class GrantServiceImpl implements GrantService {
         GrantAgreement grant = grantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
 
-        grant.setGrantStatus(GrantStatus.CLOSED);
+        grant.setIsActive(false);
         grantRepository.save(grant);
         log.info("Grant closed successfully");
+    }
+
+    @Override
+    public void holdGrant(Long id, GrantRemarksRequest request) {
+        log.info("Putting grant with id: {} on hold", id);
+
+        GrantAgreement grant = grantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
+
+        if (grant.getIsApproved() == 1) {
+            grant.setIsApproved(3);
+            if (request != null && request.getRemarks() != null) {
+                grant.setApprovalRemarks(request.getRemarks());
+            }
+            grantRepository.save(grant);
+            log.info("Grant put on hold successfully");
+        } else {
+            log.warn("Cannot put grant on hold that is not approved (isApproved: {})", grant.getIsApproved());
+        }
+    }
+
+    @Override
+    public void resumeGrant(Long id) {
+        log.info("Resuming grant with id: {}", id);
+
+        GrantAgreement grant = grantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
+
+        if (grant.getIsApproved() == 3) {
+            grant.setIsApproved(1);
+            grantRepository.save(grant);
+            log.info("Grant resumed successfully");
+        } else {
+            log.warn("Cannot resume grant that is not on hold (isApproved: {})", grant.getIsApproved());
+        }
+    }
+
+    @Override
+    public void completeGrant(Long id) {
+        log.info("Completing grant with id: {}", id);
+
+        GrantAgreement grant = grantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
+
+        if (grant.getIsApproved() == 1) {
+            grant.setIsApproved(4);
+            grantRepository.save(grant);
+            log.info("Grant completed successfully");
+        } else {
+            log.warn("Cannot complete grant that is not approved (isApproved: {})", grant.getIsApproved());
+        }
     }
 }
