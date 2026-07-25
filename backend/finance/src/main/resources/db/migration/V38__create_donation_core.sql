@@ -1,4 +1,4 @@
--- V23: Donation core — a gift received. Unlike grant_agreement (pledged,
+-- V38: Donation core — a gift received. Unlike grant_agreement (pledged,
 -- released in tranches), a donation is income the moment it lands: there is
 -- no committed stage, and donor_id is nullable because an anonymous
 -- donation is never linked to a placeholder donor record.

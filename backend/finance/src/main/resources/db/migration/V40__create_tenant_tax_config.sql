@@ -1,4 +1,4 @@
--- V25: Singleton org-level tax registration facts the donation tax chain
+-- V40: Singleton org-level tax registration facts the donation tax chain
 -- (80G eligibility, Form 10BD, Form 10BE) evaluates against. Seeded with a
 -- placeholder registration so the chain has something to evaluate out of
 -- the box; idempotent so this migration is safe to re-run.

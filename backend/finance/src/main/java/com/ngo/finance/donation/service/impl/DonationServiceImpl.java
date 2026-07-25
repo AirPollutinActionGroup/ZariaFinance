@@ -37,6 +37,8 @@ import com.ngo.finance.donation.util.FinancialYearUtil;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.Programme;
 import com.ngo.finance.donor.entity.StateMaster;
+import com.ngo.finance.donor.enums.DonorType;
+import com.ngo.finance.donor.enums.FundSourceDomicile;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.ProgrammeRepository;
 import com.ngo.finance.donor.repository.StateRepository;
@@ -192,12 +194,12 @@ public class DonationServiceImpl implements DonationService {
         if (identification == DonorIdentification.ANONYMOUS || donor == null) {
             return Book.LC;
         }
-        return "Foreign".equalsIgnoreCase(donor.getFundSourceDomicile()) ? Book.FC : Book.LC;
+        return donor.getFundSourceDomicile() == FundSourceDomicile.FOREIGN ? Book.FC : Book.LC;
     }
 
     private void applyForeignAccountGate(DonorMaster donor, CreateDonationRequest request,
             Map<String, String> errors) {
-        boolean foreignDonor = donor != null && "Foreign".equalsIgnoreCase(donor.getFundSourceDomicile());
+        boolean foreignDonor = donor != null && donor.getFundSourceDomicile() == FundSourceDomicile.FOREIGN;
         if (foreignDonor && request.getBankAccountType() != DonationBankAccountType.FCRA_DESIGNATED) {
             errors.put("bankAccountType", "A foreign donor's gift can only be received into the FCRA designated account");
         }
@@ -277,8 +279,7 @@ public class DonationServiceImpl implements DonationService {
                     Map.of("corpusDetail", "Written direction reference and document are required"));
         }
         DonorMaster donor = donation.getDonor();
-        boolean csrDonor = donor != null && donor.getDonorType() != null
-                && donor.getDonorType().toLowerCase().contains("csr");
+        boolean csrDonor = donor != null && donor.getDonorType() == DonorType.CORPORATE;
         if (donation.getBook() == Book.LC && csrDonor) {
             throw new ValidationException("CSR funds cannot be given as corpus",
                     Map.of("corpusDetail", "Domestic corpus must come from individuals, not CSR"));

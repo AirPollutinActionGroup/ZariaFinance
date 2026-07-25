@@ -1,4 +1,4 @@
--- V24: Type-specific detail blocks. Only the block matching a donation's
+-- V39: Type-specific detail blocks. Only the block matching a donation's
 -- donation_type is ever populated for that row.
 
 -- Gift-in-kind line items — one gift may contain several items, each with

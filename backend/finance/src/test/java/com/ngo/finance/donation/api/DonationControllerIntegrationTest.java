@@ -16,8 +16,8 @@ import com.ngo.finance.donation.enums.FundMode;
 import com.ngo.finance.donation.enums.UtilisationPeriodType;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.StateMaster;
-import com.ngo.finance.donor.enums.DonorStatus;
-import com.ngo.finance.donor.enums.FundClass;
+import com.ngo.finance.donor.enums.DonorType;
+import com.ngo.finance.donor.enums.FundSourceDomicile;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.StateRepository;
 import java.math.BigDecimal;
@@ -60,13 +60,13 @@ public class DonationControllerIntegrationTest {
         DonorMaster donor = donorRepository.save(DonorMaster.builder()
                 .donorCode("DN-DON-TEST-1")
                 .donorName("Test Donation Donor")
-                .donorType("Individual")
-                .fundClass(FundClass.INDIVIDUAL)
+                .donorType(DonorType.INDIVIDUAL)
                 .email("donor-donation-test@example.com")
-                .fundSourceDomicile("Domestic")
+                .spocNameOfThePerson("Test Contact")
+                .spocEmail("donor-donation-test@example.com")
+                .fundSourceDomicile(FundSourceDomicile.DOMESTIC)
                 .panCardNumber("ABCDE1234F")
                 .address("14 Nehru Park, New Delhi 110021")
-                .status(DonorStatus.ACTIVE)
                 .isActive(true)
                 .build());
 

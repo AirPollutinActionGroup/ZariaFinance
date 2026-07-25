@@ -32,6 +32,8 @@ import com.ngo.finance.donation.repository.TenantTaxConfigRepository;
 import com.ngo.finance.donation.service.impl.DonationServiceImpl;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.StateMaster;
+import com.ngo.finance.donor.enums.DonorType;
+import com.ngo.finance.donor.enums.FundSourceDomicile;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.ProgrammeRepository;
 import com.ngo.finance.donor.repository.StateRepository;
@@ -122,7 +124,7 @@ public class DonationServiceImplTest {
     @Test
     void testCreateDonation_ForeignDonorWrongAccount_Blocked() {
         DonorMaster foreignDonor = DonorMaster.builder().donorName("Horizon Global Fund")
-                .fundSourceDomicile("Foreign").build();
+                .fundSourceDomicile(FundSourceDomicile.FOREIGN).build();
         foreignDonor.setId(5L);
         when(donorRepository.findById(5L)).thenReturn(java.util.Optional.of(foreignDonor));
 
@@ -140,7 +142,7 @@ public class DonationServiceImplTest {
     @Test
     void testCreateDonation_CorpusWithoutWrittenDirection_Blocked() {
         DonorMaster donor = DonorMaster.builder().donorName("Vikram Nair")
-                .fundSourceDomicile("Domestic").donorType("Individual").build();
+                .fundSourceDomicile(FundSourceDomicile.DOMESTIC).donorType(DonorType.INDIVIDUAL).build();
         donor.setId(1L);
         when(donorRepository.findById(1L)).thenReturn(java.util.Optional.of(donor));
         mockOneState();
@@ -159,7 +161,7 @@ public class DonationServiceImplTest {
     @Test
     void testCreateDonation_CorpusFromCsrDonor_Blocked() {
         DonorMaster csrDonor = DonorMaster.builder().donorName("Acme CSR Foundation")
-                .fundSourceDomicile("Domestic").donorType("Corporate CSR").build();
+                .fundSourceDomicile(FundSourceDomicile.DOMESTIC).donorType(DonorType.CORPORATE).build();
         csrDonor.setId(2L);
         when(donorRepository.findById(2L)).thenReturn(java.util.Optional.of(csrDonor));
         mockOneState();
@@ -182,7 +184,7 @@ public class DonationServiceImplTest {
 
     @Test
     void testCreateDonation_GikWithoutLineItems_Blocked() {
-        DonorMaster donor = DonorMaster.builder().donorName("Sunrise Textiles").fundSourceDomicile("Domestic").build();
+        DonorMaster donor = DonorMaster.builder().donorName("Sunrise Textiles").fundSourceDomicile(FundSourceDomicile.DOMESTIC).build();
         donor.setId(3L);
         when(donorRepository.findById(3L)).thenReturn(java.util.Optional.of(donor));
         mockOneState();
@@ -200,7 +202,7 @@ public class DonationServiceImplTest {
 
     @Test
     void testCreateDonation_Gik_AlwaysNotEightyGEligible() {
-        DonorMaster donor = DonorMaster.builder().donorName("Sunrise Textiles").fundSourceDomicile("Domestic")
+        DonorMaster donor = DonorMaster.builder().donorName("Sunrise Textiles").fundSourceDomicile(FundSourceDomicile.DOMESTIC)
                 .panCardNumber("ABCDE1234F").address("Indore, MP").build();
         donor.setId(3L);
         when(donorRepository.findById(3L)).thenReturn(java.util.Optional.of(donor));
@@ -231,7 +233,7 @@ public class DonationServiceImplTest {
     @Test
     void testCreateDonation_PayrollAmountMismatch_Blocked() {
         DonorMaster donor = DonorMaster.builder().donorName("Info Edge India Ltd")
-                .fundSourceDomicile("Domestic").build();
+                .fundSourceDomicile(FundSourceDomicile.DOMESTIC).build();
         donor.setId(4L);
         when(donorRepository.findById(4L)).thenReturn(java.util.Optional.of(donor));
         mockOneState();
@@ -257,7 +259,7 @@ public class DonationServiceImplTest {
 
     @Test
     void testEightyGChain_OrgNotRegistered_BlocksEvenNamedDonor() {
-        DonorMaster donor = DonorMaster.builder().donorName("Rohan Kapadia").fundSourceDomicile("Domestic")
+        DonorMaster donor = DonorMaster.builder().donorName("Rohan Kapadia").fundSourceDomicile(FundSourceDomicile.DOMESTIC)
                 .panCardNumber("ABCDE1234F").address("Delhi").build();
         donor.setId(1L);
         when(donorRepository.findById(1L)).thenReturn(java.util.Optional.of(donor));
@@ -282,7 +284,7 @@ public class DonationServiceImplTest {
 
     @Test
     void testTenBd_MissingPan_NotReportable() {
-        DonorMaster donor = DonorMaster.builder().donorName("Rohan Kapadia").fundSourceDomicile("Domestic")
+        DonorMaster donor = DonorMaster.builder().donorName("Rohan Kapadia").fundSourceDomicile(FundSourceDomicile.DOMESTIC)
                 .panCardNumber(null).address("Delhi").build();
         donor.setId(1L);
         when(donorRepository.findById(1L)).thenReturn(java.util.Optional.of(donor));
