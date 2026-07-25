@@ -1,35 +1,67 @@
-import { useEffect } from 'react';
-import { Alert, Button, Card, CardContent, Grid, Stack, Typography } from '@mui/material';
+import { useEffect, useRef } from 'react';
+import { Alert, Button, Card, CardContent, Grid, Stack, TextField, Typography } from '@mui/material';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
 import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
 import { grantSchema, grantFormDefaults } from '../validation/grantSchema.js';
 import { useFundProfilesByDonor } from '../hooks/useFundProfiles.js';
+import { useProgrammes } from '../hooks/useProgrammes.js';
 
 const CURRENCY_OPTIONS = ['INR', 'USD', 'GBP', 'EUR'].map((c) => ({ value: c, label: c }));
+
+const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 
 /**
  * Grant agreement creation form.
  *
- * A grant inherits its donor, programme and class from a fund profile: pick a
- * donor to scope the profile list, then pick one of that donor's fund profiles.
- * Foreign grants carry a currency + locked FX rate; the server computes the INR
- * reporting amount.
+ * A grant inherits its donor and class from a fund profile: pick a donor to
+ * scope the profile list, then pick one of that donor's fund profiles. The
+ * programme defaults to the profile's programme but can be overridden here.
+ *
+ * The grant code is auto-generated server-side (ZRY/GA/YYYY/NNN) and shown
+ * read-only. Foreign grants carry a currency + locked FX rate (forced to 1 for
+ * INR); the INR reporting amount is Total × FX.
  */
-export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitError, onCancel }) {
+export function GrantForm({
+  donors,
+  defaultValues,
+  onSubmit,
+  submitting,
+  submitError,
+  onCancel,
+  submitLabel = 'Create grant',
+}) {
   const { control, handleSubmit, setValue, setError } = useForm({
     resolver: zodResolver(grantSchema),
     defaultValues: defaultValues || grantFormDefaults,
   });
 
   const donorId = useWatch({ control, name: 'donorId' });
-  const profilesQuery = useFundProfilesByDonor(donorId ? Number(donorId) : null);
+  const grantCode = useWatch({ control, name: 'grantCode' });
+  const grantCurrency = useWatch({ control, name: 'grantCurrency' });
+  const totalGrantAmount = useWatch({ control, name: 'totalGrantAmount' });
+  const fxLockedRate = useWatch({ control, name: 'fxLockedRate' });
 
-  // When the donor changes, clear a now-invalid fund-profile selection.
+  const profilesQuery = useFundProfilesByDonor(donorId ? Number(donorId) : null);
+  const programmesQuery = useProgrammes();
+
+  // When the donor changes, clear a now-invalid fund-profile selection — but not
+  // on the initial render, which would wipe a profile prefilled in edit mode.
+  const firstRender = useRef(true);
   useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
     setValue('fundProfileId', '');
   }, [donorId, setValue]);
+
+  // INR grants report at par: force the FX rate to 1 and lock the field.
+  const isInr = (grantCurrency || 'INR') === 'INR';
+  useEffect(() => {
+    if (isInr) setValue('fxLockedRate', '1');
+  }, [isInr, setValue]);
 
   const donorOptions = donors.map((donor) => ({
     value: String(donor.id),
@@ -43,6 +75,19 @@ export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitE
     }${p.purpose ? ` — ${p.purpose}` : ''}`,
   }));
 
+  const programmeOptions = [
+    { value: '', label: 'Inherit from fund profile' },
+    ...(programmesQuery.data || []).map((p) => ({
+      value: String(p.id),
+      label: `${p.programmeCode} · ${p.programmeName}`,
+    })),
+  ];
+
+  const reportingAmountInr =
+    Number(totalGrantAmount) > 0 && Number(fxLockedRate) > 0
+      ? INR.format(Number(totalGrantAmount) * Number(fxLockedRate))
+      : '—';
+
   const submit = handleSubmit(async (values) => {
     try {
       await onSubmit(values);
@@ -53,6 +98,7 @@ export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitE
 
   const dateProps = { type: 'date', slotProps: { inputLabel: { shrink: true } } };
   const noProfiles = donorId && !profilesQuery.isPending && (profilesQuery.data || []).length === 0;
+  const hasGrantCode = Boolean(grantCode);
 
   return (
     <Card component="form" onSubmit={submit} noValidate>
@@ -68,7 +114,17 @@ export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitE
             </Typography>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 4 }}>
-                <RhfTextField name="grantCode" control={control} label="Grant code" required />
+                <RhfTextField
+                  name="grantCode"
+                  control={control}
+                  label="Grant code"
+                  disabled
+                  placeholder="ZRY/GA/YYYY/NNN"
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  helperText={
+                    hasGrantCode ? 'Grant code cannot be changed' : 'Auto-generated on save (ZRY/GA/YYYY/NNN)'
+                  }
+                />
               </Grid>
               <Grid size={{ xs: 12, sm: 8 }}>
                 <RhfTextField name="agreementName" control={control} label="Agreement name" required />
@@ -89,8 +145,18 @@ export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitE
                       ? 'Select a donor first'
                       : noProfiles
                         ? 'This donor has no fund profiles — add one on the donor page'
-                        : 'Donor, programme and class are inherited from the profile'
+                        : 'Donor and class are inherited from the profile'
                   }
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <RhfSelect
+                  name="programmeId"
+                  control={control}
+                  label="Programme"
+                  options={programmeOptions}
+                  disabled={programmesQuery.isPending}
+                  helperText="Leave as inherited to use the fund profile's programme"
                 />
               </Grid>
             </Grid>
@@ -130,8 +196,19 @@ export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitE
                   label="FX rate → INR"
                   required
                   type="number"
-                  helperText="1 for INR grants"
+                  disabled={isInr}
+                  helperText={isInr ? 'Locked to 1 for INR grants' : 'Rate at signing (locked)'}
                   slotProps={{ htmlInput: { min: 0, step: '0.0001' } }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Reporting amount (INR)"
+                  value={reportingAmountInr}
+                  disabled
+                  fullWidth
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  helperText="Computed = Total grant amount × FX rate"
                 />
               </Grid>
             </Grid>
@@ -161,7 +238,7 @@ export function GrantForm({ donors, defaultValues, onSubmit, submitting, submitE
               Cancel
             </Button>
             <Button type="submit" variant="contained" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Create grant'}
+              {submitting ? 'Saving…' : submitLabel}
             </Button>
           </Stack>
         </Stack>

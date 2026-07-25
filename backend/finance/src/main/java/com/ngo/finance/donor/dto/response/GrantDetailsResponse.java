@@ -1,7 +1,6 @@
 package com.ngo.finance.donor.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.ngo.finance.donor.enums.GrantStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -54,7 +53,7 @@ public class GrantDetailsResponse {
 
     private BigDecimal utilisedAmount;
 
-    private GrantStatus grantStatus;
+    private Boolean isActive;
 
     private String description;
 
@@ -67,4 +66,12 @@ public class GrantDetailsResponse {
     private String createdBy;
 
     private String updatedBy;
+
+    private Long approvedBy;
+
+    private String approvalRemarks;
+
+    private Integer isApproved;
+
+    private LocalDateTime approvalDate;
 }

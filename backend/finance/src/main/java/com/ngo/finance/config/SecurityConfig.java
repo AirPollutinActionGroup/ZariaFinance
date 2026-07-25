@@ -54,6 +54,7 @@ public class SecurityConfig {
                                                 "/api/v1/donations",
                                                 "/api/v1/donations/**",
                                                 "/api/v1/tenant/**",
+                                                "/api/v1/geography",
                                                 "/api/v1/geography/**"))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
@@ -83,6 +84,7 @@ public class SecurityConfig {
                                                                 "/api/v1/donations",
                                                                 "/api/v1/donations/**",
                                                                 "/api/v1/tenant/**",
+                                                                "/api/v1/geography",
                                                                 "/api/v1/geography/**",
                                                                 "/swagger-ui.html",
                                                                 "/swagger-ui/**",

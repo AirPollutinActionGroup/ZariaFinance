@@ -1,18 +1,24 @@
 package com.ngo.finance.donor.service.impl;
 
 import com.ngo.finance.common.exception.ResourceNotFoundException;
+import com.ngo.finance.donor.dto.request.ApproveGrantRequest;
 import com.ngo.finance.donor.dto.request.CreateGrantRequest;
+import com.ngo.finance.donor.dto.request.GrantRemarksRequest;
 import com.ngo.finance.donor.dto.response.GrantDetailsResponse;
 import com.ngo.finance.donor.dto.response.GrantListResponse;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.GrantAgreement;
-import com.ngo.finance.donor.enums.GrantStatus;
+import com.ngo.finance.donor.entity.Programme;
 import com.ngo.finance.donor.mapper.GrantMapper;
 import com.ngo.finance.donor.repository.DonorFundProfileRepository;
 import com.ngo.finance.donor.repository.GrantRepository;
+import com.ngo.finance.donor.repository.ProgrammeRepository;
 import com.ngo.finance.donor.service.GrantService;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,16 +39,23 @@ public class GrantServiceImpl implements GrantService {
     private DonorFundProfileRepository fundProfileRepository;
 
     @Autowired
+    private ProgrammeRepository programmeRepository;
+
+    @Autowired
     private GrantMapper grantMapper;
+
+    /** Auto-generated grant code prefix: ZRY/GA/YYYY/NNN. */
+    private static final String GRANT_CODE_PREFIX = "ZRY/GA/";
+    private static final Pattern LEADING_DIGITS = Pattern.compile("^(\\d+)");
 
     @Override
     public GrantDetailsResponse createGrant(CreateGrantRequest request) {
-        log.info("Creating new grant with code: {}", request.getGrantCode());
-
         GrantAgreement grant = grantMapper.toEntity(request);
-        applyFundProfile(grant, request.getFundProfileId());
+        grant.setGrantCode(resolveGrantCode(request));
+        log.info("Creating new grant with code: {}", grant.getGrantCode());
+        applyFundProfile(grant, request.getFundProfileId(), request.getProgrammeId());
         applyFinancials(grant, request);
-        grant.setGrantStatus(GrantStatus.DRAFT);
+        grant.setIsActive(true);
 
         GrantAgreement savedGrant = grantRepository.save(grant);
         log.info("Grant created successfully with id: {}", savedGrant.getId());
@@ -66,7 +79,7 @@ public class GrantServiceImpl implements GrantService {
         grant.setDescription(request.getDescription());
         grant.setAgreementDocumentPath(request.getAgreementDocumentPath());
 
-        applyFundProfile(grant, request.getFundProfileId());
+        applyFundProfile(grant, request.getFundProfileId(), request.getProgrammeId());
         applyFinancials(grant, request);
 
         GrantAgreement saved = grantRepository.save(grant);
@@ -74,13 +87,45 @@ public class GrantServiceImpl implements GrantService {
         return grantMapper.toDetailsResponse(saved);
     }
 
-    /** Attach the fund profile and inherit its donor & programme onto the grant. */
-    private void applyFundProfile(GrantAgreement grant, Long fundProfileId) {
+    /**
+     * Attach the fund profile and inherit its donor onto the grant. The programme
+     * defaults to the profile's programme, but an explicit {@code programmeId}
+     * (entered on the form) overrides it.
+     */
+    private void applyFundProfile(GrantAgreement grant, Long fundProfileId, Long programmeId) {
         DonorFundProfile profile = fundProfileRepository.findById(fundProfileId)
                 .orElseThrow(() -> new ResourceNotFoundException("Fund profile", fundProfileId));
         grant.setFundProfile(profile);
         grant.setDonor(profile.getDonor());
-        grant.setProgramme(profile.getProgramme()); // may be null for untied funds
+
+        if (programmeId != null) {
+            Programme programme = programmeRepository.findById(programmeId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Programme", programmeId));
+            grant.setProgramme(programme);
+        } else {
+            grant.setProgramme(profile.getProgramme()); // may be null for untied funds
+        }
+    }
+
+    /** Use the supplied code, or generate the next ZRY/GA/YYYY/NNN for the agreement year. */
+    private String resolveGrantCode(CreateGrantRequest request) {
+        if (request.getGrantCode() != null && !request.getGrantCode().isBlank()) {
+            return request.getGrantCode().trim();
+        }
+        int year = request.getAgreementDate().getYear();
+        String prefix = GRANT_CODE_PREFIX + year + "/";
+        int next = grantRepository.findGrantCodesByPrefix(prefix).stream()
+                .map(code -> code.substring(prefix.length()))
+                .mapToInt(GrantServiceImpl::leadingSequence)
+                .max()
+                .orElse(0) + 1;
+        return String.format("%s%03d", prefix, next);
+    }
+
+    /** Parse the leading numeric run of a code suffix (e.g. "012-B" -> 12); 0 if none. */
+    private static int leadingSequence(String suffix) {
+        Matcher matcher = LEADING_DIGITS.matcher(suffix);
+        return matcher.find() ? Integer.parseInt(matcher.group(1)) : 0;
     }
 
     /** Apply currency / FX defaults and compute the INR reporting amount. */
@@ -149,18 +194,21 @@ public class GrantServiceImpl implements GrantService {
     }
 
     @Override
-    public void approveGrant(Long id) {
+    public void approveGrant(Long id, ApproveGrantRequest request) {
         log.info("Approving grant with id: {}", id);
 
         GrantAgreement grant = grantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
 
-        if (grant.getGrantStatus() == GrantStatus.DRAFT) {
-            grant.setGrantStatus(GrantStatus.APPROVED);
+        if (grant.getIsApproved() == 2) {
+            grant.setIsApproved(1);
+            grant.setApprovedBy(request != null ? request.getApprovedBy() : null);
+            grant.setApprovalRemarks(request != null ? request.getRemarks() : null);
+            grant.setApprovalDate(LocalDateTime.now());
             grantRepository.save(grant);
             log.info("Grant approved successfully");
         } else {
-            log.warn("Cannot approve grant in status: {}", grant.getGrantStatus());
+            log.warn("Cannot approve grant with isApproved: {}", grant.getIsApproved());
         }
     }
 
@@ -171,12 +219,12 @@ public class GrantServiceImpl implements GrantService {
         GrantAgreement grant = grantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
 
-        if (grant.getGrantStatus() == GrantStatus.APPROVED) {
-            grant.setGrantStatus(GrantStatus.ACTIVE);
+        if (grant.getIsApproved() == 1) {
+            grant.setIsActive(true);
             grantRepository.save(grant);
             log.info("Grant activated successfully");
         } else {
-            log.warn("Cannot activate grant in status: {}", grant.getGrantStatus());
+            log.warn("Cannot activate grant that is not approved (isApproved: {})", grant.getIsApproved());
         }
     }
 
@@ -187,8 +235,59 @@ public class GrantServiceImpl implements GrantService {
         GrantAgreement grant = grantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
 
-        grant.setGrantStatus(GrantStatus.CLOSED);
+        grant.setIsActive(false);
         grantRepository.save(grant);
         log.info("Grant closed successfully");
+    }
+
+    @Override
+    public void holdGrant(Long id, GrantRemarksRequest request) {
+        log.info("Putting grant with id: {} on hold", id);
+
+        GrantAgreement grant = grantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
+
+        if (grant.getIsApproved() == 1) {
+            grant.setIsApproved(3);
+            if (request != null && request.getRemarks() != null) {
+                grant.setApprovalRemarks(request.getRemarks());
+            }
+            grantRepository.save(grant);
+            log.info("Grant put on hold successfully");
+        } else {
+            log.warn("Cannot put grant on hold that is not approved (isApproved: {})", grant.getIsApproved());
+        }
+    }
+
+    @Override
+    public void resumeGrant(Long id) {
+        log.info("Resuming grant with id: {}", id);
+
+        GrantAgreement grant = grantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
+
+        if (grant.getIsApproved() == 3) {
+            grant.setIsApproved(1);
+            grantRepository.save(grant);
+            log.info("Grant resumed successfully");
+        } else {
+            log.warn("Cannot resume grant that is not on hold (isApproved: {})", grant.getIsApproved());
+        }
+    }
+
+    @Override
+    public void completeGrant(Long id) {
+        log.info("Completing grant with id: {}", id);
+
+        GrantAgreement grant = grantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
+
+        if (grant.getIsApproved() == 1) {
+            grant.setIsApproved(4);
+            grantRepository.save(grant);
+            log.info("Grant completed successfully");
+        } else {
+            log.warn("Cannot complete grant that is not approved (isApproved: {})", grant.getIsApproved());
+        }
     }
 }

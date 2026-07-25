@@ -4,12 +4,9 @@ package com.ngo.finance.donor.enums;
  * Fund class enum for Donor and Grant
  */
 public enum FundClass {
-    DOMESTIC("Domestic"),
-    INTERNATIONAL("International"),
-    GOVERNMENT("Government"),
-    CORPORATE("Corporate"),
-    INDIVIDUAL("Individual"),
-    NGO("NGO");
+    CLASS_A_RESTRICTED("Class A – Restricted"),
+    CLASS_B_UNRESTRICTED("Class B – Unrestricted"),
+    CLASS_C_UNRESTRICTED("Class C – Unrestricted");
 
     private final String label;
 

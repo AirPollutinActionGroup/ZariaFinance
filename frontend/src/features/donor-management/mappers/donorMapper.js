@@ -1,4 +1,4 @@
-import { FUND_CLASS, DONOR_STATUS } from '../constants.js';
+import { DONOR_TYPE, FUND_SOURCE_DOMICILE } from '../constants.js';
 
 /**
  * DonorMapper — translates between backend DTOs (DonorResponse,
@@ -11,8 +11,8 @@ import { FUND_CLASS, DONOR_STATUS } from '../constants.js';
 export function fromDonorResponse(dto) {
   return {
     ...dto,
-    fundClassLabel: FUND_CLASS[dto.fundClass] || dto.fundClass || '—',
-    statusLabel: DONOR_STATUS[dto.status] || dto.status || '—',
+    donorTypeLabel: DONOR_TYPE[dto.donorType] || dto.donorType || '—',
+    fundSourceDomicileLabel: FUND_SOURCE_DOMICILE[dto.fundSourceDomicile] || dto.fundSourceDomicile || '—',
     contacts: dto.contacts || [],
   };
 }
@@ -23,27 +23,37 @@ const nullIfBlank = (value) => {
   return trimmed === '' ? null : trimmed;
 };
 
+const numberOrNull = (value) => (value ? Number(value) : null);
+
 /** Form values → CreateDonorRequest. */
 export function toCreateDonorRequest(values) {
   return {
     donorCode: values.donorCode.trim(),
     donorName: values.donorName.trim(),
-    donorType: values.donorType.trim(),
-    fundClass: values.fundClass,
+    donorType: values.donorType,
+    fundSourceDomicile: values.fundSourceDomicile,
+    fcraApplicable: Boolean(values.fcraApplicable),
+    foreignFundSourceType: nullIfBlank(values.foreignFundSourceType),
+    foreignCountryId: nullIfBlank(values.foreignCountryId),
+    panCardNumber: nullIfBlank(values.panCardNumber),
+    foreignTaxIdentifier: nullIfBlank(values.foreignTaxIdentifier),
     email: values.email.trim(),
     phoneNumber: nullIfBlank(values.phoneNumber),
     website: nullIfBlank(values.website),
-    registrationNumber: nullIfBlank(values.registrationNumber),
-    taxId: nullIfBlank(values.taxId),
+    spocNameOfThePerson: values.spocNameOfThePerson.trim(),
+    spocPhoneNumber: nullIfBlank(values.spocPhoneNumber),
+    spocEmail: values.spocEmail.trim(),
     address: nullIfBlank(values.address),
-    cityId: values.cityId ? Number(values.cityId) : null,
-    stateId: values.stateId ? Number(values.stateId) : null,
-    country: nullIfBlank(values.country),
+    address2: nullIfBlank(values.address2),
+    cityId: numberOrNull(values.cityId),
+    stateId: numberOrNull(values.stateId),
+    countryId: numberOrNull(values.countryId),
     postalCode: nullIfBlank(values.postalCode),
+    registrationNumber: nullIfBlank(values.registrationNumber),
   };
 }
 
-/** Form values → UpdateDonorRequest (all fields optional server-side). */
+/** Form values → UpdateDonorRequest (all fields optional server-side; no donorCode). */
 export function toUpdateDonorRequest(values) {
   const { donorCode: _ignored, ...rest } = toCreateDonorRequest({
     ...values,
@@ -59,16 +69,24 @@ export function toDonorFormValues(donor) {
     donorCode: donor.donorCode || '',
     donorName: donor.donorName || '',
     donorType: donor.donorType || '',
-    fundClass: donor.fundClass || '',
+    fundSourceDomicile: donor.fundSourceDomicile || '',
+    fcraApplicable: Boolean(donor.fcraApplicable),
+    foreignFundSourceType: donor.foreignFundSourceType || '',
+    foreignCountryId: donor.foreignCountryId || '',
+    panCardNumber: donor.panCardNumber || '',
+    foreignTaxIdentifier: donor.foreignTaxIdentifier || '',
     email: donor.email || '',
     phoneNumber: donor.phoneNumber || '',
     website: donor.website || '',
-    registrationNumber: donor.registrationNumber || '',
-    taxId: donor.taxId || '',
+    spocNameOfThePerson: donor.spocNameOfThePerson || '',
+    spocPhoneNumber: donor.spocPhoneNumber || '',
+    spocEmail: donor.spocEmail || '',
     address: donor.address || '',
+    address2: donor.address2 || '',
     cityId: donor.cityId || '',
     stateId: donor.stateId || '',
-    country: donor.country || '',
+    countryId: donor.countryId || '',
     postalCode: donor.postalCode || '',
+    registrationNumber: donor.registrationNumber || '',
   };
 }

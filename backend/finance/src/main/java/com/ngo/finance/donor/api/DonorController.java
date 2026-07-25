@@ -88,7 +88,7 @@ public class DonorController {
     @Operation(summary = "Deactivate a donor")
     public ResponseEntity<Void> deactivateDonor(@PathVariable Long id) {
         log.info("PATCH /api/v1/donors/{}/deactivate - Deactivating donor", id);
-        donorService.deactivateDonor(id);
+        donorService.deActivateDonor(id);
         return ResponseEntity.noContent().build();
     }
 }

@@ -10,9 +10,11 @@ import { z } from 'zod';
  */
 export const grantSchema = z
   .object({
-    grantCode: z.string().trim().min(1, 'Grant code is required'),
+    // Auto-generated server-side (ZRY/GA/YYYY/NNN) when blank on create; read-only in the form.
+    grantCode: z.string().trim().optional().or(z.literal('')),
     donorId: z.string().trim().min(1, 'Donor is required'),
     fundProfileId: z.string().trim().min(1, 'Fund profile is required'),
+    programmeId: z.string().trim().optional().or(z.literal('')),
     agreementName: z.string().trim().min(1, 'Agreement name is required'),
     agreementDate: z.string().min(1, 'Agreement date is required'),
     startDate: z.string().min(1, 'Start date is required'),
@@ -40,6 +42,7 @@ export const grantFormDefaults = {
   grantCode: '',
   donorId: '',
   fundProfileId: '',
+  programmeId: '',
   agreementName: '',
   agreementDate: '',
   startDate: '',

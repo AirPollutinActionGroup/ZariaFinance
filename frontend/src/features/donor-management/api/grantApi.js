@@ -2,14 +2,13 @@ import { http } from '../../../lib/api/apiClient.js';
 
 /**
  * Repository for /api/v1/grants (GrantController).
- *
- * Note: the backend's PUT /api/v1/grants/{id} is currently a stub that
- * returns 204 without persisting (see GrantController.updateGrant). The
- * frontend therefore does not offer grant editing — docs/BACKEND_GAPS.md #5.
  */
 export const grantApi = {
   /** POST /api/v1/grants — body: CreateGrantRequest → GrantDetailsResponse (201). */
   create: (payload) => http.post('/v1/grants', payload),
+
+  /** PUT /api/v1/grants/{id} — body: CreateGrantRequest → GrantDetailsResponse. */
+  update: (id, payload) => http.put(`/v1/grants/${id}`, payload),
 
   /** GET /api/v1/grants/{id} → GrantDetailsResponse. */
   getById: (id) => http.get(`/v1/grants/${id}`),
@@ -26,12 +25,21 @@ export const grantApi = {
     return http.get('/v1/grants', { params });
   },
 
-  /** PATCH /api/v1/grants/{id}/approve → 204. */
-  approve: (id) => http.patch(`/v1/grants/${id}/approve`),
+  /** PATCH /api/v1/grants/{id}/approve — body: ApproveGrantRequest → 204. */
+  approve: (id, payload) => http.patch(`/v1/grants/${id}/approve`, payload),
 
   /** PATCH /api/v1/grants/{id}/activate → 204. */
   activate: (id) => http.patch(`/v1/grants/${id}/activate`),
 
   /** PATCH /api/v1/grants/{id}/close → 204. */
   close: (id) => http.patch(`/v1/grants/${id}/close`),
+
+  /** PATCH /api/v1/grants/{id}/hold — body: {remarks} → 204. */
+  hold: (id, payload) => http.patch(`/v1/grants/${id}/hold`, payload),
+
+  /** PATCH /api/v1/grants/{id}/resume → 204. */
+  resume: (id) => http.patch(`/v1/grants/${id}/resume`),
+
+  /** PATCH /api/v1/grants/{id}/complete → 204. */
+  complete: (id) => http.patch(`/v1/grants/${id}/complete`),
 };

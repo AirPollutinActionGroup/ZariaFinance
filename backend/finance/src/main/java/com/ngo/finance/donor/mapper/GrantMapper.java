@@ -31,7 +31,7 @@ public interface GrantMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
-    @Mapping(target = "grantStatus", ignore = true)
+    @Mapping(target = "isActive", ignore = true)
     GrantAgreement toEntity(CreateGrantRequest request);
 
     @Mapping(source = "donor.id", target = "donorId")

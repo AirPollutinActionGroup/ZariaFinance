@@ -1,5 +1,3 @@
-import { GRANT_STATUS } from '../constants.js';
-
 /**
  * GrantMapper — GrantListResponse / GrantDetailsResponse ↔ view models,
  * form values → CreateGrantRequest. Field names mirror the backend DTOs.
@@ -12,7 +10,7 @@ export function fromGrantListResponse(dto) {
   return {
     ...dto,
     fundClassLabel: dto.fundClassCode ? `Class ${dto.fundClassCode}` : '—',
-    statusLabel: GRANT_STATUS[dto.grantStatus] || dto.grantStatus || '—',
+    statusLabel: dto.isActive ? 'Active' : 'Inactive',
   };
 }
 
@@ -20,11 +18,32 @@ export function fromGrantDetailsResponse(dto) {
   return fromGrantListResponse(dto);
 }
 
-/** Form values → CreateGrantRequest (donor/programme/class derived from the profile server-side). */
+/** GrantDetailsResponse → edit-form values (strings, mirroring grantFormDefaults). */
+export function toGrantFormValues(grant) {
+  return {
+    grantCode: grant.grantCode || '',
+    donorId: grant.donorId != null ? String(grant.donorId) : '',
+    fundProfileId: grant.fundProfileId != null ? String(grant.fundProfileId) : '',
+    programmeId: grant.programmeId != null ? String(grant.programmeId) : '',
+    agreementName: grant.agreementName || '',
+    agreementDate: grant.agreementDate || '',
+    startDate: grant.startDate || '',
+    endDate: grant.endDate || '',
+    totalGrantAmount: grant.totalGrantAmount != null ? String(grant.totalGrantAmount) : '',
+    grantCurrency: grant.grantCurrency || 'INR',
+    fxLockedRate: grant.fxLockedRate != null ? String(grant.fxLockedRate) : '1',
+    description: grant.description || '',
+    agreementDocumentPath: grant.agreementDocumentPath || '',
+  };
+}
+
+/** Form values → CreateGrantRequest (donor/class derived from the profile server-side). */
 export function toCreateGrantRequest(values) {
   return {
-    grantCode: values.grantCode.trim(),
+    // Omitted on create → backend auto-generates ZRY/GA/YYYY/NNN.
+    grantCode: values.grantCode?.trim() || undefined,
     fundProfileId: Number(values.fundProfileId),
+    programmeId: values.programmeId ? Number(values.programmeId) : null,
     agreementName: values.agreementName.trim(),
     agreementDate: values.agreementDate,
     startDate: values.startDate,

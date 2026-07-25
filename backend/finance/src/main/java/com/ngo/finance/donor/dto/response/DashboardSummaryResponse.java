@@ -1,6 +1,7 @@
 package com.ngo.finance.donor.dto.response;
 
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -34,4 +35,9 @@ public class DashboardSummaryResponse {
     private BigDecimal available; // received − utilised
     private BigDecimal open;      // committed − received
     private BigDecimal blocked;   // commitments on inactive / draft donors
+
+    // Committed / received split into the FC / DC / CSR statutory buckets. The
+    // buckets partition the same non-blocked grants as the funding chain, so
+    // their committed figures sum back to `committed` (likewise for received).
+    private List<FundingClassBreakdown> fundingByClass;
 }

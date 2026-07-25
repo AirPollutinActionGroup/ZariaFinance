@@ -27,11 +27,16 @@ import lombok.NoArgsConstructor;
 @ValidGrantDates
 public class CreateGrantRequest {
 
-    @NotBlank(message = "Grant code is required")
+    // Optional on create: auto-generated server-side (ZRY/GA/YYYY/NNN) when blank.
+    // Immutable thereafter — ignored on update.
     private String grantCode;
 
     @NotNull(message = "Fund profile is required")
     private Long fundProfileId;
+
+    // Optional: overrides the programme inherited from the fund profile. When null
+    // the grant keeps the profile's programme (which may itself be null for untied funds).
+    private Long programmeId;
 
     @NotBlank(message = "Agreement name is required")
     private String agreementName;
