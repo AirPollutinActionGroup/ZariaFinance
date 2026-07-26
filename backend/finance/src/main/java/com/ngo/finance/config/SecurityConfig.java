@@ -51,6 +51,9 @@ public class SecurityConfig {
                                                 "/api/v1/reports/**",
                                                 "/api/v1/programmes",
                                                 "/api/v1/programmes/**",
+                                                "/api/v1/donations",
+                                                "/api/v1/donations/**",
+                                                "/api/v1/tenant/**",
                                                 "/api/v1/geography",
                                                 "/api/v1/geography/**"))
                                 .authorizeHttpRequests(auth -> auth
@@ -78,6 +81,9 @@ public class SecurityConfig {
                                                                 "/api/v1/reports/**",
                                                                 "/api/v1/programmes",
                                                                 "/api/v1/programmes/**",
+                                                                "/api/v1/donations",
+                                                                "/api/v1/donations/**",
+                                                                "/api/v1/tenant/**",
                                                                 "/api/v1/geography",
                                                                 "/api/v1/geography/**",
                                                                 "/swagger-ui.html",
