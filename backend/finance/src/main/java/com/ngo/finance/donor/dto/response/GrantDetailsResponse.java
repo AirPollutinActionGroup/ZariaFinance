@@ -1,7 +1,6 @@
 package com.ngo.finance.donor.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.ngo.finance.donor.enums.GrantStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -54,7 +53,11 @@ public class GrantDetailsResponse {
 
     private BigDecimal utilisedAmount;
 
-    private GrantStatus grantStatus;
+    // Agreement status (section 1): ACTIVE | COMPLETED | CANCELLED. isActive is
+    // the legacy boolean mirror, kept for existing consumers.
+    private String status;
+
+    private Boolean isActive;
 
     private String description;
 
@@ -67,4 +70,15 @@ public class GrantDetailsResponse {
     private String createdBy;
 
     private String updatedBy;
+
+    private Long approvedBy;
+
+    /** Resolved from the users table so the UI never has to show a bare id. */
+    private String approvedByName;
+
+    private String approvalRemarks;
+
+    private Integer isApproved;
+
+    private LocalDateTime approvalDate;
 }

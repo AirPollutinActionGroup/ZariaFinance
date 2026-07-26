@@ -12,4 +12,6 @@ public interface StateRepository extends JpaRepository<StateMaster, Long> {
     Optional<StateMaster> findByStateCode(String stateCode);
 
     List<StateMaster> findByIsActive(Boolean isActive);
+
+    List<StateMaster> findByCountryIdAndIsActive(Long countryId, Boolean isActive);
 }

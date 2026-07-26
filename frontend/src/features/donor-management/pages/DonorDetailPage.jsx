@@ -24,9 +24,9 @@ import { useDonor, useDonorLifecycle } from '../hooks/useDonors.js';
 import { useGrants } from '../hooks/useGrants.js';
 import { FundProfilesPanel } from '../components/FundProfilesPanel.jsx';
 import {
-  DONOR_STATUS_TONE,
-  FUND_CLASS_TONE,
-  GRANT_STATUS_TONE,
+  DONOR_ACTIVE_TONE,
+  FUND_SOURCE_DOMICILE_TONE,
+  GRANT_ACTIVE_TONE,
   MODULE_ID,
 } from '../constants.js';
 
@@ -54,10 +54,10 @@ const grantColumns = [
     render: (row) => formatInr(row.totalGrantAmount),
   },
   {
-    key: 'grantStatus',
+    key: 'isActive',
     header: 'Status',
     render: (row) => (
-      <StatusChip label={row.statusLabel} tone={GRANT_STATUS_TONE[row.grantStatus] || 'neutral'} />
+      <StatusChip label={row.statusLabel} tone={GRANT_ACTIVE_TONE[row.isActive] || 'neutral'} />
     ),
   },
 ];
@@ -115,25 +115,36 @@ export function DonorDetailPage() {
           <CardContent sx={{ p: 3 }}>
             <Stack direction="row" spacing={1} sx={{ mb: 2.5 }}>
               <StatusChip
-                label={donor.statusLabel}
-                tone={DONOR_STATUS_TONE[donor.status] || 'neutral'}
+                label={donor.isActive ? 'Active' : 'Inactive'}
+                tone={DONOR_ACTIVE_TONE[donor.isActive] || 'neutral'}
               />
               <StatusChip
-                label={donor.fundClassLabel}
-                tone={FUND_CLASS_TONE[donor.fundClass] || 'neutral'}
+                label={donor.fundSourceDomicileLabel}
+                tone={FUND_SOURCE_DOMICILE_TONE[donor.fundSourceDomicile] || 'neutral'}
               />
+              {donor.fcraApplicable ? <StatusChip label="FCRA applicable" tone="warning" /> : null}
             </Stack>
             <Grid container spacing={2.5}>
-              <Field label="Donor type" value={donor.donorType} />
+              <Field label="Donor type" value={donor.donorTypeLabel} />
               <Field label="Email" value={donor.email} />
               <Field label="Phone" value={donor.phoneNumber} />
               <Field label="Website" value={donor.website} />
               <Field label="Registration no." value={donor.registrationNumber} />
-              <Field label="Tax ID" value={donor.taxId} />
+              <Field label="PAN card number" value={donor.panCardNumber} />
+              {donor.fundSourceDomicile === 'FOREIGN' ? (
+                <>
+                  <Field label="Foreign fund source type" value={donor.foreignFundSourceType} />
+                  <Field label="Foreign tax identifier" value={donor.foreignTaxIdentifier} />
+                </>
+              ) : null}
+              <Field label="POC name" value={donor.spocNameOfThePerson} />
+              <Field label="POC phone" value={donor.spocPhoneNumber} />
+              <Field label="POC email" value={donor.spocEmail} />
               <Field label="Address" value={donor.address} />
+              <Field label="Address 2" value={donor.address2} />
               <Field label="City" value={donor.cityName} />
               <Field label="State" value={donor.stateName} />
-              <Field label="Country" value={donor.country} />
+              <Field label="Country" value={donor.countryName} />
               <Field label="Postal code" value={donor.postalCode} />
               <Field label="Created" value={formatDateTime(donor.createdAt)} />
               <Field label="Last updated" value={formatDateTime(donor.updatedAt)} />

@@ -31,17 +31,17 @@ describe('DonorsListPage', () => {
     window.sessionStorage.clear();
   });
 
-  it('renders donors from the service with status and fund class chips', async () => {
+  it('renders donors from the service with fund source chips', async () => {
     donorService.listDonors.mockResolvedValue([
       {
         id: 1,
         donorCode: 'DNR-001',
         donorName: 'Tata Foundation',
-        donorType: 'Foundation',
-        fundClass: 'DOMESTIC',
-        fundClassLabel: 'Domestic',
-        status: 'ACTIVE',
-        statusLabel: 'Active',
+        donorType: 'FOUNDATION',
+        donorTypeLabel: 'Foundation',
+        fundSourceDomicile: 'DOMESTIC',
+        fundSourceDomicileLabel: 'Domestic',
+        isActive: true,
         email: 'grants@tata.org',
       },
     ]);
@@ -49,7 +49,6 @@ describe('DonorsListPage', () => {
 
     expect(await screen.findByText('Tata Foundation')).toBeInTheDocument();
     expect(screen.getByText('Domestic')).toBeInTheDocument();
-    expect(screen.getByText('Active')).toBeInTheDocument();
     // Finance officer holds EDIT → the create action is visible.
     expect(screen.getByRole('button', { name: /new donor/i })).toBeInTheDocument();
   });

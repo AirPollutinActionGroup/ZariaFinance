@@ -9,3 +9,6 @@ export { ConfirmDialog } from './ConfirmDialog.jsx';
 export { SearchField } from './SearchField.jsx';
 export { RhfTextField } from './form/RhfTextField.jsx';
 export { RhfSelect } from './form/RhfSelect.jsx';
+export { RhfRadioGroup } from './form/RhfRadioGroup.jsx';
+export { RhfMultiSelect } from './form/RhfMultiSelect.jsx';
+export { RhfAutocomplete } from './form/RhfAutocomplete.jsx';

@@ -33,4 +33,19 @@ export const queryKeys = {
     ],
     detail: (id) => ['documents', 'detail', String(id)],
   },
+  donations: {
+    all: () => ['donations'],
+    list: (filters) => ['donations', 'list', filters || {}],
+    detail: (id) => ['donations', 'detail', String(id)],
+  },
+  tenantTaxConfig: {
+    all: () => ['tenantTaxConfig'],
+  },
+  fxRates: {
+    all: () => ['fxRates'],
+    lookup: (currency, date) => ['fxRates', 'lookup', { currency: currency || '', date: date || '' }],
+  },
+  users: {
+    all: () => ['users'],
+  },
 };

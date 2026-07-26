@@ -35,8 +35,8 @@ import lombok.ToString;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"donor", "programme", "geographies", "utilisationRules", "disbursementRules"}, callSuper = true)
-@ToString(exclude = {"donor", "programme", "geographies", "utilisationRules", "disbursementRules"})
+@EqualsAndHashCode(exclude = {"donor", "programme", "geographies", "utilisationRules", "disbursementRules", "tranches"}, callSuper = true)
+@ToString(exclude = {"donor", "programme", "geographies", "utilisationRules", "disbursementRules", "tranches"})
 public class DonorFundProfile extends AuditEntity {
 
     @ManyToOne
@@ -49,7 +49,7 @@ public class DonorFundProfile extends AuditEntity {
     @Column(name = "fund_class_code", length = 1)
     private String fundClassCode;
 
-    @Column(length = 255)
+    @Column(columnDefinition = "TEXT")
     private String purpose;
 
     @Column(name = "programme_tied")
@@ -93,4 +93,18 @@ public class DonorFundProfile extends AuditEntity {
     @OneToMany(mappedBy = "fundProfile", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<DonorDisbursementRule> disbursementRules = new ArrayList<>();
+
+    // The donor-agreed release schedule. Σ trancheAmount is the Total Grant Amount
+    // inherited by every grant on this profile.
+    @OneToMany(mappedBy = "fundProfile", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<FundProfileTranche> tranches = new ArrayList<>();
+
+    /** Σ of the tranche plan — the total this profile commits, in the donor's currency. */
+    public BigDecimal plannedTotalAmount() {
+        return tranches.stream()
+                .map(FundProfileTranche::getTrancheAmount)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 }

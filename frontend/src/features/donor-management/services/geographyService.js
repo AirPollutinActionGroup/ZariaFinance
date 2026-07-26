@@ -4,8 +4,16 @@ import { geographyApi } from '../api/geographyApi.js';
  * Service for Geography lookups. Maps response lists to select options.
  */
 export const geographyService = {
-  async listStates() {
-    const list = await geographyApi.listStates();
+  async listCountries() {
+    const list = await geographyApi.listCountries();
+    return list.map((country) => ({
+      value: country.id,
+      label: country.countryName,
+    }));
+  },
+
+  async listStates(countryId) {
+    const list = await geographyApi.listStates(countryId);
     return list.map((state) => ({
       value: state.id,
       label: state.stateName,

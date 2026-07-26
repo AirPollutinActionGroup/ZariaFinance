@@ -1,38 +1,67 @@
-import { useState } from 'react';
-import { Box, Button } from '@mui/material';
+import { useMemo, useState } from 'react';
+import { Box, Button, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from 'react-router-dom';
 import { ACTIONS, PermissionGate } from '../../../core/permissions/index.js';
 import { DataTable, PageHeader, SearchField, StatusChip } from '../../../shared/components/index.js';
 import { useDonors } from '../hooks/useDonors.js';
 import {
-  DONOR_STATUS_TONE,
-  FUND_CLASS_TONE,
+  DONOR_ACTIVE_TONE,
+  FUND_SOURCE_DOMICILE_TONE,
   MODULE_ID,
 } from '../constants.js';
 
 const columns = [
-  { key: 'donorCode', header: 'Code', width: 110 },
-  { key: 'donorName', header: 'Donor' },
-  { key: 'donorType', header: 'Type' },
+  { key: 'serialNo', header: 'S.No', width: 60, render: (row) => row.serialNo },
+  { key: 'donorCode', header: 'Donor Code', width: 110 },
+  { key: 'donorName', header: 'Donor Name' },
+  { key: 'donorType', header: 'Donor Type', render: (row) => row.donorTypeLabel },
   {
-    key: 'fundClass',
-    header: 'Fund class',
-    render: (row) => <StatusChip label={row.fundClassLabel} tone={FUND_CLASS_TONE[row.fundClass] || 'neutral'} />,
+    key: 'fundSourceDomicile',
+    header: 'Fund source',
+    render: (row) => (
+      <StatusChip
+        label={row.fundSourceDomicileLabel}
+        tone={FUND_SOURCE_DOMICILE_TONE[row.fundSourceDomicile] || 'neutral'}
+      />
+    ),
   },
   {
-    key: 'status',
+    key: 'isActive',
     header: 'Status',
-    render: (row) => <StatusChip label={row.statusLabel} tone={DONOR_STATUS_TONE[row.status] || 'neutral'} />,
+    render: (row) => (
+      <StatusChip
+        label={row.isActive ? 'Active' : 'Inactive'}
+        tone={DONOR_ACTIVE_TONE[row.isActive] || 'neutral'}
+      />
+    ),
   },
-  { key: 'email', header: 'Email' },
+];
+
+/** Values: 'all' | 'active' | 'inactive'. */
+const STATUS_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
 ];
 
 /** Donor register — /donors. */
 export function DonorsListPage() {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const donorsQuery = useDonors(search);
   const navigate = useNavigate();
+
+  const rows = useMemo(() => {
+    const donors = donorsQuery.data || [];
+    const filtered =
+      statusFilter === 'active'
+        ? donors.filter((donor) => donor.isActive)
+        : statusFilter === 'inactive'
+          ? donors.filter((donor) => !donor.isActive)
+          : donors;
+    return filtered.map((donor, index) => ({ ...donor, serialNo: index + 1 }));
+  }, [donorsQuery.data, statusFilter]);
 
   return (
     <>
@@ -51,12 +80,26 @@ export function DonorsListPage() {
           </PermissionGate>
         }
       />
-      <Box sx={{ mb: 2, maxWidth: 420 }}>
-        <SearchField value={search} onChange={setSearch} placeholder="Search donors…" />
-      </Box>
+      <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Box sx={{ maxWidth: 420, flex: 1, minWidth: 240 }}>
+          <SearchField value={search} onChange={setSearch} placeholder="Search donors…" />
+        </Box>
+        <ToggleButtonGroup
+          value={statusFilter}
+          exclusive
+          size="small"
+          onChange={(_, next) => next && setStatusFilter(next)}
+        >
+          {STATUS_FILTERS.map((option) => (
+            <ToggleButton key={option.value} value={option.value}>
+              {option.label}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Stack>
       <DataTable
         columns={columns}
-        rows={donorsQuery.data || []}
+        rows={rows}
         getRowKey={(row) => row.id}
         isLoading={donorsQuery.isPending}
         error={donorsQuery.isError ? donorsQuery.error : null}

@@ -50,7 +50,16 @@ public class SecurityConfig {
                                                 "/api/v1/dashboard/**",
                                                 "/api/v1/reports/**",
                                                 "/api/v1/programmes",
-                                                "/api/v1/programmes/**"))
+                                                "/api/v1/programmes/**",
+                                                "/api/v1/donations",
+                                                "/api/v1/donations/**",
+                                                "/api/v1/tenant/**",
+                                                "/api/v1/geography",
+                                                "/api/v1/geography/**",
+                                                "/api/v1/disbursement/**",
+                                                "/api/v1/notifications",
+                                                "/api/v1/notifications/**",
+                                                "/api/v1/role-directory"))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                                 .requestMatchers(
@@ -76,6 +85,18 @@ public class SecurityConfig {
                                                                 "/api/v1/reports/**",
                                                                 "/api/v1/programmes",
                                                                 "/api/v1/programmes/**",
+                                                                "/api/v1/donations",
+                                                                "/api/v1/donations/**",
+                                                                "/api/v1/tenant/**",
+                                                                "/api/v1/geography",
+                                                                "/api/v1/geography/**",
+                                                                // Read-only rate lookups for the grant form's FX field;
+                                                                // GET-only, so no CSRF exemption is needed.
+                                                                "/api/v1/fx-rates",
+                                                                "/api/v1/disbursement/**",
+                                                                "/api/v1/notifications",
+                                                                "/api/v1/notifications/**",
+                                                                "/api/v1/role-directory",
                                                                 "/swagger-ui.html",
                                                                 "/swagger-ui/**",
                                                                 "/api-docs/**",

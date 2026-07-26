@@ -22,6 +22,8 @@ export function fromFundProfileResponse(dto) {
     geographies: dto.geographies || [],
     utilisationRules: dto.utilisationRules || [],
     disbursementRules: dto.disbursementRules || [],
+    tranches: dto.tranches || [],
+    plannedTotalAmount: dto.plannedTotalAmount ?? 0,
   };
 }
 
@@ -70,6 +72,14 @@ export function toFundProfileRequest(values) {
         milestoneRequired: Boolean(r.milestoneRequired),
         ruleDescription: trimOrNull(r.ruleDescription),
       })),
+    // Blank rows are dropped; the backend renumbers what survives 1..n.
+    tranches: (values.tranches || [])
+      .filter((t) => numOrNull(t.trancheAmount) !== null)
+      .map((t) => ({
+        trancheName: trimOrNull(t.trancheName),
+        trancheAmount: numOrNull(t.trancheAmount),
+        plannedReleaseDate: trimOrNull(t.plannedReleaseDate),
+      })),
   };
 }
 
@@ -99,6 +109,11 @@ export function toFundProfileFormValues(dto) {
       minPriorUtilisationRequired: r.minPriorUtilisationRequired ?? '',
       milestoneRequired: Boolean(r.milestoneRequired),
       ruleDescription: r.ruleDescription || '',
+    })),
+    tranches: (dto.tranches || []).map((t) => ({
+      trancheName: t.trancheName || '',
+      trancheAmount: t.trancheAmount ?? '',
+      plannedReleaseDate: t.plannedReleaseDate || '',
     })),
   };
 }

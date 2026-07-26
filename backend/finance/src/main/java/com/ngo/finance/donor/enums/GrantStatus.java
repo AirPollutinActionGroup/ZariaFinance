@@ -1,17 +1,17 @@
 package com.ngo.finance.donor.enums;
 
 /**
- * Status enum for Grant Agreement
+ * Agreement status entered on the New Grant Agreement Form (section 1).
+ *
+ * Distinct from the approval workflow ({@code isApproved}: 1 = approved,
+ * 2 = pending, 3 = on hold, 4 = completed): a grant can be ACTIVE while its
+ * approval is still pending. {@code isActive} mirrors ACTIVE for the queries and
+ * lifecycle endpoints that read the boolean.
  */
 public enum GrantStatus {
-    DRAFT("Draft"),
-    PENDING_APPROVAL("Pending Approval"),
-    APPROVED("Approved"),
     ACTIVE("Active"),
-    ON_HOLD("On Hold"),
     COMPLETED("Completed"),
-    TERMINATED("Terminated"),
-    CLOSED("Closed");
+    CANCELLED("Cancelled");
 
     private final String label;
 

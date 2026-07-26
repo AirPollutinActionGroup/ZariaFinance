@@ -1,6 +1,7 @@
 import VolunteerActivismOutlinedIcon from '@mui/icons-material/VolunteerActivismOutlined';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import { DonorsListPage } from './pages/DonorsListPage.jsx';
 import { DonorCreatePage } from './pages/DonorCreatePage.jsx';
 import { DonorDetailPage } from './pages/DonorDetailPage.jsx';
@@ -8,7 +9,10 @@ import { DonorEditPage } from './pages/DonorEditPage.jsx';
 import { GrantsListPage } from './pages/GrantsListPage.jsx';
 import { GrantCreatePage } from './pages/GrantCreatePage.jsx';
 import { GrantDetailPage } from './pages/GrantDetailPage.jsx';
+import { GrantEditPage } from './pages/GrantEditPage.jsx';
+import { GrantDisbursementPage } from './pages/GrantDisbursementPage.jsx';
 import { FundProfileFormPage } from './pages/FundProfileFormPage.jsx';
+import { RoleDirectoryPage } from './pages/RoleDirectoryPage.jsx';
 import { ReportsPage } from './pages/ReportsPage.jsx';
 import { MODULE_ID } from './constants.js';
 
@@ -24,6 +28,7 @@ export const donorManagementModule = {
     { label: 'Donors', path: '/donors', icon: VolunteerActivismOutlinedIcon },
     { label: 'Grants', path: '/grants', icon: HandshakeOutlinedIcon },
     { label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
+    { label: 'Role directory', path: '/role-directory', icon: GroupsOutlinedIcon },
   ],
   routes: [
     { path: '/donors', element: <DonorsListPage /> },
@@ -35,6 +40,9 @@ export const donorManagementModule = {
     { path: '/grants', element: <GrantsListPage /> },
     { path: '/grants/new', element: <GrantCreatePage /> },
     { path: '/grants/:id', element: <GrantDetailPage /> },
+    { path: '/grants/:id/edit', element: <GrantEditPage /> },
+    { path: '/grants/:id/disbursement', element: <GrantDisbursementPage /> },
+    { path: '/role-directory', element: <RoleDirectoryPage /> },
     { path: '/reports', element: <ReportsPage /> },
   ],
 };
