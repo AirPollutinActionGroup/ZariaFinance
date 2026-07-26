@@ -1,12 +1,6 @@
 import { Box, Card, Stack, Typography } from '@mui/material';
 import { formatInr } from '../../../lib/format/currency.js';
 
-/**
- * "The funding chain" — the signature dashboard visual, driven by the
- * server-side summary. Committed and Received are real (Received = sum of
- * tranche receipts); Utilised is the seeded placeholder. Every grant moves
- * Committed → Received → Utilised, with Available = Received − Utilised.
- */
 const STEPS = [
   ['committed', 'Committed', 'contracted / signed (receivable)'],
   ['received', 'Received', 'cash in bank → income recognised'],
@@ -14,30 +8,27 @@ const STEPS = [
   ['available', 'Available', 'received − utilised'],
 ];
 
-function Dot({ color }) {
-  return (
-    <Box
-      component="span"
-      sx={{
-        display: 'inline-block',
-        width: 8,
-        height: 8,
-        borderRadius: '50%',
-        mr: 0.75,
-        verticalAlign: '1px',
-        bgcolor: color,
-      }}
-    />
-  );
-}
+const R = 54;
+const STROKE = 18;
+const CIRC = 2 * Math.PI * R;
 
 export function FundingChainCard({ totals }) {
   const denom = totals.committed + totals.blocked || 1;
-  const pct = (v) => `${(100 * v) / denom}%`;
-  const receivedPctLabel = Math.round((100 * totals.received) / denom);
+  const receivedPct = Math.round((100 * totals.received) / denom);
+  const openPct = Math.round((100 * totals.open) / denom);
+  const blockedPct = Math.round((100 * totals.blocked) / denom);
+
+  const segments = [
+    { label: 'Received', value: totals.received, pct: receivedPct, color: 'success.main' },
+    { label: 'Open / Outstanding', value: totals.open, pct: openPct, color: 'warning.main' },
+    { label: 'Blocked (Draft)', value: totals.blocked, pct: blockedPct, color: 'error.main' },
+  ];
+
+  let offset = 0;
 
   return (
     <Card>
+      {/* Header */}
       <Box sx={{ px: 2.5, pt: 2, pb: 0.5 }}>
         <Typography variant="h6" sx={{ fontSize: 17 }}>
           The funding chain
@@ -48,6 +39,7 @@ export function FundingChainCard({ totals }) {
         </Typography>
       </Box>
 
+      {/* Top 4 Pipeline Metric Steps */}
       <Box
         sx={{
           display: 'grid',
@@ -95,58 +87,95 @@ export function FundingChainCard({ totals }) {
         ))}
       </Box>
 
-      {/* Segmented received / open / blocked bar */}
-      <Box
-        role="img"
-        aria-label={`Received ${formatInr(totals.received)}, open ${formatInr(
-          totals.open,
-        )}, blocked ${formatInr(totals.blocked)}`}
-        sx={{
-          display: 'flex',
-          height: 9,
-          borderRadius: 99,
-          overflow: 'hidden',
-          mx: 2.5,
-          my: 1.25,
-          bgcolor: 'var(--card2)',
-        }}
-      >
-        <Box sx={{ width: pct(totals.received), bgcolor: 'success.main' }} />
-        <Box sx={{ width: pct(totals.open), bgcolor: 'var(--line)' }} />
-        <Box sx={{ width: pct(totals.blocked), bgcolor: 'error.main', opacity: 0.6 }} />
-      </Box>
-
+      {/* SVG PIE / DONUT CHART SECTION WITH COMPACT SIDE LEGEND */}
       <Stack
-        direction="row"
-        flexWrap="wrap"
-        sx={{ gap: 2.25, px: 2.5, pb: 2, fontSize: 11.5, color: 'text.secondary' }}
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={4}
+        sx={{ alignItems: 'center', px: 2.5, py: 2 }}
       >
-        <span>
-          <Dot color="success.main" />
-          <Box component="b" sx={{ color: 'text.primary' }}>
-            Received {formatInr(totals.received)}
-          </Box>{' '}
-          ({receivedPctLabel}%)
-        </span>
-        <span>
-          <Dot color="var(--line)" />
-          Open / outstanding{' '}
-          <Box component="b" sx={{ color: 'text.primary' }}>
-            {formatInr(totals.open)}
+        {/* SVG Pie Chart Circle */}
+        <Box sx={{ position: 'relative', width: 140, height: 140, flexShrink: 0 }}>
+          <svg viewBox="0 0 140 140" width="140" height="140" role="img" aria-label="Funding Pie Chart">
+            <circle cx="70" cy="70" r={R} fill="none" stroke="var(--line2)" strokeWidth={STROKE} />
+            <g transform="rotate(-90 70 70)">
+              {segments.map((s) => {
+                const frac = denom > 0 ? s.value / denom : 0;
+                const len = Math.max(0, frac * CIRC - 2);
+                const el = (
+                  <circle
+                    key={s.label}
+                    cx="70"
+                    cy="70"
+                    r={R}
+                    fill="none"
+                    stroke={
+                      s.color === 'success.main'
+                        ? '#1E6B4A'
+                        : s.color === 'warning.main'
+                          ? '#8F6A12'
+                          : '#B3372B'
+                    }
+                    strokeWidth={STROKE}
+                    strokeDasharray={`${len} ${CIRC - len}`}
+                    strokeDashoffset={-offset}
+                    strokeLinecap="butt"
+                  />
+                );
+                offset += frac * CIRC;
+                return el;
+              })}
+            </g>
+          </svg>
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 10, lineHeight: 1 }}>
+              Total Pipeline
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.25, fontSize: 14 }}>
+              {formatInr(denom)}
+            </Typography>
           </Box>
-        </span>
-        {totals.blocked > 0 ? (
-          <span>
-            <Dot color="error.main" />
-            Blocked (draft donor){' '}
-            <Box component="b" sx={{ color: 'text.primary' }}>
-              {formatInr(totals.blocked)}
-            </Box>{' '}
-            — excluded from open
-          </span>
-        ) : null}
+        </Box>
+
+        {/* Compact Legend List Right Next to the Chart */}
+        <Stack spacing={1.5} sx={{ minWidth: 0, flexGrow: 1 }}>
+          {segments.map((s) => (
+            <Stack key={s.label} direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+              <Box
+                sx={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '3px',
+                  bgcolor: s.color,
+                  flexShrink: 0,
+                  mt: 0.4,
+                }}
+              />
+              <Box>
+                <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: 12.5, lineHeight: 1.2 }}>
+                  {s.label}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 14.5, mt: 0.25 }}>
+                  {formatInr(s.value)}{' '}
+                  <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400, fontSize: 11.5 }}>
+                    ({s.pct}%)
+                  </Box>
+                </Typography>
+              </Box>
+            </Stack>
+          ))}
+        </Stack>
       </Stack>
 
+      {/* Explanation Banner */}
       <Box
         sx={{
           mx: 2.5,
