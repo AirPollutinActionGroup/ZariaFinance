@@ -1,6 +1,5 @@
 import VolunteerActivismOutlinedIcon from '@mui/icons-material/VolunteerActivismOutlined';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
-import MonetizationOnOutlinedIcon from '@mui/icons-material/MonetizationOnOutlined';
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
 import { DonorsListPage } from './pages/DonorsListPage.jsx';
 import { DonorCreatePage } from './pages/DonorCreatePage.jsx';
@@ -12,8 +11,6 @@ import { GrantDetailPage } from './pages/GrantDetailPage.jsx';
 import { GrantEditPage } from './pages/GrantEditPage.jsx';
 import { FundProfileFormPage } from './pages/FundProfileFormPage.jsx';
 import { ReportsPage } from './pages/ReportsPage.jsx';
-import { DonationsListPage } from './pages/DonationsListPage.jsx';
-import { DonationCreatePage } from './pages/DonationCreatePage.jsx';
 import { MODULE_ID } from './constants.js';
 
 /**
@@ -26,7 +23,6 @@ export const donorManagementModule = {
   navItems: [
     { label: 'Donors Registry', path: '/donors', icon: VolunteerActivismOutlinedIcon },
     { label: 'Grants Agreements', path: '/grants', icon: HandshakeOutlinedIcon },
-    { label: 'Donations', path: '/donations', icon: MonetizationOnOutlinedIcon },
     { label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
   ],
   routes: [
@@ -40,8 +36,6 @@ export const donorManagementModule = {
     { path: '/grants/new', element: <GrantCreatePage /> },
     { path: '/grants/:id', element: <GrantDetailPage /> },
     { path: '/grants/:id/edit', element: <GrantEditPage /> },
-    { path: '/donations', element: <DonationsListPage /> },
-    { path: '/donations/new', element: <DonationCreatePage /> },
     { path: '/reports', element: <ReportsPage /> },
   ],
 };

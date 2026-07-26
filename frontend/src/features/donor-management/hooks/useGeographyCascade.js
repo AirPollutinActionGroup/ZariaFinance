@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import { geographyService } from '../services/geographyService.js';
 
+function isCountryIndia(country) {
+  return (
+    country?.label?.toLowerCase() === 'india' ||
+    country?.value === 'INDIA_ID_OR_NAME' ||
+    (typeof country === 'string' && country.toLowerCase() === 'india')
+  );
+}
+
 export function useGeographyCascade(setValue) {
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
@@ -13,12 +21,6 @@ export function useGeographyCascade(setValue) {
   const [loadingStates, setLoadingStates] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
 
-  // Check if selected country is India
-  const isIndia =
-    selectedCountry?.label?.toLowerCase() === 'india' ||
-    selectedCountry?.value === 'INDIA_ID_OR_NAME' ||
-    (typeof selectedCountry === 'string' && selectedCountry.toLowerCase() === 'india');
-
   // 1. Fetch Countries on Mount
   useEffect(() => {
     geographyService
@@ -27,19 +29,11 @@ export function useGeographyCascade(setValue) {
       .catch((err) => console.error('Error loading countries:', err));
   }, []);
 
-  // 2. Fetch States when Country changes
-  useEffect(() => {
-    setSelectedState(null);
-    setSelectedCity(null);
+  // Fetch states for a given country, replacing whatever was loaded before.
+  const loadStatesFor = (country) => {
     setStates([]);
-    setCities([]);
-    if (setValue) {
-      setValue('stateId', '');
-      setValue('cityId', '');
-    }
-
-    if (selectedCountry && isIndia) {
-      const countryId = selectedCountry?.value || selectedCountry;
+    if (country && isCountryIndia(country)) {
+      const countryId = country?.value || country;
       setLoadingStates(true);
       geographyService
         .listStates(countryId)
@@ -47,18 +41,13 @@ export function useGeographyCascade(setValue) {
         .catch(() => setStates([]))
         .finally(() => setLoadingStates(false));
     }
-  }, [selectedCountry, isIndia, setValue]);
+  };
 
-  // 3. Fetch Cities when State changes
-  useEffect(() => {
-    setSelectedCity(null);
+  // Fetch cities for a given state, replacing whatever was loaded before.
+  const loadCitiesFor = (state) => {
     setCities([]);
-    if (setValue) {
-      setValue('cityId', '');
-    }
-
-    if (selectedState && isIndia) {
-      const stateId = selectedState?.value || selectedState;
+    if (state && isCountryIndia(selectedCountry)) {
+      const stateId = state?.value || state;
       setLoadingCities(true);
       geographyService
         .listCities(stateId)
@@ -66,22 +55,30 @@ export function useGeographyCascade(setValue) {
         .catch(() => setCities([]))
         .finally(() => setLoadingCities(false));
     }
-  }, [selectedState, isIndia, setValue]);
+  };
 
   const handleCountryChange = (val) => {
     setSelectedCountry(val);
+    setSelectedState(null);
+    setSelectedCity(null);
     if (setValue) {
       const countryVal = typeof val === 'string' ? val : val?.value || '';
       setValue('countryId', countryVal);
+      setValue('stateId', '');
+      setValue('cityId', '');
     }
+    loadStatesFor(val);
   };
 
   const handleStateChange = (val) => {
     setSelectedState(val);
+    setSelectedCity(null);
     if (setValue) {
       const stateVal = typeof val === 'string' ? val : val?.value || '';
       setValue('stateId', stateVal);
+      setValue('cityId', '');
     }
+    loadCitiesFor(val);
   };
 
   const handleCityChange = (val) => {
