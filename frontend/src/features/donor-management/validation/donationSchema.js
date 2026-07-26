@@ -1,0 +1,26 @@
+import { z } from 'zod';
+
+export const donationSchema = z.object({
+  donationCode: z.string().optional(),
+  donationType: z.enum(['major', 'onetime', 'recurring', 'payroll', 'legacy', 'gik', 'corpus']),
+  receiptDate: z.string().nonempty('Receipt date is required'),
+  channel: z.string().nonempty('Channel is required'),
+  isAnonymous: z.boolean().default(false),
+  donorId: z.string().optional(),
+  idType: z.string().optional(),
+  idNumber: z.string().optional(),
+  address: z.string().optional(),
+  fundMode: z.enum(['unres', 'res']),
+  programmeId: z.string().optional(),
+  locations: z.array(z.string()).min(1, 'Select at least one location'),
+  currency: z.string().default('INR'),
+  amount: z.number({ invalid_type_error: 'Enter a valid amount' }).positive('Amount must be > 0'),
+  fxRate: z.number().optional().default(1),
+  collectionSource: z.string().optional(),
+  sourceReference: z.string().optional(),
+  utilisationPeriod: z.string().optional(),
+  utilisationStart: z.string().optional(),
+  utilisationEnd: z.string().optional(),
+  bankAccountId: z.string().nonempty('Bank account is required'),
+  transactionRef: z.string().optional(),
+});

@@ -12,7 +12,12 @@ import {
 
 const columns = [
   { key: 'serialNo', header: 'S.No', width: 60, render: (row) => row.serialNo },
-  { key: 'donorCode', header: 'Donor Code', width: 110 },
+  {
+    key: 'donorCode',
+    header: 'Donor Code',
+    width: 160, // Increased from 110 to 160
+    render: (row) => <span style={{ whiteSpace: 'nowrap' }}>{row.donorCode}</span>
+  },
   { key: 'donorName', header: 'Donor Name' },
   { key: 'donorType', header: 'Donor Type', render: (row) => row.donorTypeLabel },
   {
