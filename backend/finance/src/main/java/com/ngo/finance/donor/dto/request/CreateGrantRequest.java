@@ -1,9 +1,11 @@
 package com.ngo.finance.donor.dto.request;
 
+import com.ngo.finance.donor.enums.GrantStatus;
 import com.ngo.finance.donor.validator.annotation.ValidGrantDates;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,8 +19,9 @@ import lombok.NoArgsConstructor;
  *
  * A grant inherits its donor, programme and fund class from its fund profile,
  * so only {@code fundProfileId} is supplied — donorId / programmeId / fundClass
- * are derived server-side. Foreign grants carry a currency and a locked FX rate;
- * the INR reporting amount is computed on the server.
+ * are derived server-side, as is the total (Σ of the profile's tranche plan).
+ * Foreign grants carry a currency and a locked FX rate; the INR reporting amount
+ * is computed on the server.
  */
 @Data
 @Builder
@@ -50,9 +53,11 @@ public class CreateGrantRequest {
     @NotNull(message = "End date is required")
     private LocalDate endDate;
 
-    @NotNull(message = "Total grant amount is required")
-    @Positive(message = "Total grant amount must be positive")
-    private BigDecimal totalGrantAmount;
+    // Total grant amount is NOT accepted here: it is inherited as the sum of the
+    // linked fund profile's tranche plan (agreement form section 2, read-only).
+
+    @NotNull(message = "Status is required")
+    private GrantStatus status; // ACTIVE | COMPLETED | CANCELLED
 
     private String grantCurrency; // defaults to INR server-side
 
@@ -62,4 +67,16 @@ public class CreateGrantRequest {
     private String description;
 
     private String agreementDocumentPath;
+
+    // Section 3 (Approval). Independent of `status`: a grant can be ACTIVE with
+    // approval still pending. Omitted on create → stays pending (2).
+    @Min(value = 1, message = "Approval status must be between 1 and 4")
+    @Max(value = 4, message = "Approval status must be between 1 and 4")
+    private Integer approvalStatus; // 1 = approved, 2 = pending, 3 = on hold, 4 = completed
+
+    private Long approvedBy;
+
+    private LocalDate approvalDate;
+
+    private String approvalRemarks;
 }

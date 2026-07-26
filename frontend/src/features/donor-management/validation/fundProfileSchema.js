@@ -43,6 +43,21 @@ export const fundProfileSchema = z.object({
       }),
     )
     .optional(),
+  // The donor-agreed release schedule. Σ trancheAmount is the Total Grant Amount
+  // inherited by every grant on this profile, so amounts must be real positives.
+  tranches: z
+    .array(
+      z.object({
+        trancheName: z.string().optional(),
+        trancheAmount: z
+          .union([z.string(), z.number()])
+          .refine((v) => v !== '' && v !== null && v !== undefined && Number(v) > 0, {
+            message: 'Tranche amount must be positive',
+          }),
+        plannedReleaseDate: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const fundProfileFormDefaults = {
@@ -60,4 +75,5 @@ export const fundProfileFormDefaults = {
   geographies: [],
   utilisationRules: [],
   disbursementRules: [],
+  tranches: [],
 };

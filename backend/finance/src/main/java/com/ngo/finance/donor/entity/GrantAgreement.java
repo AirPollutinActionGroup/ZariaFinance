@@ -2,6 +2,7 @@ package com.ngo.finance.donor.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
 import com.ngo.finance.donor.enums.FundClass;
+import com.ngo.finance.donor.enums.GrantStatus;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -94,6 +95,13 @@ public class GrantAgreement extends AuditEntity {
     @Column(length = 50)
     @Enumerated(EnumType.STRING)
     private FundClass fundClass;
+
+    // Section 1 "Status" on the agreement form. Field of record; isActive mirrors
+    // it (ACTIVE ⇔ true) for the queries and endpoints that read the boolean.
+    @Column(name = "grant_status", nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private GrantStatus grantStatus = GrantStatus.ACTIVE;
 
     @Column(nullable = false)
     @Builder.Default
