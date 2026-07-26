@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/auth/index.js';
 import { ROLES } from '../../core/permissions/index.js';
 import { useColorMode } from '../../theme/ColorMode.jsx';
+import { NotificationBell } from '../../features/notifications/components/NotificationBell.jsx';
 
 const ROLE_LABELS = {
   [ROLES.CEO]: 'CEO',
@@ -68,6 +69,8 @@ export function TopBar() {
           sx={{ mr: 'auto', fontWeight: 600 }}
         />
       ) : null}
+
+      <NotificationBell />
 
       <Tooltip title={mode === 'dark' ? 'Switch to light' : 'Switch to dark'}>
         <IconButton

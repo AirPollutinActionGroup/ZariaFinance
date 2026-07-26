@@ -1,14 +1,18 @@
 package com.ngo.finance.donor.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,8 +29,8 @@ import lombok.ToString;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = "grant", callSuper = true)
-@ToString(exclude = "grant")
+@EqualsAndHashCode(exclude = {"grant", "criteria"}, callSuper = true)
+@ToString(exclude = {"grant", "criteria"})
 public class GrantTranche extends AuditEntity {
 
     @ManyToOne
@@ -48,6 +52,8 @@ public class GrantTranche extends AuditEntity {
     @Column
     private LocalDate actualReleaseDate;
 
+    // Superseded by the structured `criteria` list below (V45 back-filled these
+    // into OTHER criteria). Retained for historical rows; no longer written.
     @Column(columnDefinition = "TEXT")
     private String conditionsToRelease;
 
@@ -75,4 +81,24 @@ public class GrantTranche extends AuditEntity {
 
     @Column(name = "utilisation_end_date")
     private LocalDate utilisationEndDate;
+
+    // Structured release conditions (Disbursement Rules §4). A tranche's gate is
+    // open only when every criterion is met.
+    @OneToMany(mappedBy = "tranche", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<GrantTrancheCriterion> criteria = new ArrayList<>();
+
+    /** True when the release gate is satisfied. No criteria means nothing to gate on. */
+    public boolean criteriaSatisfied() {
+        return criteria.stream().allMatch(c -> Boolean.TRUE.equals(c.getMet()));
+    }
+
+    public long criteriaMetCount() {
+        return criteria.stream().filter(c -> Boolean.TRUE.equals(c.getMet())).count();
+    }
+
+    /** True once the money has actually arrived — receipts must never be lost. */
+    public boolean isReceived() {
+        return actualAmount != null;
+    }
 }

@@ -9,11 +9,13 @@ import com.ngo.finance.donor.dto.response.GrantListResponse;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.GrantAgreement;
 import com.ngo.finance.donor.entity.Programme;
+import com.ngo.finance.donor.enums.GrantStatus;
 import com.ngo.finance.donor.mapper.GrantMapper;
 import com.ngo.finance.donor.repository.DonorFundProfileRepository;
 import com.ngo.finance.donor.repository.GrantRepository;
 import com.ngo.finance.donor.repository.ProgrammeRepository;
 import com.ngo.finance.donor.service.GrantService;
+import com.ngo.finance.userRegister.repository.UserRegisterRepo;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,6 +46,9 @@ public class GrantServiceImpl implements GrantService {
     @Autowired
     private GrantMapper grantMapper;
 
+    @Autowired
+    private UserRegisterRepo userRegisterRepo;
+
     /** Auto-generated grant code prefix: ZRY/GA/YYYY/NNN. */
     private static final String GRANT_CODE_PREFIX = "ZRY/GA/";
     private static final Pattern LEADING_DIGITS = Pattern.compile("^(\\d+)");
@@ -55,12 +60,13 @@ public class GrantServiceImpl implements GrantService {
         log.info("Creating new grant with code: {}", grant.getGrantCode());
         applyFundProfile(grant, request.getFundProfileId(), request.getProgrammeId());
         applyFinancials(grant, request);
-        grant.setIsActive(true);
+        applyStatus(grant, request.getStatus());
+        applyApproval(grant, request);
 
         GrantAgreement savedGrant = grantRepository.save(grant);
         log.info("Grant created successfully with id: {}", savedGrant.getId());
 
-        return grantMapper.toDetailsResponse(savedGrant);
+        return toDetails(savedGrant);
     }
 
     @Override
@@ -71,20 +77,22 @@ public class GrantServiceImpl implements GrantService {
                 .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
 
         // grantCode is the immutable business key; everything else is editable.
+        // totalGrantAmount is absent by design — it comes from the fund profile.
         grant.setAgreementName(request.getAgreementName());
         grant.setAgreementDate(request.getAgreementDate());
         grant.setStartDate(request.getStartDate());
         grant.setEndDate(request.getEndDate());
-        grant.setTotalGrantAmount(request.getTotalGrantAmount());
         grant.setDescription(request.getDescription());
         grant.setAgreementDocumentPath(request.getAgreementDocumentPath());
 
         applyFundProfile(grant, request.getFundProfileId(), request.getProgrammeId());
         applyFinancials(grant, request);
+        applyStatus(grant, request.getStatus());
+        applyApproval(grant, request);
 
         GrantAgreement saved = grantRepository.save(grant);
         log.info("Grant updated successfully: {}", saved.getId());
-        return grantMapper.toDetailsResponse(saved);
+        return toDetails(saved);
     }
 
     /**
@@ -97,6 +105,8 @@ public class GrantServiceImpl implements GrantService {
                 .orElseThrow(() -> new ResourceNotFoundException("Fund profile", fundProfileId));
         grant.setFundProfile(profile);
         grant.setDonor(profile.getDonor());
+        // Read-only on the form: the total is Σ of the profile's tranche plan.
+        grant.setTotalGrantAmount(profile.plannedTotalAmount());
 
         if (programmeId != null) {
             Programme programme = programmeRepository.findById(programmeId)
@@ -139,13 +149,66 @@ public class GrantServiceImpl implements GrantService {
                 grant.getTotalGrantAmount() != null ? grant.getTotalGrantAmount().multiply(fx) : null);
     }
 
+    /**
+     * Set the agreement status and keep {@code isActive} in lockstep — the boolean
+     * is what existing queries, reports and lifecycle endpoints read.
+     */
+    private void applyStatus(GrantAgreement grant, GrantStatus status) {
+        GrantStatus resolved = status != null ? status : GrantStatus.ACTIVE;
+        grant.setGrantStatus(resolved);
+        grant.setIsActive(resolved == GrantStatus.ACTIVE);
+    }
+
+    /**
+     * Apply the form's approval block. Independent of {@code status}: a grant may
+     * be ACTIVE while approval is still pending. Fields left null are untouched,
+     * so an edit that doesn't show approval can't silently clear it.
+     */
+    private void applyApproval(GrantAgreement grant, CreateGrantRequest request) {
+        if (request.getApprovalStatus() != null) {
+            grant.setIsApproved(request.getApprovalStatus());
+        }
+        if (request.getApprovedBy() != null) {
+            grant.setApprovedBy(request.getApprovedBy());
+        }
+        if (request.getApprovalDate() != null) {
+            // The column is a timestamp (the PATCH lifecycle stamps a time); the
+            // form only offers a date, so it lands at the start of that day.
+            grant.setApprovalDate(request.getApprovalDate().atStartOfDay());
+        }
+        if (request.getApprovalRemarks() != null) {
+            grant.setApprovalRemarks(request.getApprovalRemarks());
+        }
+    }
+
+    /** Details response with the approver's id resolved to a display name. */
+    private GrantDetailsResponse toDetails(GrantAgreement grant) {
+        GrantDetailsResponse response = grantMapper.toDetailsResponse(grant);
+        response.setApprovedByName(resolveApproverName(grant.getApprovedBy()));
+        return response;
+    }
+
+    private String resolveApproverName(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return userRegisterRepo.findById(userId)
+                .map(user -> {
+                    String last = user.getLastName();
+                    return last == null || last.isBlank()
+                            ? user.getFirstName()
+                            : user.getFirstName() + " " + last;
+                })
+                .orElse(null);
+    }
+
     @Override
     @Transactional(readOnly = true)
     public GrantDetailsResponse getGrantById(Long id) {
         log.debug("Fetching grant with id: {}", id);
         GrantAgreement grant = grantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
-        return grantMapper.toDetailsResponse(grant);
+        return toDetails(grant);
     }
 
     @Override
@@ -154,7 +217,7 @@ public class GrantServiceImpl implements GrantService {
         log.debug("Fetching grant with code: {}", grantCode);
         GrantAgreement grant = grantRepository.findByGrantCode(grantCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Grant", "code", grantCode));
-        return grantMapper.toDetailsResponse(grant);
+        return toDetails(grant);
     }
 
     @Override
@@ -220,7 +283,7 @@ public class GrantServiceImpl implements GrantService {
                 .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
 
         if (grant.getIsApproved() == 1) {
-            grant.setIsActive(true);
+            applyStatus(grant, GrantStatus.ACTIVE);
             grantRepository.save(grant);
             log.info("Grant activated successfully");
         } else {
@@ -235,7 +298,8 @@ public class GrantServiceImpl implements GrantService {
         GrantAgreement grant = grantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Grant", id));
 
-        grant.setIsActive(false);
+        // Closing is the cancel path: the agreement stops being live.
+        applyStatus(grant, GrantStatus.CANCELLED);
         grantRepository.save(grant);
         log.info("Grant closed successfully");
     }
@@ -284,6 +348,7 @@ public class GrantServiceImpl implements GrantService {
 
         if (grant.getIsApproved() == 1) {
             grant.setIsApproved(4);
+            applyStatus(grant, GrantStatus.COMPLETED);
             grantRepository.save(grant);
             log.info("Grant completed successfully");
         } else {

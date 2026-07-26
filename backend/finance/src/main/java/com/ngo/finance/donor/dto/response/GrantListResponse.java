@@ -40,6 +40,9 @@ public class GrantListResponse {
 
     private BigDecimal reportingAmountInr;
 
+    /** ACTIVE | COMPLETED | CANCELLED; isActive is the legacy boolean mirror. */
+    private String status;
+
     private Boolean isActive;
 
     private Integer isApproved;

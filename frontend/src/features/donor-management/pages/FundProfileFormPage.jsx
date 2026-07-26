@@ -16,11 +16,12 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SaveIcon from '@mui/icons-material/Save';
-import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader, LoadingState, ErrorState } from '../../../shared/components/index.js';
 import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
+import { formatInrExact } from '../../../lib/format/currency.js';
 import { useProgrammes } from '../hooks/useProgrammes.js';
 import {
   useCreateFundProfile,
@@ -85,6 +86,15 @@ export function FundProfileFormPage() {
   const geographies = useFieldArray({ control, name: 'geographies' });
   const utilisationRules = useFieldArray({ control, name: 'utilisationRules' });
   const disbursementRules = useFieldArray({ control, name: 'disbursementRules' });
+  const tranches = useFieldArray({ control, name: 'tranches' });
+
+  // Σ of the tranche plan — mirrors FundProfileResponse.plannedTotalAmount, which
+  // becomes the Total Grant Amount of every grant on this profile.
+  const trancheValues = useWatch({ control, name: 'tranches' });
+  const plannedTotal = (trancheValues || []).reduce((sum, t) => {
+    const amount = Number(t?.trancheAmount);
+    return Number.isFinite(amount) ? sum + amount : sum;
+  }, 0);
 
   // Populate the form once the profile loads (edit mode only).
   useEffect(() => {
@@ -272,6 +282,73 @@ export function FundProfileFormPage() {
                     </Grid>
                   </Box>
                 ))}
+              </Stack>
+            </CardContent>
+          </Card>
+
+          {/* Tranche plan — Σ becomes the Total Grant Amount on this profile's grants */}
+          <Card>
+            <CardContent sx={{ p: 3 }}>
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="h4" component="h2">Tranche plan</Typography>
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => tranches.append({ trancheName: '', trancheAmount: '', plannedReleaseDate: '' })}
+                >
+                  Add tranche
+                </Button>
+              </Stack>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                The release schedule agreed with the donor. Every grant on this profile inherits the total below as its
+                Total Grant Amount, so leaving this empty means grants commit nothing.
+              </Typography>
+              <Stack spacing={2}>
+                {tranches.fields.map((f, i) => (
+                  <Box key={f.id}>
+                    {i > 0 ? <Divider sx={{ mb: 2 }} /> : null}
+                    <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+                      {/* Tranche numbers are positional — the backend renumbers 1..n on save. */}
+                      <Grid size={{ xs: 12, sm: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                          #{i + 1}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 4 }}>
+                        <RhfTextField name={`tranches.${i}.trancheName`} control={control} label="Tranche name" />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 3 }}>
+                        <RhfTextField
+                          name={`tranches.${i}.trancheAmount`}
+                          control={control}
+                          label="Amount"
+                          required
+                          type="number"
+                          slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 11, sm: 3 }}>
+                        <RhfTextField
+                          name={`tranches.${i}.plannedReleaseDate`}
+                          control={control}
+                          label="Planned release"
+                          type="date"
+                          slotProps={{ inputLabel: { shrink: true } }}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 1 }}>
+                        <IconButton aria-label="Remove tranche" onClick={() => tranches.remove(i)} sx={{ mt: 1 }}>
+                          <DeleteOutlineIcon />
+                        </IconButton>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                ))}
+              </Stack>
+              <Divider sx={{ my: 2 }} />
+              <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+                <Typography variant="subtitle2">Planned total</Typography>
+                <Typography variant="subtitle2">{formatInrExact(plannedTotal)}</Typography>
               </Stack>
             </CardContent>
           </Card>

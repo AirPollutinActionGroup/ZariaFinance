@@ -53,6 +53,10 @@ public class GrantDetailsResponse {
 
     private BigDecimal utilisedAmount;
 
+    // Agreement status (section 1): ACTIVE | COMPLETED | CANCELLED. isActive is
+    // the legacy boolean mirror, kept for existing consumers.
+    private String status;
+
     private Boolean isActive;
 
     private String description;
@@ -68,6 +72,9 @@ public class GrantDetailsResponse {
     private String updatedBy;
 
     private Long approvedBy;
+
+    /** Resolved from the users table so the UI never has to show a bare id. */
+    private String approvedByName;
 
     private String approvalRemarks;
 
