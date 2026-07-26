@@ -1,7 +1,5 @@
 import VolunteerActivismOutlinedIcon from '@mui/icons-material/VolunteerActivismOutlined';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
-import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
-import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import { DonorsListPage } from './pages/DonorsListPage.jsx';
 import { DonorCreatePage } from './pages/DonorCreatePage.jsx';
 import { DonorDetailPage } from './pages/DonorDetailPage.jsx';
@@ -26,10 +24,6 @@ export const donorManagementModule = {
   navItems: [
     { label: 'Donors Registry', path: '/donors', icon: VolunteerActivismOutlinedIcon },
     { label: 'Grants Agreements', path: '/grants', icon: HandshakeOutlinedIcon },
-    { label: 'Donors', path: '/donors', icon: VolunteerActivismOutlinedIcon },
-    { label: 'Grants', path: '/grants', icon: HandshakeOutlinedIcon },
-    { label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
-    { label: 'Role directory', path: '/role-directory', icon: GroupsOutlinedIcon },
   ],
   routes: [
     { path: '/donors', element: <DonorsListPage /> },
