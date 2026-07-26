@@ -68,7 +68,10 @@ public class TrancheServiceImpl implements TrancheService {
         tranche.setActualAmount(request.getActualAmount());
         tranche.setActualReleaseDate(request.getActualDate());
         tranche.setTrancheStatus("Received");
-        tranche.setConditionMet("Met");
+        // The criteria gate is derived from the tranche's release criteria, never
+        // asserted by a receipt: money arriving does not prove a milestone was
+        // signed off, and the two tracks are deliberately kept separate.
+        tranche.setConditionMet(tranche.criteriaSatisfied() ? "Met" : "Pending");
 
         GrantTranche saved = trancheRepository.save(tranche);
         log.info("Tranche receipt recorded for id: {}", saved.getId());

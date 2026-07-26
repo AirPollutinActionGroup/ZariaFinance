@@ -41,4 +41,11 @@ export const queryKeys = {
   tenantTaxConfig: {
     all: () => ['tenantTaxConfig'],
   },
+  fxRates: {
+    all: () => ['fxRates'],
+    lookup: (currency, date) => ['fxRates', 'lookup', { currency: currency || '', date: date || '' }],
+  },
+  users: {
+    all: () => ['users'],
+  },
 };
