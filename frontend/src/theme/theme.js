@@ -34,12 +34,12 @@ export function createAppTheme(mode = 'light') {
     typography: {
       fontFamily: SANS,
       fontSize: 13.5,
-      h1: { fontFamily: SANS, fontWeight: 700, letterSpacing: '-0.02em', textTransform: 'capitalize' },
-      h2: { fontFamily: SANS, fontWeight: 700, letterSpacing: '-0.015em', textTransform: 'capitalize' },
-      h3: { fontFamily: SANS, fontWeight: 600, letterSpacing: '-0.01em', textTransform: 'capitalize' },
-      h4: { fontFamily: SANS, fontWeight: 600, letterSpacing: '-0.01em', textTransform: 'capitalize' },
-      h5: { fontFamily: SANS, fontWeight: 600, textTransform: 'capitalize' },
-      h6: { fontFamily: SANS, fontWeight: 600, textTransform: 'capitalize' },
+      h1: { fontFamily: SERIF, fontWeight: 600, letterSpacing: '.005em' },
+      h2: { fontFamily: SERIF, fontWeight: 600, letterSpacing: '.005em' },
+      h3: { fontFamily: SERIF, fontWeight: 600, letterSpacing: '.005em' },
+      h4: { fontFamily: SERIF, fontWeight: 600, letterSpacing: '.005em' },
+      h5: { fontFamily: SERIF, fontWeight: 600 },
+      h6: { fontFamily: SERIF, fontWeight: 600 },
       subtitle1: { color: c.muted },
       subtitle2: { color: c.muted, fontWeight: 600 },
       overline: {
@@ -103,10 +103,6 @@ export function createAppTheme(mode = 'light') {
             '& fieldset': { borderColor: c.line },
             '&:hover fieldset': { borderColor: c.muted },
             '&.Mui-focused fieldset': { borderWidth: 1, borderColor: c.info },
-            '& input[type="date"]::-webkit-calendar-picker-indicator, & input[type="time"]::-webkit-calendar-picker-indicator': {
-              filter: isDark ? 'invert(0.9) brightness(1.2)' : 'none',
-              cursor: 'pointer',
-            },
           },
         },
       },
@@ -146,29 +142,6 @@ export function createAppTheme(mode = 'light') {
             border: `1px solid ${c.line}`,
             borderRadius: 14,
             backgroundColor: c.card,
-          },
-        },
-      },
-      MuiMenu: {
-        styleOverrides: {
-          paper: {
-            border: `1px solid ${c.line}`,
-            borderRadius: 10,
-            boxShadow: isDark
-              ? '0 12px 32px -4px rgba(0,0,0,0.7), 0 4px 12px rgba(0,0,0,0.5)'
-              : '0 10px 28px -4px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.06)',
-            backgroundColor: c.card,
-            '& .MuiMenuItem-root': {
-              margin: '3px 6px',
-              borderRadius: 6,
-              fontSize: 13.5,
-              transition: 'background-color 0.15s ease, color 0.15s ease',
-              '&.Mui-focused, &:hover, &.Mui-selected': {
-                backgroundColor: isDark ? 'rgba(92, 185, 140, 0.25) !important' : '#E7F1EB !important',
-                color: isDark ? '#5CB98C !important' : '#1E6B4A !important',
-                fontWeight: 600,
-              },
-            },
           },
         },
       },

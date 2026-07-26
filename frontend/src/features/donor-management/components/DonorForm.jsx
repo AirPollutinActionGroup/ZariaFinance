@@ -1,4 +1,3 @@
-import { GeographyFields } from './GeographyFields.jsx';
 import { Alert, Button, Card, CardContent, Grid, Stack, TextField, Typography } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +9,13 @@ import { donorService } from '../services/donorService.js';
 import { useState, useEffect } from 'react';
 import { geographyService } from '../services/geographyService.js';
 
+/**
+ * Create/edit form for a donor. Purely presentational + validation:
+ * persistence is delegated to the onSubmit prop (a mutation from the page).
+ *
+ * mode: 'create' | 'edit' — donorCode is immutable after creation because
+ * UpdateDonorRequest does not carry it.
+ */
 export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitError, onCancel }) {
   const { control, handleSubmit, setError, watch, setValue } = useForm({
     resolver: zodResolver(donorSchema),
@@ -17,17 +23,54 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
   });
 
   const fundSourceDomicile = watch('fundSourceDomicile');
-  const isForeign = fundSourceDomicile === 'FOREIGN';
-  const [foreignCountries, setForeignCountries] = useState([]);
+  const countryId = watch('countryId');
+  const stateId = watch('stateId');
+  const [prevCountryId, setPrevCountryId] = useState(defaultValues?.countryId || '');
+  const [prevStateId, setPrevStateId] = useState(defaultValues?.stateId || '');
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
 
   useEffect(() => {
-    if (isForeign) {
-      geographyService
-        .listCountries()
-        .then((list) => setForeignCountries(list.map((c) => ({ value: c.label, label: c.label }))))
-        .catch((err) => console.error('Error loading foreign countries', err));
+    geographyService.listCountries()
+      .then(setCountries)
+      .catch((err) => console.error('Error loading countries', err));
+  }, []);
+
+  useEffect(() => {
+    geographyService.listStates(countryId || undefined)
+      .then((data) => {
+        setStates(data);
+        if (countryId !== prevCountryId) {
+          setValue('stateId', '');
+          setPrevCountryId(countryId);
+        }
+      })
+      .catch((err) => console.error('Error loading states', err));
+  }, [countryId, prevCountryId, setValue]);
+
+  useEffect(() => {
+    if (stateId) {
+      geographyService.listCities(stateId)
+        .then((data) => {
+          setCities(data);
+          if (stateId !== prevStateId) {
+            setValue('cityId', '');
+            setPrevStateId(stateId);
+          }
+        })
+        .catch((err) => console.error('Error loading cities', err));
+    } else {
+      setCities([]);
+      if (stateId !== prevStateId) {
+        setValue('cityId', '');
+        setPrevStateId('');
+      }
     }
-  }, [isForeign]);
+  }, [stateId, prevStateId, setValue]);
+
+  const isForeign = fundSourceDomicile === 'FOREIGN';
+  const foreignCountryOptions = countries.map((c) => ({ value: c.label, label: c.label }));
 
   useEffect(() => {
     setValue('fcraApplicable', isForeign);
@@ -124,7 +167,7 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                     name="foreignCountryId"
                     control={control}
                     label="Foreign country"
-                    options={foreignCountries}
+                    options={foreignCountryOptions}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -174,7 +217,7 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                 <RhfTextField
                   name="spocNameOfThePerson"
                   control={control}
-                  label="SPOC name"
+                  label="POC name"
                   required
                 />
               </Grid>
@@ -182,14 +225,14 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                 <RhfTextField
                   name="spocPhoneNumber"
                   control={control}
-                  label="SPOC phone number"
+                  label="POC phone number"
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
                 <RhfTextField
                   name="spocEmail"
                   control={control}
-                  label="SPOC email"
+                  label="POC email"
                   type="email"
                   required
                 />
@@ -197,26 +240,42 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
             </Grid>
           </section>
 
-          {/* ADDRESS SECTION */}
           <section>
             <Typography variant="h4" component="h2" sx={{ mb: 2 }}>
               Address
             </Typography>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <RhfTextField name="address" control={control} label="Street address" />
+                <RhfTextField name="address" control={control} label="Street address" required />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <RhfTextField name="address2" control={control} label="Street address 2" />
               </Grid>
-
-              {/* DYNAMIC GEOGRAPHY FIELDS */}
-              <GeographyFields
-                control={control}
-                setValue={setValue}
-                errors={submitError?.fieldErrors}
-              />
-
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <RhfSelect
+                  name="countryId"
+                  control={control}
+                  label="Country"
+                  options={countries}
+                />
+              </Grid>
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <RhfSelect
+                  name="stateId"
+                  control={control}
+                  label="State"
+                  options={states}
+                />
+              </Grid>
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <RhfSelect
+                  name="cityId"
+                  control={control}
+                  label="City"
+                  options={cities}
+                  disabled={!stateId}
+                />
+              </Grid>
               <Grid size={{ xs: 6, sm: 3 }}>
                 <RhfTextField name="postalCode" control={control} label="Postal code" />
               </Grid>

@@ -26,7 +26,7 @@ import { FundProfilesPanel } from '../components/FundProfilesPanel.jsx';
 import {
   DONOR_ACTIVE_TONE,
   FUND_SOURCE_DOMICILE_TONE,
-  GRANT_STATUS_TONE,
+  GRANT_ACTIVE_TONE,
   MODULE_ID,
 } from '../constants.js';
 
@@ -54,10 +54,10 @@ const grantColumns = [
     render: (row) => formatInr(row.totalGrantAmount),
   },
   {
-    key: 'grantStatus',
+    key: 'isActive',
     header: 'Status',
     render: (row) => (
-      <StatusChip label={row.statusLabel} tone={GRANT_STATUS_TONE[row.grantStatus] || 'neutral'} />
+      <StatusChip label={row.statusLabel} tone={GRANT_ACTIVE_TONE[row.isActive] || 'neutral'} />
     ),
   },
 ];
@@ -134,13 +134,12 @@ export function DonorDetailPage() {
               {donor.fundSourceDomicile === 'FOREIGN' ? (
                 <>
                   <Field label="Foreign fund source type" value={donor.foreignFundSourceType} />
-                  <Field label="Foreign country" value={donor.foreignCountryId} />
                   <Field label="Foreign tax identifier" value={donor.foreignTaxIdentifier} />
                 </>
               ) : null}
-              <Field label="SPOC name" value={donor.spocNameOfThePerson} />
-              <Field label="SPOC phone" value={donor.spocPhoneNumber} />
-              <Field label="SPOC email" value={donor.spocEmail} />
+              <Field label="POC name" value={donor.spocNameOfThePerson} />
+              <Field label="POC phone" value={donor.spocPhoneNumber} />
+              <Field label="POC email" value={donor.spocEmail} />
               <Field label="Address" value={donor.address} />
               <Field label="Address 2" value={donor.address2} />
               <Field label="City" value={donor.cityName} />

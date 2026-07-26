@@ -24,17 +24,6 @@ export const DONOR_ACTIVE_TONE = Object.freeze({
   false: 'neutral',
 });
 
-export const GRANT_STATUS = Object.freeze({
-  DRAFT: 'Draft',
-  PENDING_APPROVAL: 'Pending Approval',
-  APPROVED: 'Approved',
-  ACTIVE: 'Active',
-  ON_HOLD: 'On Hold',
-  COMPLETED: 'Completed',
-  TERMINATED: 'Terminated',
-  CLOSED: 'Closed',
-});
-
 export const DOCUMENT_TYPE = Object.freeze({
   AGREEMENT: 'Agreement',
   MOU: 'MOU',
@@ -69,15 +58,29 @@ export const FUND_CLASS_CODE_LABEL = Object.freeze({
   C: 'Class C — Fully Unrestricted: funds are completely untied. No project assignment, programme restriction, or movement explanation is required; they can be allocated freely across any programme or operational need.',
 });
 
-export const GRANT_STATUS_TONE = Object.freeze({
-  DRAFT: 'neutral',
-  PENDING_APPROVAL: 'warning',
-  APPROVED: 'info',
-  ACTIVE: 'success',
-  ON_HOLD: 'warning',
-  COMPLETED: 'success',
-  TERMINATED: 'error',
-  CLOSED: 'neutral',
+/** Grant lifecycle is a plain isActive boolean now (no multi-step status), mirroring DonorMaster. */
+export const GRANT_ACTIVE_TONE = Object.freeze({
+  true: 'success',
+  false: 'neutral',
+});
+
+/**
+ * `GrantAgreement.isApproved` — the approval workflow, separate from isActive
+ * (backend/finance .../entity/GrantAgreement.java).
+ * 1 = approved, 2 = pending, 3 = on hold, 4 = completed.
+ */
+export const GRANT_APPROVAL_STATUS = Object.freeze({
+  1: 'Approved',
+  2: 'Pending',
+  3: 'On Hold',
+  4: 'Completed',
+});
+
+export const GRANT_APPROVAL_STATUS_TONE = Object.freeze({
+  1: 'success',
+  2: 'warning',
+  3: 'warning',
+  4: 'info',
 });
 
 /** Foreign-sourced funds are flagged distinctly for the FCRA register. */
