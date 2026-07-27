@@ -135,30 +135,40 @@ function TrancheCycle({ tranche, currency }) {
   const committed = Number(tranche.trancheAmount) || 0;
   const received = Number(tranche.actualAmount) || 0;
   const utilised = Number(tranche.utilisedAmount) || 0;
-  const available = received - utilised;
+  const available = Math.max(0, received - utilised);
   const utilisedPct = received > 0 ? Math.min(100, Math.round((utilised / received) * 100)) : 0;
   const money = (n) => (currency && currency !== 'INR' ? `${currency} ` : '₹') + Number(n).toLocaleString('en-IN');
 
   return (
     <Box sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          Tranche {tranche.trancheNumber}
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1E293B' }}>
+          Tranche {tranche.trancheNumber} {tranche.trancheName ? `— ${tranche.trancheName}` : ''}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" sx={{ color: '#475569' }}>
           committed {money(committed)} · received {money(received)}
         </Typography>
       </Stack>
+
       <LinearProgress
         variant="determinate"
         value={utilisedPct}
-        sx={{ height: 6, borderRadius: 3 }}
+        sx={{
+          height: 7,
+          borderRadius: 3.5,
+          bgcolor: '#FFF3E0',
+          '& .MuiLinearProgress-bar': {
+            borderRadius: 3.5,
+            bgcolor: '#F57C00',
+          },
+        }}
       />
-      <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
-        <Typography variant="caption" color="text.secondary">
+
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.75 }}>
+        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 500 }}>
           utilised {money(utilised)} ({utilisedPct}%)
         </Typography>
-        <Typography variant="caption" sx={{ color: 'var(--ok)', fontWeight: 600 }}>
+        <Typography variant="caption" sx={{ color: '#059669', fontWeight: 600 }}>
           available {money(available)}
         </Typography>
       </Stack>
@@ -235,18 +245,45 @@ function FundingPosition({ grant, tranches, rule }) {
       </Table>
 
       {isTranched ? (
-        <Box>
-          <Button size="small" onClick={() => setAdvanced((v) => !v)} sx={{ px: 0 }}>
-            {advanced ? 'Hide per-tranche breakdown' : 'Advanced — per-tranche breakdown'}
-          </Button>
+        <Box sx={{ mt: 1 }}>
+          <Box
+            component="button"
+            type="button"
+            onClick={() => setAdvanced((v) => !v)}
+            sx={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              p: 1.5,
+              px: 2,
+              borderRadius: 1.5,
+              border: '1px solid',
+              borderColor: advanced ? 'primary.main' : 'divider',
+              bgcolor: 'var(--card2, rgba(0, 0, 0, 0.02))',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              textTransform: 'none',
+              textAlign: 'left',
+              fontFamily: 'inherit',
+              '&:hover': {
+                bgcolor: 'action.hover',
+                borderColor: 'primary.main',
+              },
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, color: 'text.primary' }}>
+              Advanced — per-tranche breakdown
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main', ml: 1 }}>
+              {advanced ? '▲ Hide' : '▼ Show'}
+            </Typography>
+          </Box>
           <Collapse in={advanced} unmountOnExit>
-            <Box sx={{ mt: 1 }}>
+            <Box sx={{ mt: 1.5 }}>
               {tranches.map((t) => (
                 <TrancheCycle key={t.id} tranche={t} currency={grant.grantCurrency} />
               ))}
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                Per-tranche amounts are in the grant currency. Received & utilised originate from Tally.
-              </Typography>
             </Box>
           </Collapse>
         </Box>

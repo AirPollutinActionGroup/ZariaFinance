@@ -22,8 +22,8 @@ export const donationManagementModule = {
   navSection: 'CORE LAYERS',
   navItems: [
     { label: 'Donations', path: '/donations', icon: VolunteerActivismOutlinedIcon },
-    { label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
-    { label: 'Role directory', path: '/role-directory', icon: GroupsOutlinedIcon },
+    // { label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
+    // { label: 'Role directory', path: '/role-directory', icon: GroupsOutlinedIcon },
   ],
   routes: [
     { path: '/donations', element: <DonationsListPage /> },

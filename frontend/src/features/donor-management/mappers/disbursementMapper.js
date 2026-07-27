@@ -36,6 +36,7 @@ export const VERIFICATION_ROLES = [
   { value: 'PROGRAMME_MANAGER', label: 'Programme Manager' },
   { value: 'CFO', label: 'CFO' },
   { value: 'HEAD_OF_ORGANISATION', label: 'Head of Organisation' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 export const RESPONSIBLE_ROLES = [
@@ -67,7 +68,7 @@ export function criterionTypeLabel(criterionType) {
 export function emptyCriterion() {
   return {
     id: null,
-    criterionType: 'ON_SIGNING',
+    criterionType: '',
     releaseDate: '',
     milestoneName: '',
     verificationRole: '',

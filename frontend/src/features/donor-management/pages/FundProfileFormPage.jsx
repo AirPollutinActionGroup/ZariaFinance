@@ -1,20 +1,26 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   Card,
   CardContent,
+  Chip,
+  Collapse,
   Divider,
   FormControlLabel,
   Grid,
   IconButton,
+  InputAdornment,
   Stack,
   Switch,
+  TextField,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import SaveIcon from '@mui/icons-material/Save';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,6 +36,8 @@ import {
 } from '../hooks/useFundProfiles.js';
 import { fundProfileSchema, fundProfileFormDefaults } from '../validation/fundProfileSchema.js';
 import { toFundProfileFormValues } from '../mappers/fundProfileMapper.js';
+import { TrancheCard } from '../components/TrancheCard.jsx';
+import { emptyCriterion } from '../mappers/disbursementMapper.js';
 
 const FUND_MODE_OPTIONS = [
   { value: 'Restricted', label: 'Restricted' },
@@ -78,6 +86,15 @@ export function FundProfileFormPage() {
   const updateMutation = useUpdateFundProfile(id, donorId);
   const mutation = isEdit ? updateMutation : createMutation;
 
+  const [disbursementType, setDisbursementType] = useState('LUMP_SUM');
+  const [scheduleType, setScheduleType] = useState('Quarterly');
+  const [receivingDate, setReceivingDate] = useState('');
+  const [totalCommitted, setTotalCommitted] = useState('');
+  const [expandedIndex, setExpandedIndex] = useState(0);
+  const [disbursementScheduleOpen, setDisbursementScheduleOpen] = useState(false);
+  const [geographiesOpen, setGeographiesOpen] = useState(false);
+  const [utilisationRulesOpen, setUtilisationRulesOpen] = useState(false);
+
   const { control, handleSubmit, reset } = useForm({
     resolver: zodResolver(fundProfileSchema),
     defaultValues: fundProfileFormDefaults,
@@ -100,6 +117,9 @@ export function FundProfileFormPage() {
   useEffect(() => {
     if (isEdit && profileQuery.data) {
       reset(toFundProfileFormValues(profileQuery.data));
+      if (profileQuery.data.disbursementSchedule || (profileQuery.data.tranches && profileQuery.data.tranches.length > 0)) {
+        setDisbursementScheduleOpen(true);
+      }
     }
   }, [isEdit, profileQuery.data, reset]);
 
@@ -172,184 +192,347 @@ export function FundProfileFormPage() {
           {/* Geographies */}
           <Card>
             <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="h4" component="h2">Permitted geographies</Typography>
-                <Button size="small" startIcon={<AddIcon />} onClick={() => geographies.append({ geographyName: '' })}>
-                  Add
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, cursor: 'pointer' }} onClick={() => setGeographiesOpen((prev) => !prev)}>
+                <Box>
+                  <Typography variant="h4" component="h2">Permitted Geographies</Typography>
+                  <Typography variant="body2" color="text.secondary">No geographies — spendable anywhere.</Typography>
+                </Box>
+                <IconButton size="small" onClick={(e) => { e.stopPropagation(); setGeographiesOpen((prev) => !prev); }}>
+                  {geographiesOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                </IconButton>
+              </Stack>
+              <Collapse in={geographiesOpen}>
+                <Divider sx={{ my: 2 }} />
+                <Stack spacing={1.5}>
+                  {geographies.fields.map((f, i) => (
+                    <Stack key={f.id} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+                      <RhfTextField name={`geographies.${i}.geographyName`} control={control} label="Geography" required />
+                      <IconButton aria-label="Remove geography" onClick={() => geographies.remove(i)} sx={{ mt: 1 }}>
+                        <DeleteOutlineIcon />
+                      </IconButton>
+                    </Stack>
+                  ))}
+                </Stack>
+                <Button size="small" startIcon={<AddIcon />} onClick={() => geographies.append({ geographyName: '' })} sx={{ mt: 2 }}>
+                  Add geography
                 </Button>
-              </Stack>
-              {geographies.fields.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">No geographies — spendable anywhere.</Typography>
-              ) : null}
-              <Stack spacing={1.5}>
-                {geographies.fields.map((f, i) => (
-                  <Stack key={f.id} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
-                    <RhfTextField name={`geographies.${i}.geographyName`} control={control} label="Geography" required />
-                    <IconButton aria-label="Remove geography" onClick={() => geographies.remove(i)} sx={{ mt: 1 }}>
-                      <DeleteOutlineIcon />
-                    </IconButton>
-                  </Stack>
-                ))}
-              </Stack>
+              </Collapse>
             </CardContent>
           </Card>
 
           {/* Utilisation rules */}
           <Card>
             <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="h4" component="h2">Utilisation rules</Typography>
-                <Button
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={() => utilisationRules.append({ ruleType: '', limitPercentage: '', description: '' })}
-                >
-                  Add
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, cursor: 'pointer' }} onClick={() => setUtilisationRulesOpen((prev) => !prev)}>
+                <Box>
+                  <Typography variant="h4" component="h2">Utilisation Rules</Typography>
+                </Box>
+                <IconButton size="small" onClick={(e) => { e.stopPropagation(); setUtilisationRulesOpen((prev) => !prev); }}>
+                  {utilisationRulesOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                </IconButton>
+              </Stack>
+              <Collapse in={utilisationRulesOpen}>
+                <Divider sx={{ my: 2 }} />
+                <Stack spacing={2}>
+                  {utilisationRules.fields.map((f, i) => (
+                    <Box key={f.id}>
+                      {i > 0 ? <Divider sx={{ mb: 2 }} /> : null}
+                      <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+                        <Grid size={{ xs: 12, sm: 5 }}>
+                          <RhfTextField name={`utilisationRules.${i}.ruleType`} control={control} label="Rule type" required />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 2 }}>
+                          <RhfTextField name={`utilisationRules.${i}.limitPercentage`} control={control} label="Limit %" type="number" />
+                        </Grid>
+                        <Grid size={{ xs: 11, sm: 4 }}>
+                          <RhfTextField name={`utilisationRules.${i}.description`} control={control} label="Description" />
+                        </Grid>
+                        <Grid size={{ xs: 1 }}>
+                          <IconButton aria-label="Remove rule" onClick={() => utilisationRules.remove(i)} sx={{ mt: 1 }}>
+                            <DeleteOutlineIcon />
+                          </IconButton>
+                        </Grid>
+                      </Grid>
+                    </Box>
+                  ))}
+                </Stack>
+                <Button size="small" startIcon={<AddIcon />} onClick={() => utilisationRules.append({ ruleType: '', limitPercentage: '', description: '' })} sx={{ mt: 2 }}>
+                  Add rule
                 </Button>
-              </Stack>
-              <Stack spacing={2}>
-                {utilisationRules.fields.map((f, i) => (
-                  <Box key={f.id}>
-                    {i > 0 ? <Divider sx={{ mb: 2 }} /> : null}
-                    <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-                      <Grid size={{ xs: 12, sm: 5 }}>
-                        <RhfTextField name={`utilisationRules.${i}.ruleType`} control={control} label="Rule type" required />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 2 }}>
-                        <RhfTextField name={`utilisationRules.${i}.limitPercentage`} control={control} label="Limit %" type="number" />
-                      </Grid>
-                      <Grid size={{ xs: 11, sm: 4 }}>
-                        <RhfTextField name={`utilisationRules.${i}.description`} control={control} label="Description" />
-                      </Grid>
-                      <Grid size={{ xs: 1 }}>
-                        <IconButton aria-label="Remove rule" onClick={() => utilisationRules.remove(i)} sx={{ mt: 1 }}>
-                          <DeleteOutlineIcon />
-                        </IconButton>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                ))}
-              </Stack>
+              </Collapse>
             </CardContent>
           </Card>
 
-          {/* Disbursement rules */}
+          {/* Disbursement Schedule */}
           <Card>
             <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="h4" component="h2">Disbursement rules</Typography>
-                <Button
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={() =>
-                    disbursementRules.append({
-                      ruleType: '',
-                      releaseTrigger: '',
-                      minPriorUtilisationRequired: '',
-                      milestoneRequired: false,
-                      ruleDescription: '',
-                    })
-                  }
-                >
-                  Add
-                </Button>
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, cursor: 'pointer' }} onClick={() => setDisbursementScheduleOpen((prev) => !prev)}>
+                <Box>
+                  <Typography variant="h4" component="h2">Disbursement Schedule</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Set how this grant is released. Choose a single payment or a series of tranches, then attach the conditions that must be met before each release.
+                  </Typography>
+                </Box>
+                <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDisbursementScheduleOpen((prev) => !prev); }}>
+                  {disbursementScheduleOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                </IconButton>
               </Stack>
-              <Stack spacing={2}>
-                {disbursementRules.fields.map((f, i) => (
-                  <Box key={f.id}>
-                    {i > 0 ? <Divider sx={{ mb: 2 }} /> : null}
-                    <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <RhfTextField name={`disbursementRules.${i}.ruleType`} control={control} label="Rule type" required />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <RhfTextField name={`disbursementRules.${i}.releaseTrigger`} control={control} label="Release trigger" />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 3 }}>
-                        <RhfTextField name={`disbursementRules.${i}.minPriorUtilisationRequired`} control={control} label="Prior util %" type="number" />
-                      </Grid>
-                      <Grid size={{ xs: 1 }}>
-                        <IconButton aria-label="Remove rule" onClick={() => disbursementRules.remove(i)} sx={{ mt: 1 }}>
-                          <DeleteOutlineIcon />
-                        </IconButton>
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 8 }}>
-                        <RhfTextField name={`disbursementRules.${i}.ruleDescription`} control={control} label="Description" />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <RhfSwitch name={`disbursementRules.${i}.milestoneRequired`} control={control} label="Milestone required" />
-                      </Grid>
-                    </Grid>
-                  </Box>
-                ))}
-              </Stack>
-            </CardContent>
-          </Card>
 
-          {/* Tranche plan — Σ becomes the Total Grant Amount on this profile's grants */}
-          <Card>
-            <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="h4" component="h2">Tranche plan</Typography>
-                <Button
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={() => tranches.append({ trancheName: '', trancheAmount: '', plannedReleaseDate: '' })}
-                >
-                  Add tranche
-                </Button>
-              </Stack>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                The release schedule agreed with the donor. Every grant on this profile inherits the total below as its
-                Total Grant Amount, so leaving this empty means grants commit nothing.
-              </Typography>
-              <Stack spacing={2}>
-                {tranches.fields.map((f, i) => (
-                  <Box key={f.id}>
-                    {i > 0 ? <Divider sx={{ mb: 2 }} /> : null}
-                    <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-                      {/* Tranche numbers are positional — the backend renumbers 1..n on save. */}
-                      <Grid size={{ xs: 12, sm: 1 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                          #{i + 1}
+              <Collapse in={disbursementScheduleOpen}>
+                <Divider sx={{ my: 2.5 }} />
+
+                <Grid container spacing={3} sx={{ alignItems: 'flex-start', mb: 2.5 }}>
+                  {/* Total Amount Committed */}
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 0.75 }}>
+                      Total amount committed *
+                    </Typography>
+                    <TextField
+                      type="number"
+                      value={totalCommitted}
+                      onChange={(e) => setTotalCommitted(e.target.value)}
+                      placeholder="1,00,00,000"
+                      fullWidth
+                      slotProps={{
+                        htmlInput: { min: 0, step: '1' },
+                        input: {
+                          startAdornment: (
+                            <InputAdornment position="start" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: 'monospace' }}>
+                              ₹
+                            </InputAdornment>
+                          ),
+                          sx: {
+                            fontWeight: 600,
+                            fontFamily: 'monospace',
+                            fontSize: 15,
+                            borderRadius: 1.5,
+                            '& ::placeholder': {
+                              color: '#9a9a94',
+                              opacity: 1,
+                              fontWeight: 500,
+                            },
+                          },
+                        },
+                      }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                      Carried from the agreement. All tranches must add up to this figure.
+                    </Typography>
+                  </Grid>
+
+                  {/* Disbursement Type */}
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 0.75 }}>
+                      Disbursement type *
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: 'inline-flex',
+                        bgcolor: 'var(--canvas, #F6F6F3)',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1.5,
+                        p: 0.5,
+                        gap: 0.5,
+                      }}
+                    >
+                      <Button
+                        type="button"
+                        onClick={() => setDisbursementType('LUMP_SUM')}
+                        sx={{
+                          px: 2.5,
+                          py: 0.75,
+                          borderRadius: 1.2,
+                          fontWeight: 600,
+                          fontSize: 13,
+                          textTransform: 'none',
+                          color: disbursementType === 'LUMP_SUM' ? '#fff' : 'text.primary',
+                          bgcolor: disbursementType === 'LUMP_SUM' ? '#181818' : 'transparent',
+                          '&:hover': {
+                            bgcolor: disbursementType === 'LUMP_SUM' ? '#000' : 'action.hover',
+                          },
+                        }}
+                      >
+                        Lump sum
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => setDisbursementType('TRANCHES')}
+                        sx={{
+                          px: 2.5,
+                          py: 0.75,
+                          borderRadius: 1.2,
+                          fontWeight: 600,
+                          fontSize: 13,
+                          textTransform: 'none',
+                          color: disbursementType === 'TRANCHES' ? '#fff' : 'text.primary',
+                          bgcolor: disbursementType === 'TRANCHES' ? '#181818' : 'transparent',
+                          '&:hover': {
+                            bgcolor: disbursementType === 'TRANCHES' ? '#000' : 'action.hover',
+                          },
+                        }}
+                      >
+                        Tranches
+                      </Button>
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                {/* Conditional View: Lump sum vs Tranches */}
+                {disbursementType === 'LUMP_SUM' ? (
+                  <Box sx={{ maxWidth: 360, mt: 2.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 0.75 }}>
+                      Receiving date *
+                    </Typography>
+                    <TextField
+                      type="date"
+                      value={receivingDate}
+                      onChange={(e) => setReceivingDate(e.target.value)}
+                      fullWidth
+                      slotProps={{ inputLabel: { shrink: true } }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                      The full committed amount is released on this date.
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ mt: 2.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 0.75 }}>
+                      Schedule type *{' '}
+                      <Typography component="span" variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em', ml: 0.5 }}>
+                        sets tranche frequency
+                      </Typography>
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 3 }}>
+                      {['Monthly', 'Quarterly', 'Half-Yearly', 'Yearly'].map((sched) => {
+                        const selected = scheduleType === sched;
+                        return (
+                          <Chip
+                            key={sched}
+                            label={sched}
+                            onClick={() => setScheduleType(sched)}
+                            sx={{
+                              px: 1.5,
+                              py: 2,
+                              fontWeight: 600,
+                              fontSize: 13,
+                              borderRadius: 2,
+                              cursor: 'pointer',
+                              bgcolor: selected ? '#F2E041' : 'background.paper',
+                              color: selected ? '#181818' : 'text.primary',
+                              border: '1px solid',
+                              borderColor: selected ? '#F2E041' : 'divider',
+                              '&:hover': {
+                                bgcolor: selected ? '#ecd730' : 'action.hover',
+                              },
+                            }}
+                          />
+                        );
+                      })}
+                    </Stack>
+
+                    <Divider sx={{ my: 3 }} />
+
+                    {/* Releases -> Tranches Section inside Disbursement Schedule */}
+                    <Stack direction="row" sx={{ alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                      <Box>
+                        <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', color: 'text.secondary', fontWeight: 700, fontSize: 11 }}>
+                          RELEASES
                         </Typography>
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <RhfTextField name={`tranches.${i}.trancheName`} control={control} label="Tranche name" />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 3 }}>
-                        <RhfTextField
-                          name={`tranches.${i}.trancheAmount`}
-                          control={control}
-                          label="Amount"
-                          required
-                          type="number"
-                          slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 11, sm: 3 }}>
-                        <RhfTextField
-                          name={`tranches.${i}.plannedReleaseDate`}
-                          control={control}
-                          label="Planned release"
-                          type="date"
-                          slotProps={{ inputLabel: { shrink: true } }}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 1 }}>
-                        <IconButton aria-label="Remove tranche" onClick={() => tranches.remove(i)} sx={{ mt: 1 }}>
-                          <DeleteOutlineIcon />
-                        </IconButton>
-                      </Grid>
-                    </Grid>
+                        <Typography variant="h4" component="h2" sx={{ mb: 0.5, fontWeight: 700 }}>
+                          Tranches
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Add a tranche for each release. Each can carry one or more criteria that gate the payment.
+                        </Typography>
+                      </Box>
+                      {tranches.fields.length === 0 ? (
+                        <Button
+                          type="button"
+                          variant="contained"
+                          startIcon={<AddIcon />}
+                          onClick={() => {
+                            tranches.append({
+                              trancheName: `Tranche ${tranches.fields.length + 1}`,
+                              amount: '',
+                              expectedReleaseDate: '',
+                              isFinal: false,
+                              criteria: [emptyCriterion()],
+                            });
+                            setExpandedIndex(tranches.fields.length);
+                          }}
+                          sx={{
+                            bgcolor: '#181818',
+                            color: '#fff',
+                            '&:hover': { bgcolor: '#000' },
+                            fontWeight: 600,
+                            textTransform: 'none',
+                            px: 2,
+                            py: 1,
+                            borderRadius: 2,
+                          }}
+                        >
+                          Add tranche
+                        </Button>
+                      ) : null}
+                    </Stack>
+
+                    {tranches.fields.map((f, i) => (
+                      <TrancheCard
+                        key={f.id}
+                        control={control}
+                        index={i}
+                        path={`tranches.${i}`}
+                        expanded={expandedIndex === i}
+                        onToggleExpanded={() => setExpandedIndex(expandedIndex === i ? null : i)}
+                        onRemove={() => tranches.remove(i)}
+                        frequencyLabel={scheduleType}
+                        lumpSum={false}
+                        isFinal={Boolean(f.isFinal)}
+                      />
+                    ))}
+
+                    {/* Add Tranche Button below tranche cards (Right Aligned) */}
+                    {tranches.fields.length > 0 ? (
+                      <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 2 }}>
+                        <Button
+                          type="button"
+                          variant="contained"
+                          startIcon={<AddIcon />}
+                          onClick={() => {
+                            tranches.append({
+                              trancheName: `Tranche ${tranches.fields.length + 1}`,
+                              amount: '',
+                              expectedReleaseDate: '',
+                              isFinal: false,
+                              criteria: [emptyCriterion()],
+                            });
+                            setExpandedIndex(tranches.fields.length);
+                          }}
+                          sx={{
+                            bgcolor: '#181818',
+                            color: '#fff',
+                            '&:hover': { bgcolor: '#000' },
+                            fontWeight: 600,
+                            textTransform: 'none',
+                            px: 2,
+                            py: 1,
+                            borderRadius: 2,
+                          }}
+                        >
+                          Add tranche
+                        </Button>
+                      </Stack>
+                    ) : null}
+
+                    {tranches.fields.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                        No tranches yet — use &ldquo;Add tranche&rdquo;.
+                      </Typography>
+                    ) : null}
                   </Box>
-                ))}
-              </Stack>
-              <Divider sx={{ my: 2 }} />
-              <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                <Typography variant="subtitle2">Planned total</Typography>
-                <Typography variant="subtitle2">{formatInrExact(plannedTotal)}</Typography>
-              </Stack>
+                )}
+              </Collapse>
             </CardContent>
           </Card>
 
