@@ -23,7 +23,7 @@ export const CRITERION_TYPES = [
   { value: 'ON_SIGNING', label: 'On Signing', humanActioned: false },
   { value: 'FIXED_DATE', label: 'Fixed Date', humanActioned: false },
   { value: 'MILESTONE_BASED', label: 'Milestone Based', humanActioned: true },
-  { value: 'UTILISATION_THRESHOLD', label: 'Utilisation Threshold', humanActioned: false },
+  { value: 'UTILISATION_THRESHOLD', label: 'Utilisation Threshold', humanActioned: true },
   { value: 'UTILISATION_CERTIFICATE', label: 'Utilisation Certificate (UC)', humanActioned: true },
   { value: 'FINANCIAL_REPORT', label: 'Financial Report', humanActioned: true },
   { value: 'NARRATIVE_REPORT', label: 'Narrative Report', humanActioned: true },

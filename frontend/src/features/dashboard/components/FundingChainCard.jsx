@@ -11,9 +11,9 @@ export function FundingChainCard({ totals }) {
   const utilised = totals.utilised || 0;
   const available = totals.available ?? Math.max(0, received - utilised);
   const open = totals.open ?? Math.max(0, committed - received);
-  const blocked = totals.blocked || 0;
+  const blocked = 0; // Write-off / Cancelled set to 0 per specification
 
-  const denom = committed + blocked || 1;
+  const denom = committed;
 
   // Chart 1 Segments: Pipeline Status (Original)
   const receivedPct = Math.round((100 * received) / denom);

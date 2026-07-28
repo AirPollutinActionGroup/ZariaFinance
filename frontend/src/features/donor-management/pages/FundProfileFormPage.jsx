@@ -26,7 +26,7 @@ import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader, LoadingState, ErrorState } from '../../../shared/components/index.js';
-import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
+import { GeographyMultiSelect, RhfSelect, RhfTextField } from '../../../shared/components/index.js';
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { useProgrammes } from '../hooks/useProgrammes.js';
 import {
@@ -37,6 +37,7 @@ import {
 import { fundProfileSchema, fundProfileFormDefaults } from '../validation/fundProfileSchema.js';
 import { toFundProfileFormValues } from '../mappers/fundProfileMapper.js';
 import { TrancheCard } from '../components/TrancheCard.jsx';
+import { UtilisationRuleRow } from '../components/UtilisationRuleRow.jsx';
 import { emptyCriterion } from '../mappers/disbursementMapper.js';
 
 const FUND_MODE_OPTIONS = [
@@ -108,6 +109,12 @@ export function FundProfileFormPage() {
   // Σ of the tranche plan — mirrors FundProfileResponse.plannedTotalAmount, which
   // becomes the Total Grant Amount of every grant on this profile.
   const trancheValues = useWatch({ control, name: 'tranches' });
+  const programmeTied = useWatch({ control, name: 'programmeTied' });
+  const selectedGeographies = useWatch({ control, name: 'selectedGeographies' }) || [];
+  const geographySubtitle =
+    !selectedGeographies || selectedGeographies.length === 0 || selectedGeographies.includes('ALL')
+      ? 'No geographies — spendable anywhere'
+      : selectedGeographies.join(', ');
   const plannedTotal = (trancheValues || []).reduce((sum, t) => {
     const amount = Number(t?.trancheAmount);
     return Number.isFinite(amount) ? sum + amount : sum;
@@ -171,15 +178,17 @@ export function FundProfileFormPage() {
                   <RhfTextField name="purpose" control={control} label="Purpose" />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
-                  <RhfTextField name="overheadLimitPercent" control={control} label="Overhead cap %" type="number" />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                  <RhfSelect name="programmeId" control={control} label="Programme" options={programmeOptions} />
+                  <RhfSelect
+                    name="programmeId"
+                    control={control}
+                    label={programmeTied ? 'Programme *' : 'Programme'}
+                    required={Boolean(programmeTied)}
+                    options={programmeOptions}
+                  />
                 </Grid>
                 <Grid size={{ xs: 12 }}>
                   <Stack direction="row" flexWrap="wrap" sx={{ gap: 1 }}>
                     <RhfSwitch name="programmeTied" control={control} label="Programme-tied" />
-                    <RhfSwitch name="adminAllowed" control={control} label="Admin allowed" />
                     <RhfSwitch name="movementAllowed" control={control} label="Movement allowed" />
                     <RhfSwitch name="explanationRequired" control={control} label="Explanation required" />
                     <RhfSwitch name="onboardingComplete" control={control} label="Onboarding complete" />
@@ -194,8 +203,8 @@ export function FundProfileFormPage() {
             <CardContent sx={{ p: 3 }}>
               <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, cursor: 'pointer' }} onClick={() => setGeographiesOpen((prev) => !prev)}>
                 <Box>
-                  <Typography variant="h4" component="h2">Permitted Geographies</Typography>
-                  <Typography variant="body2" color="text.secondary">No geographies — spendable anywhere.</Typography>
+                  <Typography variant="h4" component="h2">Geographies</Typography>
+                  <Typography variant="body2" color="text.secondary">{geographySubtitle}</Typography>
                 </Box>
                 <IconButton size="small" onClick={(e) => { e.stopPropagation(); setGeographiesOpen((prev) => !prev); }}>
                   {geographiesOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
@@ -203,19 +212,14 @@ export function FundProfileFormPage() {
               </Stack>
               <Collapse in={geographiesOpen}>
                 <Divider sx={{ my: 2 }} />
-                <Stack spacing={1.5}>
-                  {geographies.fields.map((f, i) => (
-                    <Stack key={f.id} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
-                      <RhfTextField name={`geographies.${i}.geographyName`} control={control} label="Geography" required />
-                      <IconButton aria-label="Remove geography" onClick={() => geographies.remove(i)} sx={{ mt: 1 }}>
-                        <DeleteOutlineIcon />
-                      </IconButton>
-                    </Stack>
-                  ))}
-                </Stack>
-                <Button size="small" startIcon={<AddIcon />} onClick={() => geographies.append({ geographyName: '' })} sx={{ mt: 2 }}>
-                  Add geography
-                </Button>
+                <Box sx={{ mt: 1 }}>
+                  <GeographyMultiSelect
+                    name="selectedGeographies"
+                    control={control}
+                    label="Geography name"
+                    helperText="Select Indian states / UTs, or select All (defaults to 'No geographies — spendable anywhere' if left blank)"
+                  />
+                </Box>
               </Collapse>
             </CardContent>
           </Card>
@@ -237,26 +241,16 @@ export function FundProfileFormPage() {
                   {utilisationRules.fields.map((f, i) => (
                     <Box key={f.id}>
                       {i > 0 ? <Divider sx={{ mb: 2 }} /> : null}
-                      <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-                        <Grid size={{ xs: 12, sm: 5 }}>
-                          <RhfTextField name={`utilisationRules.${i}.ruleType`} control={control} label="Rule type" required />
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 2 }}>
-                          <RhfTextField name={`utilisationRules.${i}.limitPercentage`} control={control} label="Limit %" type="number" />
-                        </Grid>
-                        <Grid size={{ xs: 11, sm: 4 }}>
-                          <RhfTextField name={`utilisationRules.${i}.description`} control={control} label="Description" />
-                        </Grid>
-                        <Grid size={{ xs: 1 }}>
-                          <IconButton aria-label="Remove rule" onClick={() => utilisationRules.remove(i)} sx={{ mt: 1 }}>
-                            <DeleteOutlineIcon />
-                          </IconButton>
-                        </Grid>
-                      </Grid>
+                      <UtilisationRuleRow
+                        control={control}
+                        path={`utilisationRules.${i}`}
+                        index={i}
+                        onRemove={() => utilisationRules.remove(i)}
+                      />
                     </Box>
                   ))}
                 </Stack>
-                <Button size="small" startIcon={<AddIcon />} onClick={() => utilisationRules.append({ ruleType: '', limitPercentage: '', description: '' })} sx={{ mt: 2 }}>
+                <Button size="small" startIcon={<AddIcon />} onClick={() => utilisationRules.append({ ruleType: 'ADMIN_OVERHEAD', limitPercentage: '', description: '' })} sx={{ mt: 2 }}>
                   Add rule
                 </Button>
               </Collapse>

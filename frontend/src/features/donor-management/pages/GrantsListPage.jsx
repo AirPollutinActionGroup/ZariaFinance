@@ -57,13 +57,6 @@ const columns = [
       />
     ),
   },
-  {
-    key: 'isActive',
-    header: 'Status',
-    render: (row) => (
-      <StatusChip label={row.statusLabel} tone={GRANT_ACTIVE_TONE[row.isActive] || 'neutral'} />
-    ),
-  },
 ];
 
 /** Values: 'all' | 'active' | 'inactive'. */

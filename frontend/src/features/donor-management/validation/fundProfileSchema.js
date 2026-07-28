@@ -23,13 +23,36 @@ export const fundProfileSchema = z.object({
   geographies: z
     .array(z.object({ geographyName: z.string().min(1, 'Geography name is required') }))
     .optional(),
+  selectedGeographies: z.array(z.string()).optional(),
   utilisationRules: z
     .array(
-      z.object({
-        ruleType: z.string().min(1, 'Rule type is required'),
-        limitPercentage: optionalPercent,
-        description: z.string().optional(),
-      }),
+      z
+        .object({
+          ruleType: z.string().min(1, 'Rule type is required'),
+          customRuleType: z.string().optional(),
+          limitPercentage: optionalPercent,
+          description: z.string().optional(),
+        })
+        .superRefine((rule, ctx) => {
+          if (
+            rule.ruleType &&
+            rule.ruleType !== 'NOT_APPLICABLE' &&
+            (rule.limitPercentage === '' || rule.limitPercentage === undefined || rule.limitPercentage === null)
+          ) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: 'Limit % is required',
+              path: ['limitPercentage'],
+            });
+          }
+          if (rule.ruleType === 'OTHER' && (!rule.customRuleType || rule.customRuleType.trim() === '')) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: 'Custom rule type is required',
+              path: ['customRuleType'],
+            });
+          }
+        }),
     )
     .optional(),
   disbursementRules: z
@@ -58,6 +81,14 @@ export const fundProfileSchema = z.object({
       }),
     )
     .optional(),
+}).superRefine((data, ctx) => {
+  if (data.programmeTied && (!data.programmeId || data.programmeId === '')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Programme is required when Programme-tied is enabled',
+      path: ['programmeId'],
+    });
+  }
 });
 
 export const fundProfileFormDefaults = {
@@ -73,6 +104,7 @@ export const fundProfileFormDefaults = {
   explanationRequired: false,
   onboardingComplete: false,
   geographies: [],
+  selectedGeographies: [],
   utilisationRules: [],
   disbursementRules: [],
   tranches: [],

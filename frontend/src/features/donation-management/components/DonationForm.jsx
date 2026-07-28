@@ -16,6 +16,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  GeographyMultiSelect,
   RhfMultiSelect,
   RhfRadioGroup,
   RhfSelect,
@@ -211,13 +212,12 @@ export function DonationForm({
                 <RhfSelect name="programmeId" control={control} label="Programme" options={programmeOptions} />
               </Grid>
               <Grid size={{ xs: 12 }}>
-                <RhfMultiSelect
+                <GeographyMultiSelect
                   name="stateIds"
                   control={control}
                   label="Location / State"
                   required
-                  options={stateOptions}
-                  helperText="One gift may fund work across several states — feeds FCRA state-wise disclosure"
+                  helperText="One gift may fund work across several states — feeds FCRA state-wise disclosure (defaults to 'No geographies — spendable anywhere' if left blank)"
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
