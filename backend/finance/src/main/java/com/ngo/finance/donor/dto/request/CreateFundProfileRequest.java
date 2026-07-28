@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -65,6 +66,12 @@ public class CreateFundProfileRequest {
     @Valid
     @Builder.Default
     private List<DisbursementRuleItem> disbursementRules = new ArrayList<>();
+
+    // The donor-agreed release schedule; Σ trancheAmount becomes the Total Grant
+    // Amount of every grant on this profile.
+    @Valid
+    @Builder.Default
+    private List<TrancheItem> tranches = new ArrayList<>();
 
     @Data
     @Builder
@@ -126,5 +133,19 @@ public class CreateFundProfileRequest {
 
         @Builder.Default
         private Boolean escalateToDeputy = false;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TrancheItem {
+        // Optional: renumbered 1..n in list order when omitted.
+        private Integer trancheNumber;
+        private String trancheName;
+        @NotNull(message = "Tranche amount is required")
+        @Positive(message = "Tranche amount must be positive")
+        private BigDecimal trancheAmount;
+        private LocalDate plannedReleaseDate;
     }
 }

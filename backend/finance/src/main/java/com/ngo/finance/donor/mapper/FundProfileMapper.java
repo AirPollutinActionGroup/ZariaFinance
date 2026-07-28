@@ -6,6 +6,8 @@ import com.ngo.finance.donor.entity.DonorDisbursementRule;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorTrancheDetail;
 import com.ngo.finance.donor.entity.DonorUtilisationRule;
+import com.ngo.finance.donor.entity.FundProfileTranche;
+import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -53,6 +55,7 @@ public class FundProfileMapper {
         // orphanRemoval on the collections deletes rows dropped from these lists.
         profile.getUtilisationRules().clear();
         profile.getDisbursementRules().clear();
+        profile.getTranches().clear();
         applyChildren(request, profile);
     }
 
@@ -102,6 +105,20 @@ public class FundProfileMapper {
                 profile.getDisbursementRules().add(rule);
             }
         }
+        if (request.getTranches() != null) {
+            int number = 1;
+            for (CreateFundProfileRequest.TrancheItem t : request.getTranches()) {
+                // Renumber in list order so the schedule stays 1..n and the
+                // (profile, tranche_number) uniqueness constraint always holds.
+                profile.getTranches().add(FundProfileTranche.builder()
+                        .fundProfile(profile)
+                        .trancheNumber(number++)
+                        .trancheName(t.getTrancheName())
+                        .trancheAmount(t.getTrancheAmount())
+                        .plannedReleaseDate(t.getPlannedReleaseDate())
+                        .build());
+            }
+        }
     }
 
     public FundProfileResponse toResponse(DonorFundProfile p) {
@@ -127,6 +144,18 @@ public class FundProfileMapper {
                 .map(this::toDisbursementRuleItem)
                 .toList();
 
+        List<FundProfileResponse.TrancheItem> tranches = p.getTranches().stream()
+                .sorted(Comparator.comparing(FundProfileTranche::getTrancheNumber,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(t -> FundProfileResponse.TrancheItem.builder()
+                        .id(t.getId())
+                        .trancheNumber(t.getTrancheNumber())
+                        .trancheName(t.getTrancheName())
+                        .trancheAmount(t.getTrancheAmount())
+                        .plannedReleaseDate(t.getPlannedReleaseDate())
+                        .build())
+                .toList();
+
         return FundProfileResponse.builder()
                 .id(p.getId())
                 .donorId(p.getDonor() != null ? p.getDonor().getId() : null)
@@ -144,6 +173,8 @@ public class FundProfileMapper {
                 .spendableLocations(locations)
                 .utilisationRules(utils)
                 .disbursementRules(disbs)
+                .tranches(tranches)
+                .plannedTotalAmount(p.plannedTotalAmount())
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .build();

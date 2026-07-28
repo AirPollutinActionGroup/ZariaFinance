@@ -16,8 +16,10 @@ import com.ngo.finance.donor.dto.request.CreateGrantRequest;
 import com.ngo.finance.donor.dto.request.GrantRemarksRequest;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
+import com.ngo.finance.donor.entity.FundProfileTranche;
 import com.ngo.finance.donor.entity.Programme;
 import com.ngo.finance.donor.enums.DonorType;
+import com.ngo.finance.donor.enums.GrantStatus;
 import com.ngo.finance.donor.repository.DonorFundProfileRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.ProgrammeRepository;
@@ -34,12 +36,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Integration test for the grant lifecycle API: a grant inherits its donor,
- * programme and class from a fund profile ({@code fundProfileId}), with currency
- * and a locked FX rate. The approval workflow ({@code isApproved}: 1 = approved,
- * 2 = pending, 3 = on hold, 4 = completed) is tracked independently of
- * {@code isActive} (open/closed) — grantStatus was removed in favour of these
- * two fields. Runs against the seeded DB, so assertions filter by the unique
- * grant code rather than assuming an empty table.
+ * programme, class and total from a fund profile ({@code fundProfileId}) — the
+ * total being Σ of that profile's tranche plan — with a currency and a locked FX
+ * rate.
+ *
+ * Two independent state fields, matching the two Status dropdowns on the New
+ * Grant Agreement Form: {@code status} (ACTIVE / COMPLETED / CANCELLED, section
+ * 1) with {@code isActive} as its boolean mirror, and the approval workflow
+ * {@code isApproved} (1 = approved, 2 = pending, 3 = on hold, 4 = completed,
+ * section 3). A grant can be ACTIVE while approval is still pending.
+ *
+ * Runs against the seeded DB, so assertions filter by the unique grant code
+ * rather than assuming an empty table.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -77,13 +85,30 @@ public class GrantControllerIntegrationTest {
                 .programmeName("Test Programme " + suffix)
                 .build());
 
-        return fundProfileRepository.save(DonorFundProfile.builder()
+        DonorFundProfile profile = DonorFundProfile.builder()
                 .donor(donor)
                 .programme(programme)
                 .fundMode("Restricted")
                 .fundClassCode("A")
                 .purpose("Test profile")
+                .build();
+
+        // A grant's total is Σ of the profile's tranche plan, so every profile a
+        // grant is created from needs one. These two sum to 250,000.
+        profile.getTranches().add(FundProfileTranche.builder()
+                .fundProfile(profile)
+                .trancheNumber(1)
+                .trancheName("On signing")
+                .trancheAmount(new BigDecimal("150000.00"))
                 .build());
+        profile.getTranches().add(FundProfileTranche.builder()
+                .fundProfile(profile)
+                .trancheNumber(2)
+                .trancheName("On UC")
+                .trancheAmount(new BigDecimal("100000.00"))
+                .build());
+
+        return fundProfileRepository.save(profile);
     }
 
     private CreateGrantRequest.CreateGrantRequestBuilder grantRequestBuilder(String code, Long fundProfileId) {
@@ -94,7 +119,8 @@ public class GrantControllerIntegrationTest {
                 .agreementDate(LocalDate.of(2026, 1, 1))
                 .startDate(LocalDate.of(2026, 1, 2))
                 .endDate(LocalDate.of(2026, 12, 31))
-                .totalGrantAmount(new BigDecimal("250000.00"))
+                // No totalGrantAmount: it is inherited from the fund profile.
+                .status(GrantStatus.ACTIVE)
                 .grantCurrency("INR")
                 .fxLockedRate(BigDecimal.ONE);
     }
@@ -126,7 +152,11 @@ public class GrantControllerIntegrationTest {
                 .andExpect(jsonPath("$.donorId").value(profile.getDonor().getId()))
                 .andExpect(jsonPath("$.fundProfileId").value(profile.getId()))
                 .andExpect(jsonPath("$.fundClassCode").value("A"))
+                // Total is inherited: Σ of the profile's tranche plan (150k + 100k).
+                .andExpect(jsonPath("$.totalGrantAmount").value(250000.00))
+                .andExpect(jsonPath("$.reportingAmountInr").value(250000.00))
                 // New grants start pending approval and active — no more DRAFT status.
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.isApproved").value(2))
                 .andExpect(jsonPath("$.isActive").value(true));
 
@@ -164,7 +194,6 @@ public class GrantControllerIntegrationTest {
 
         CreateGrantRequest update = grantRequestBuilder("GR-TEST-C3-IGNORED", profile.getId())
                 .agreementName("Updated Agreement Name")
-                .totalGrantAmount(new BigDecimal("500000.00"))
                 .build();
 
         mockMvc.perform(put("/api/v1/grants/{id}", id)
@@ -175,7 +204,106 @@ public class GrantControllerIntegrationTest {
                 // grantCode is immutable — the request's code is ignored on update.
                 .andExpect(jsonPath("$.grantCode").value("GR-TEST-C3"))
                 .andExpect(jsonPath("$.agreementName").value("Updated Agreement Name"))
-                .andExpect(jsonPath("$.totalGrantAmount").value(500000.00));
+                // Still inherited from the profile, not settable by the client.
+                .andExpect(jsonPath("$.totalGrantAmount").value(250000.00));
+    }
+
+    @Test
+    @WithMockUser
+    void testCreateGrant_RejectsMissingStatus() throws Exception {
+        DonorFundProfile profile = seedFundProfile("C11");
+
+        CreateGrantRequest noStatus = grantRequestBuilder("GR-TEST-C11", profile.getId())
+                .status(null)
+                .build();
+
+        mockMvc.perform(post("/api/v1/grants")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(noStatus)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.status").exists());
+    }
+
+    @Test
+    @WithMockUser
+    void testGrantStatus_EnteredOnFormAndMirroredByIsActive() throws Exception {
+        DonorFundProfile profile = seedFundProfile("C12");
+        long id = createGrant("GR-TEST-C12", profile.getId());
+
+        // COMPLETED and CANCELLED are not live, so the boolean mirror flips.
+        for (GrantStatus status : new GrantStatus[] { GrantStatus.COMPLETED, GrantStatus.CANCELLED }) {
+            mockMvc.perform(put("/api/v1/grants/{id}", id)
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(
+                                    grantRequestBuilder("GR-TEST-C12", profile.getId()).status(status).build())))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value(status.name()))
+                    .andExpect(jsonPath("$.isActive").value(false));
+        }
+
+        mockMvc.perform(put("/api/v1/grants/{id}", id)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                grantRequestBuilder("GR-TEST-C12", profile.getId())
+                                        .status(GrantStatus.ACTIVE).build())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.isActive").value(true));
+    }
+
+    @Test
+    @WithMockUser
+    void testApprovalBlockOnCreateAndUpdate() throws Exception {
+        DonorFundProfile profile = seedFundProfile("C13");
+
+        // Section 3 of the form writes approval directly, independent of status.
+        String response = mockMvc.perform(post("/api/v1/grants")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                grantRequestBuilder("GR-TEST-C13", profile.getId())
+                                        .approvalStatus(1)
+                                        .approvalDate(LocalDate.of(2026, 1, 20))
+                                        .approvalRemarks("Signed off at board meeting")
+                                        .build())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.isApproved").value(1))
+                .andExpect(jsonPath("$.approvalDate").value("2026-01-20T00:00:00"))
+                .andExpect(jsonPath("$.approvalRemarks").value("Signed off at board meeting"))
+                // Approval is independent of the agreement status.
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andReturn().getResponse().getContentAsString();
+
+        long id = objectMapper.readTree(response).path("id").asLong();
+
+        // An update that omits the approval block leaves it intact.
+        mockMvc.perform(put("/api/v1/grants/{id}", id)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                grantRequestBuilder("GR-TEST-C13", profile.getId()).build())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isApproved").value(1))
+                .andExpect(jsonPath("$.approvalRemarks").value("Signed off at board meeting"));
+    }
+
+    @Test
+    @WithMockUser
+    void testCreateGrant_RejectsApprovalStatusOutsideWorkflow() throws Exception {
+        DonorFundProfile profile = seedFundProfile("C14");
+
+        mockMvc.perform(post("/api/v1/grants")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                grantRequestBuilder("GR-TEST-C14", profile.getId())
+                                        .approvalStatus(9)
+                                        .build())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.approvalStatus").exists());
     }
 
     @Test
@@ -254,29 +382,34 @@ public class GrantControllerIntegrationTest {
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/v1/grants/{id}", id))
-                .andExpect(jsonPath("$.isApproved").value(4));
+                .andExpect(jsonPath("$.isApproved").value(4))
+                // Completing the workflow also settles the agreement status.
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
     }
 
     @Test
     @WithMockUser
-    void testCloseAndActivate_ToggleIsActive() throws Exception {
+    void testCloseAndActivate_ToggleStatusAndIsActive() throws Exception {
         DonorFundProfile profile = seedFundProfile("C6");
         long id = createGrant("GR-TEST-C6", profile.getId());
 
         // New grants are active by default.
         mockMvc.perform(get("/api/v1/grants/{id}", id))
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.isActive").value(true));
 
         // close: always succeeds, regardless of approval state.
         mockMvc.perform(patch("/api/v1/grants/{id}/close", id).with(csrf()))
                 .andExpect(status().isNoContent());
         mockMvc.perform(get("/api/v1/grants/{id}", id))
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
                 .andExpect(jsonPath("$.isActive").value(false));
 
         // activate: blocked while still pending (never approved) — guarded no-op.
         mockMvc.perform(patch("/api/v1/grants/{id}/activate", id).with(csrf()))
                 .andExpect(status().isNoContent());
         mockMvc.perform(get("/api/v1/grants/{id}", id))
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
                 .andExpect(jsonPath("$.isActive").value(false));
 
         // Once approved, activate succeeds.
@@ -285,6 +418,7 @@ public class GrantControllerIntegrationTest {
         mockMvc.perform(patch("/api/v1/grants/{id}/activate", id).with(csrf()))
                 .andExpect(status().isNoContent());
         mockMvc.perform(get("/api/v1/grants/{id}", id))
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.isActive").value(true));
     }
 

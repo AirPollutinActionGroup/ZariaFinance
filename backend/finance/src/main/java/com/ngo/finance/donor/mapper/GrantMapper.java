@@ -32,8 +32,19 @@ public interface GrantMapper {
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "isActive", ignore = true)
+    // Derived from the fund profile's tranche plan, never from the request.
+    @Mapping(target = "totalGrantAmount", ignore = true)
+    // Status and the approval block are applied by the service (they need
+    // enum/date coercion and must not be silently defaulted by the mapper).
+    @Mapping(target = "grantStatus", ignore = true)
+    @Mapping(target = "isApproved", ignore = true)
+    @Mapping(target = "approvedBy", ignore = true)
+    @Mapping(target = "approvalDate", ignore = true)
+    @Mapping(target = "approvalRemarks", ignore = true)
     GrantAgreement toEntity(CreateGrantRequest request);
 
+    @Mapping(source = "grantStatus", target = "status")
+    @Mapping(target = "approvedByName", ignore = true)
     @Mapping(source = "donor.id", target = "donorId")
     @Mapping(source = "donor.donorName", target = "donorName")
     @Mapping(source = "programme.id", target = "programmeId")
@@ -42,6 +53,7 @@ public interface GrantMapper {
     @Mapping(source = "fundProfile.fundClassCode", target = "fundClassCode")
     GrantDetailsResponse toDetailsResponse(GrantAgreement entity);
 
+    @Mapping(source = "grantStatus", target = "status")
     @Mapping(source = "donor.donorName", target = "donorName")
     @Mapping(source = "programme.programmeName", target = "programmeName")
     @Mapping(source = "fundProfile.fundClassCode", target = "fundClassCode")

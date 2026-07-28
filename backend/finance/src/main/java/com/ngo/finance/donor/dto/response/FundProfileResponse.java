@@ -42,6 +42,9 @@ public class FundProfileResponse {
     private List<SpendableLocationItem> spendableLocations;
     private List<UtilisationRuleItem> utilisationRules;
     private List<DisbursementRuleItem> disbursementRules;
+    private List<TrancheItem> tranches;
+    // Σ tranche amounts — the Total Grant Amount inherited by grants on this profile.
+    private BigDecimal plannedTotalAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -101,5 +104,17 @@ public class FundProfileResponse {
         private String reminderLeadTime;
         private String repeatReminder;
         private Boolean escalateToDeputy;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TrancheItem {
+        private Long id;
+        private Integer trancheNumber;
+        private String trancheName;
+        private BigDecimal trancheAmount;
+        private LocalDate plannedReleaseDate;
     }
 }
