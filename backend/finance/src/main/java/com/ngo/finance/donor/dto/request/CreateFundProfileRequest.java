@@ -1,9 +1,17 @@
 package com.ngo.finance.donor.dto.request;
 
+import com.ngo.finance.donor.enums.ApproverRole;
+import com.ngo.finance.donor.enums.CriterionType;
+import com.ngo.finance.donor.enums.DisbursementType;
+import com.ngo.finance.donor.enums.ReportingFrequency;
+import com.ngo.finance.donor.enums.RestrictionRuleType;
+import com.ngo.finance.donor.enums.ScheduleFrequency;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -13,8 +21,8 @@ import lombok.NoArgsConstructor;
 
 /**
  * Request DTO for creating / updating a Donor Fund Profile (workbook sheet 03),
- * with its geography, utilisation and disbursement rules embedded. The owning
- * donor is taken from the URL path, not this body.
+ * with its spendable-location, utilisation and disbursement rules embedded. The
+ * owning donor is taken from the URL path, not this body.
  */
 @Data
 @Builder
@@ -35,12 +43,7 @@ public class CreateFundProfileRequest {
 
     private Long programmeId; // nullable: blank = untied / not-yet-tagged
 
-    private String reportingFrequency; // 'Quarterly' | 'Half-yearly' | 'Annual'
-
-    @Builder.Default
-    private Boolean adminAllowed = true;
-
-    private BigDecimal overheadLimitPercent;
+    private ReportingFrequency reportingFrequency;
 
     @Builder.Default
     private Boolean movementAllowed = false;
@@ -51,9 +54,9 @@ public class CreateFundProfileRequest {
     @Builder.Default
     private Boolean onboardingComplete = false;
 
-    @Valid
+    /** State ids the fund may be spent in; empty = spendable anywhere. */
     @Builder.Default
-    private List<GeographyItem> geographies = new ArrayList<>();
+    private List<Long> stateIds = new ArrayList<>();
 
     @Valid
     @Builder.Default
@@ -67,18 +70,10 @@ public class CreateFundProfileRequest {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class GeographyItem {
-        @NotBlank(message = "Geography name is required")
-        private String geographyName;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
     public static class UtilisationRuleItem {
-        @NotBlank(message = "Rule type is required")
-        private String ruleType;
+        @NotNull(message = "Rule type is required")
+        private RestrictionRuleType ruleType;
+        private String otherRuleType;
         private BigDecimal limitPercentage;
         private String description;
     }
@@ -88,12 +83,48 @@ public class CreateFundProfileRequest {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class DisbursementRuleItem {
-        @NotBlank(message = "Rule type is required")
-        private String ruleType;
-        private String releaseTrigger;
-        private BigDecimal minPriorUtilisationRequired;
+        @NotBlank(message = "Total amount committed is required")
+        private String totalAmountCommitted;
+
+        @NotNull(message = "Disbursement type is required")
+        private DisbursementType disbursementType;
+
+        @Valid
         @Builder.Default
-        private Boolean milestoneRequired = false;
-        private String ruleDescription;
+        private List<TrancheDetailItem> trancheDetail = new ArrayList<>();
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TrancheDetailItem {
+        @NotBlank(message = "Tranche amount is required")
+        private String amount;
+
+        @NotNull(message = "Tranche frequency is required")
+        private ScheduleFrequency frequency;
+
+        @Builder.Default
+        private Boolean isFinalTranche = false;
+
+        @NotNull(message = "Release criteria is required")
+        private CriterionType releaseCriteria;
+
+        private LocalDate releaseDate;
+        private String milestoneName;
+        private ApproverRole signOfRole;
+        private String otherSignOfRole;
+        private LocalDate targetDate;
+        private String utilisationPercentage;
+        private String triggerBase;
+        private String description;
+        private ApproverRole responsibleRole;
+        private String otherResponsibleRole;
+        private String reminderLeadTime;
+        private String repeatReminder;
+
+        @Builder.Default
+        private Boolean escalateToDeputy = false;
     }
 }

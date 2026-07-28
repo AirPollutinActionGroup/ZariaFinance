@@ -1,57 +1,50 @@
 /**
- * Adapts the current flat fund-profile disbursement rule (ruleType / trigger /
- * gate) into the richer shape the Grant Detail spec asks for: a disbursement
- * type plus a list of release criteria (implicit AND).
- *
- * This is a presentation-side adaptation only — the backend still stores the
- * single flat rule. A proper multi-criteria model (criterion types with their
- * own fields, schedule type) is a separate backend change.
+ * Adapts a fund profile's disbursement rule (DonorDisbursementRule + its
+ * trancheDetail) into the shape the Grant Detail spec asks for: a disbursement
+ * type plus a list of release criteria (implicit AND) — one per tranche.
  */
 
-/** 'Lump Sum' | 'Tranches' — derived from the rule text, falling back to tranche count. */
-export function deriveDisbursementType(rule, tranches = []) {
-  const type = (rule?.ruleType || '').toLowerCase();
-  if (type.includes('lump')) return 'Lump Sum';
-  if (type) return 'Tranches';
-  return (tranches?.length || 0) > 1 ? 'Tranches' : 'Lump Sum';
+import { CRITERION_TYPE_OPTIONS } from '../constants.js';
+
+function criterionLabel(value) {
+  return CRITERION_TYPE_OPTIONS.find((t) => t.value === value)?.label || value || 'On signing';
+}
+
+/** 'Lump Sum' | 'Tranches' — direct from DisbursementType. */
+export function deriveDisbursementType(rule) {
+  return rule?.disbursementType === 'TRANCHE' ? 'Tranches' : 'Lump Sum';
 }
 
 /**
- * Release criteria as a list, so the implicit AND is visible. Each entry is
- * { label, detail? }. Returns a single "On signing" entry when the rule carries
- * no gate/trigger/milestone.
+ * Release criteria as a list, so the implicit AND is visible — one entry per
+ * tranche's release criterion. Each entry is { label, detail? }. Returns a
+ * single "On signing" entry when the rule carries no tranches yet.
  */
 export function deriveReleaseCriteria(rule) {
-  if (!rule) return [{ label: 'On signing' }];
+  const tranches = rule?.trancheDetail || [];
+  if (!rule || tranches.length === 0) return [{ label: 'On signing' }];
 
-  const criteria = [];
-
-  if (rule.minPriorUtilisationRequired != null) {
-    criteria.push({
-      label: 'Utilisation threshold',
-      detail: `≥ ${Number(rule.minPriorUtilisationRequired)}% prior utilisation (cumulative)`,
-    });
-  }
-
-  if (rule.milestoneRequired) {
-    criteria.push({ label: 'Milestone based', detail: 'milestone met + designated sign-off' });
-  }
-
-  const trigger = (rule.releaseTrigger || '').trim();
-  if (trigger) {
-    const t = trigger.toLowerCase();
-    if (t.includes('uc') || t.includes('utilis')) {
-      criteria.push({ label: 'Utilisation Certificate (UC)', detail: trigger });
-    } else if (t.includes('report') || t.includes('narrative') || t.includes('audit')) {
-      criteria.push({ label: 'Financial / narrative / audit report', detail: trigger });
-    } else if (t.includes('approval')) {
-      criteria.push({ label: 'Donor approval', detail: trigger });
-    } else if (t.includes('sign')) {
-      criteria.push({ label: 'On signing', detail: trigger });
-    } else {
-      criteria.push({ label: 'Other', detail: trigger });
+  return tranches.map((t) => {
+    const label = criterionLabel(t.releaseCriteria);
+    let detail;
+    switch (t.releaseCriteria) {
+      case 'FIXED_DATE':
+        detail = t.releaseDate || undefined;
+        break;
+      case 'MILESTONE_BASED':
+        detail = t.milestoneName ? `"${t.milestoneName}"` : undefined;
+        break;
+      case 'UTILISATION_THRESHOLD':
+        detail = t.utilisationPercentage != null
+          ? `≥ ${t.utilisationPercentage}% · ${t.triggerBase || 'Previous Tranche'}`
+          : undefined;
+        break;
+      case 'OTHER':
+        detail = t.description || undefined;
+        break;
+      default:
+        detail = undefined;
     }
-  }
-
-  return criteria.length ? criteria : [{ label: 'On signing' }];
+    return { label, detail };
+  });
 }

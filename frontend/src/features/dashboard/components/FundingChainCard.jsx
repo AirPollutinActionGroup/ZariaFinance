@@ -1,33 +1,51 @@
-import { Box, Card, Stack, Typography } from '@mui/material';
+import { Box, Card, Grid, Stack, Typography } from '@mui/material';
 import { formatInr } from '../../../lib/format/currency.js';
-
-const STEPS = [
-  ['committed', 'Committed', 'contracted / signed (receivable)'],
-  ['received', 'Received', 'cash in bank → income recognised'],
-  ['utilised', 'Utilised', 'spent against budget lines'],
-  ['available', 'Available', 'received − utilised'],
-];
 
 const R = 54;
 const STROKE = 18;
 const CIRC = 2 * Math.PI * R;
 
 export function FundingChainCard({ totals }) {
-  const denom = totals.committed + totals.blocked || 1;
-  const receivedPct = Math.round((100 * totals.received) / denom);
-  const openPct = Math.round((100 * totals.open) / denom);
-  const blockedPct = Math.round((100 * totals.blocked) / denom);
+  const committed = totals.committed || 0;
+  const received = totals.received || 0;
+  const utilised = totals.utilised || 0;
+  const available = totals.available ?? Math.max(0, received - utilised);
+  const open = totals.open ?? Math.max(0, committed - received);
+  const blocked = 0; // Write-off / Cancelled set to 0 per specification
 
-  const segments = [
-    { label: 'Received', value: totals.received, pct: receivedPct, color: 'success.main' },
-    { label: 'Open / Outstanding', value: totals.open, pct: openPct, color: 'warning.main' },
-    { label: 'Blocked (Draft)', value: totals.blocked, pct: blockedPct, color: 'error.main' },
+  const denom = committed;
+
+  // Chart 1 Segments: Pipeline Status (Original)
+  const receivedPct = Math.round((100 * received) / denom);
+  const openPct = Math.round((100 * open) / denom);
+  const blockedPct = Math.round((100 * blocked) / denom);
+
+  const pipelineSegments = [
+    { label: 'Received', value: received, pct: receivedPct, desc: 'cash in bank', color: '#2E7D32' },
+    { label: 'Open / Outstanding', value: open, pct: openPct, desc: 'contracted (receivable)', color: '#1E88E5' },
+    { label: 'Write-off / Cancelled', value: blocked, pct: blockedPct, desc: 'cancelled / written off', color: '#E53935' },
   ];
 
-  let offset = 0;
+  // Chart 2 Segments: Utilization / Burn Rate out of Received
+  const denom2 = received || 1;
+  const utilisedPctOfReceived = Math.round((100 * utilised) / denom2);
+  const availablePctOfReceived = Math.round((100 * available) / denom2);
+
+  const stateSegments = [
+    { label: 'Utilised', value: utilised, pct: utilisedPctOfReceived, color: '#F57C00' },
+    { label: 'Available', value: available, pct: availablePctOfReceived, color: '#00ACC1' },
+  ];
+
+  const stateDetails = [
+    { key: 'utilised', label: 'Utilised', value: utilised, pct: utilisedPctOfReceived, desc: 'spent against budget', color: '#F57C00' },
+    { key: 'available', label: 'Available', value: available, pct: availablePctOfReceived, desc: 'received − utilised', color: '#00ACC1' },
+  ];
+
+  let offset1 = 0;
+  let offset2 = 0;
 
   return (
-    <Card>
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <Box sx={{ px: 2.5, pt: 2, pb: 0.5 }}>
         <Typography variant="h6" sx={{ fontSize: 17 }}>
@@ -39,147 +57,231 @@ export function FundingChainCard({ totals }) {
         </Typography>
       </Box>
 
-      {/* Top 4 Pipeline Metric Steps */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
-          gap: '6px 10px',
-          px: 2.5,
-          py: 1,
-        }}
-      >
-        {STEPS.map(([key, label, desc], i) => (
-          <Box key={key} sx={{ position: 'relative' }}>
-            {i > 0 ? (
-              <Box
-                aria-hidden
-                sx={{
-                  position: 'absolute',
-                  left: -8,
-                  top: 20,
-                  color: 'text.disabled',
-                  fontSize: 15,
-                  lineHeight: 1,
-                  display: { xs: 'none', sm: 'block' },
-                }}
-              >
-                →
-              </Box>
-            ) : null}
-            <Typography variant="overline" sx={{ fontSize: 9.5, display: 'block' }}>
-              {label}
-            </Typography>
-            <Typography
-              sx={{
-                fontFamily: (t) => t.typography.h2.fontFamily,
-                fontSize: 22,
-                fontWeight: 600,
-                fontVariantNumeric: 'tabular-nums',
-                color: key === 'available' ? 'success.main' : 'text.primary',
-                my: 0.25,
-              }}
-            >
-              {formatInr(totals[key])}
-            </Typography>
-            <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{desc}</Typography>
-          </Box>
-        ))}
-      </Box>
-
-      {/* SVG PIE / DONUT CHART SECTION WITH COMPACT SIDE LEGEND */}
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={4}
-        sx={{ alignItems: 'center', px: 2.5, py: 2 }}
-      >
-        {/* SVG Pie Chart Circle */}
-        <Box sx={{ position: 'relative', width: 140, height: 140, flexShrink: 0 }}>
-          <svg viewBox="0 0 140 140" width="140" height="140" role="img" aria-label="Funding Pie Chart">
-            <circle cx="70" cy="70" r={R} fill="none" stroke="var(--line2)" strokeWidth={STROKE} />
-            <g transform="rotate(-90 70 70)">
-              {segments.map((s) => {
-                const frac = denom > 0 ? s.value / denom : 0;
-                const len = Math.max(0, frac * CIRC - 2);
-                const el = (
-                  <circle
-                    key={s.label}
-                    cx="70"
-                    cy="70"
-                    r={R}
-                    fill="none"
-                    stroke={
-                      s.color === 'success.main'
-                        ? '#1E6B4A'
-                        : s.color === 'warning.main'
-                          ? '#8F6A12'
-                          : '#B3372B'
-                    }
-                    strokeWidth={STROKE}
-                    strokeDasharray={`${len} ${CIRC - len}`}
-                    strokeDashoffset={-offset}
-                    strokeLinecap="butt"
-                  />
-                );
-                offset += frac * CIRC;
-                return el;
-              })}
-            </g>
-          </svg>
+      {/* Two Visually Equal Pie Charts Side-by-Side */}
+      <Grid container spacing={2} sx={{ px: 2.5, py: 1.5, flexGrow: 1 }}>
+        {/* CHART 1: Pipeline Breakdown (Original Chart & Legend) */}
+        <Grid item xs={12} md={6}>
           <Box
             sx={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
+              p: 2,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'divider',
+              height: '100%',
             }}
           >
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 10, lineHeight: 1 }}>
-              Total Pipeline
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 1.5 }}>
+              Collection Realization Rate
             </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.25, fontSize: 14 }}>
-              {formatInr(denom)}
-            </Typography>
-          </Box>
-        </Box>
-
-        {/* Compact Legend List Right Next to the Chart */}
-        <Stack spacing={1.5} sx={{ minWidth: 0, flexGrow: 1 }}>
-          {segments.map((s) => (
-            <Stack key={s.label} direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-              <Box
-                sx={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '3px',
-                  bgcolor: s.color,
-                  flexShrink: 0,
-                  mt: 0.4,
-                }}
-              />
-              <Box>
-                <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: 12.5, lineHeight: 1.2 }}>
-                  {s.label}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 14.5, mt: 0.25 }}>
-                  {formatInr(s.value)}{' '}
-                  <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400, fontSize: 11.5 }}>
-                    ({s.pct}%)
-                  </Box>
-                </Typography>
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+              {/* SVG Donut Chart 1 */}
+              <Box sx={{ position: 'relative', width: 140, height: 140, flexShrink: 0 }}>
+                <svg viewBox="0 0 140 140" width="140" height="140" role="img" aria-label="Collection Realization Rate Chart">
+                  <circle cx="70" cy="70" r={R} fill="none" stroke="var(--line2, #e0e0e0)" strokeWidth={STROKE} />
+                  <g transform="rotate(-90 70 70)">
+                    {pipelineSegments.map((s) => {
+                      const frac = denom > 0 ? s.value / denom : 0;
+                      const len = Math.max(0, frac * CIRC - 2);
+                      const el = (
+                        <circle
+                          key={s.label}
+                          cx="70"
+                          cy="70"
+                          r={R}
+                          fill="none"
+                          stroke={s.color}
+                          strokeWidth={STROKE}
+                          strokeDasharray={`${len} ${CIRC - len}`}
+                          strokeDashoffset={-offset1}
+                          strokeLinecap="butt"
+                        />
+                      );
+                      offset1 += frac * CIRC;
+                      return el;
+                    })}
+                  </g>
+                </svg>
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 10, lineHeight: 1 }}>
+                    Committed
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.25, fontSize: 13.5 }}>
+                    {formatInr(denom)}
+                  </Typography>
+                </Box>
               </Box>
+
+              {/* Legend for Chart 1 */}
+              <Stack spacing={1} sx={{ minWidth: 0, flexGrow: 1 }}>
+                {pipelineSegments.map((s) => (
+                  <Box
+                    key={s.label}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      px: 1,
+                      py: 0.85,
+                      borderRadius: 1,
+                      bgcolor: 'var(--card2, rgba(0, 0, 0, 0.02))',
+                      borderLeft: `3px solid ${s.color}`,
+                    }}
+                  >
+                    <Box sx={{ pr: 0.5 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 11.5, lineHeight: 1.1 }}>
+                        {s.label}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 9.5, display: 'block' }}>
+                        {s.desc}
+                      </Typography>
+                    </Box>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: 12,
+                        fontVariantNumeric: 'tabular-nums',
+                        color: 'text.primary',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {formatInr(s.value)}{' '}
+                      <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400, fontSize: 10.5 }}>
+                        ({s.pct}%)
+                      </Box>
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
             </Stack>
-          ))}
-        </Stack>
-      </Stack>
+          </Box>
+        </Grid>
+
+        {/* CHART 2: New 4-State Flow Breakdown Chart & Details */}
+        <Grid item xs={12} md={6}>
+          <Box
+            sx={{
+              p: 2,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'divider',
+              height: '100%',
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 1.5 }}>
+              Utilization / Burn Rate
+            </Typography>
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+              {/* SVG Donut Chart 2 (Visually Equal to Chart 1) */}
+              <Box sx={{ position: 'relative', width: 140, height: 140, flexShrink: 0 }}>
+                <svg viewBox="0 0 140 140" width="140" height="140" role="img" aria-label="Utilization Chart">
+                  <circle cx="70" cy="70" r={R} fill="none" stroke="var(--line2, #e0e0e0)" strokeWidth={STROKE} />
+                  <g transform="rotate(-90 70 70)">
+                    {stateSegments.map((s) => {
+                      const frac = denom2 > 0 ? s.value / denom2 : 0;
+                      const len = Math.max(0, frac * CIRC - 2);
+                      const el = (
+                        <circle
+                          key={s.label}
+                          cx="70"
+                          cy="70"
+                          r={R}
+                          fill="none"
+                          stroke={s.color}
+                          strokeWidth={STROKE}
+                          strokeDasharray={`${len} ${CIRC - len}`}
+                          strokeDashoffset={-offset2}
+                          strokeLinecap="butt"
+                        />
+                      );
+                      offset2 += frac * CIRC;
+                      return el;
+                    })}
+                  </g>
+                </svg>
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 10, lineHeight: 1 }}>
+                    Received
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.25, fontSize: 13.5 }}>
+                    {formatInr(received)}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Details List for Chart 2 */}
+              <Stack spacing={1} sx={{ minWidth: 0, flexGrow: 1 }}>
+                {stateDetails.map((item) => (
+                  <Box
+                    key={item.key}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      px: 1,
+                      py: 1.25,
+                      borderRadius: 1,
+                      bgcolor: 'var(--card2, rgba(0, 0, 0, 0.02))',
+                      borderLeft: `3px solid ${item.color}`,
+                    }}
+                  >
+                    <Box sx={{ pr: 0.5 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 11.5, lineHeight: 1.1 }}>
+                        {item.label}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 9.5, display: 'block' }}>
+                        {item.desc}
+                      </Typography>
+                    </Box>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: 12,
+                        fontVariantNumeric: 'tabular-nums',
+                        color: item.key === 'available' ? 'success.main' : 'text.primary',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {formatInr(item.value)}{' '}
+                      <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400, fontSize: 10.5 }}>
+                        ({item.pct}%)
+                      </Box>
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </Stack>
+          </Box>
+        </Grid>
+      </Grid>
 
       {/* Explanation Banner */}
       <Box
         sx={{
           mx: 2.5,
           mb: 2,
+          mt: 1,
           px: 1.75,
           py: 1.25,
           borderRadius: 1.5,
@@ -199,3 +301,5 @@ export function FundingChainCard({ totals }) {
     </Card>
   );
 }
+
+

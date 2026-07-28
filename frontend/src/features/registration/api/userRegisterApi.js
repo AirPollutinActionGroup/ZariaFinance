@@ -8,4 +8,7 @@ import { http } from '../../../lib/api/apiClient.js';
 export const userRegisterApi = {
   /** POST /api/userRegister — body: AddUserRegisterDto → UserRegisterDto (201). */
   register: (payload) => http.post('/userRegister', payload),
+
+  /** GET /api/userRegister → UserRegisterDto[]; used for approver pickers. */
+  list: () => http.get('/userRegister'),
 };

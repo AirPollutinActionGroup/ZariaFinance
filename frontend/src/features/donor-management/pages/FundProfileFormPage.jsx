@@ -1,26 +1,31 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   Card,
   CardContent,
+  Chip,
+  Collapse,
   Divider,
   FormControlLabel,
   Grid,
   IconButton,
+  InputAdornment,
   Stack,
   Switch,
+  TextField,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import SaveIcon from '@mui/icons-material/Save';
-import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader, LoadingState, ErrorState } from '../../../shared/components/index.js';
-import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
+import { GeographyMultiSelect, RhfSelect, RhfTextField } from '../../../shared/components/index.js';
 import { useProgrammes } from '../hooks/useProgrammes.js';
 import {
   useCreateFundProfile,
@@ -29,6 +34,13 @@ import {
 } from '../hooks/useFundProfiles.js';
 import { fundProfileSchema, fundProfileFormDefaults } from '../validation/fundProfileSchema.js';
 import { toFundProfileFormValues } from '../mappers/fundProfileMapper.js';
+import { FundProfileTrancheCard } from '../components/FundProfileTrancheCard.jsx';
+import { UtilisationRuleRow } from '../components/UtilisationRuleRow.jsx';
+import {
+  DISBURSEMENT_TYPE_OPTIONS,
+  REPORTING_FREQUENCY_OPTIONS,
+  SCHEDULE_FREQUENCY_OPTIONS,
+} from '../constants.js';
 
 const FUND_MODE_OPTIONS = [
   { value: 'Restricted', label: 'Restricted' },
@@ -39,12 +51,6 @@ const FUND_CLASS_OPTIONS = [
   { value: 'A', label: 'Class A · Fully restricted' },
   { value: 'B', label: 'Class B · Unrestricted w/ explanation' },
   { value: 'C', label: 'Class C · Fully unrestricted' },
-];
-const REPORTING_OPTIONS = [
-  { value: '', label: '—' },
-  { value: 'Quarterly', label: 'Quarterly' },
-  { value: 'Half-yearly', label: 'Half-yearly' },
-  { value: 'Annual', label: 'Annual' },
 ];
 
 /** Inline RHF-bound switch (booleans aren't covered by the shared form components). */
@@ -63,6 +69,29 @@ function RhfSwitch({ name, control, label }) {
   );
 }
 
+function emptyTranche() {
+  return {
+    amount: '',
+    trancheName: '',
+    isFinalTranche: false,
+    releaseCriteria: '',
+    releaseDate: '',
+    milestoneName: '',
+    signOfRole: '',
+    otherSignOfRole: '',
+    targetDate: '',
+    utilisationPercentage: '',
+    triggerBase: '',
+    description: '',
+    hasReminder: false,
+    responsibleRole: '',
+    otherResponsibleRole: '',
+    reminderLeadTime: '',
+    repeatReminder: 'ONCE',
+    escalateToDeputy: false,
+  };
+}
+
 /** Create / edit a donor fund profile with its geography and rule collections. */
 export function FundProfileFormPage() {
   const { donorId: donorIdParam, id } = useParams();
@@ -77,14 +106,29 @@ export function FundProfileFormPage() {
   const updateMutation = useUpdateFundProfile(id, donorId);
   const mutation = isEdit ? updateMutation : createMutation;
 
-  const { control, handleSubmit, reset } = useForm({
+  const [expandedIndex, setExpandedIndex] = useState(0);
+  const [disbursementScheduleOpen, setDisbursementScheduleOpen] = useState(false);
+  const [geographiesOpen, setGeographiesOpen] = useState(false);
+  const [utilisationRulesOpen, setUtilisationRulesOpen] = useState(false);
+
+  const { control, handleSubmit, reset, setValue } = useForm({
     resolver: zodResolver(fundProfileSchema),
     defaultValues: fundProfileFormDefaults,
   });
 
-  const geographies = useFieldArray({ control, name: 'geographies' });
   const utilisationRules = useFieldArray({ control, name: 'utilisationRules' });
-  const disbursementRules = useFieldArray({ control, name: 'disbursementRules' });
+  const tranches = useFieldArray({ control, name: 'tranches' });
+
+  const programmeTied = useWatch({ control, name: 'programmeTied' });
+  const disbursementType = useWatch({ control, name: 'disbursementType' }) || 'LUMP_SUM';
+  const scheduleType = useWatch({ control, name: 'scheduleType' });
+  const isLumpSum = disbursementType !== 'TRANCHE';
+  const scheduleLabel = SCHEDULE_FREQUENCY_OPTIONS.find((o) => o.value === scheduleType)?.label;
+  const selectedGeographies = useWatch({ control, name: 'selectedGeographies' }) || [];
+  const geographySubtitle =
+    !selectedGeographies || selectedGeographies.length === 0 || selectedGeographies.includes('ALL')
+      ? 'No geographies — spendable anywhere'
+      : `${selectedGeographies.length} selected`;
 
   // Populate the form once the profile loads (edit mode only).
   useEffect(() => {
@@ -92,6 +136,8 @@ export function FundProfileFormPage() {
       reset(toFundProfileFormValues(profileQuery.data));
     }
   }, [isEdit, profileQuery.data, reset]);
+
+  const hasExistingDisbursement = isEdit && (profileQuery.data?.disbursementRules || []).length > 0;
 
   if (isEdit && profileQuery.isPending) return <LoadingState label="Loading fund profile…" />;
   if (isEdit && profileQuery.isError) {
@@ -135,21 +181,23 @@ export function FundProfileFormPage() {
                   <RhfSelect name="fundClassCode" control={control} label="Fund class (A/B/C)" options={FUND_CLASS_OPTIONS} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                  <RhfSelect name="reportingFrequency" control={control} label="Reporting frequency" options={REPORTING_OPTIONS} />
+                  <RhfSelect name="reportingFrequency" control={control} label="Reporting frequency" options={REPORTING_FREQUENCY_OPTIONS} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 8 }}>
                   <RhfTextField name="purpose" control={control} label="Purpose" />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
-                  <RhfTextField name="overheadLimitPercent" control={control} label="Overhead cap %" type="number" />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                  <RhfSelect name="programmeId" control={control} label="Programme" options={programmeOptions} />
+                  <RhfSelect
+                    name="programmeId"
+                    control={control}
+                    label={programmeTied ? 'Programme *' : 'Programme'}
+                    required={Boolean(programmeTied)}
+                    options={programmeOptions}
+                  />
                 </Grid>
                 <Grid size={{ xs: 12 }}>
                   <Stack direction="row" flexWrap="wrap" sx={{ gap: 1 }}>
                     <RhfSwitch name="programmeTied" control={control} label="Programme-tied" />
-                    <RhfSwitch name="adminAllowed" control={control} label="Admin allowed" />
                     <RhfSwitch name="movementAllowed" control={control} label="Movement allowed" />
                     <RhfSwitch name="explanationRequired" control={control} label="Explanation required" />
                     <RhfSwitch name="onboardingComplete" control={control} label="Onboarding complete" />
@@ -162,117 +210,244 @@ export function FundProfileFormPage() {
           {/* Geographies */}
           <Card>
             <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="h4" component="h2">Permitted geographies</Typography>
-                <Button size="small" startIcon={<AddIcon />} onClick={() => geographies.append({ geographyName: '' })}>
-                  Add
-                </Button>
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, cursor: 'pointer' }} onClick={() => setGeographiesOpen((prev) => !prev)}>
+                <Box>
+                  <Typography variant="h4" component="h2">Geographies</Typography>
+                  <Typography variant="body2" color="text.secondary">{geographySubtitle}</Typography>
+                </Box>
+                <IconButton size="small" onClick={(e) => { e.stopPropagation(); setGeographiesOpen((prev) => !prev); }}>
+                  {geographiesOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                </IconButton>
               </Stack>
-              {geographies.fields.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">No geographies — spendable anywhere.</Typography>
-              ) : null}
-              <Stack spacing={1.5}>
-                {geographies.fields.map((f, i) => (
-                  <Stack key={f.id} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
-                    <RhfTextField name={`geographies.${i}.geographyName`} control={control} label="Geography" required />
-                    <IconButton aria-label="Remove geography" onClick={() => geographies.remove(i)} sx={{ mt: 1 }}>
-                      <DeleteOutlineIcon />
-                    </IconButton>
-                  </Stack>
-                ))}
-              </Stack>
+              <Collapse in={geographiesOpen}>
+                <Divider sx={{ my: 2 }} />
+                <Box sx={{ mt: 1 }}>
+                  <GeographyMultiSelect
+                    name="selectedGeographies"
+                    control={control}
+                    label="Geography name"
+                    helperText="Select Indian states / UTs, or select All (defaults to 'No geographies — spendable anywhere' if left blank)"
+                  />
+                </Box>
+              </Collapse>
             </CardContent>
           </Card>
 
           {/* Utilisation rules */}
           <Card>
             <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="h4" component="h2">Utilisation rules</Typography>
-                <Button
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={() => utilisationRules.append({ ruleType: '', limitPercentage: '', description: '' })}
-                >
-                  Add
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, cursor: 'pointer' }} onClick={() => setUtilisationRulesOpen((prev) => !prev)}>
+                <Box>
+                  <Typography variant="h4" component="h2">Utilisation Rules</Typography>
+                </Box>
+                <IconButton size="small" onClick={(e) => { e.stopPropagation(); setUtilisationRulesOpen((prev) => !prev); }}>
+                  {utilisationRulesOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                </IconButton>
+              </Stack>
+              <Collapse in={utilisationRulesOpen}>
+                <Divider sx={{ my: 2 }} />
+                <Stack spacing={2}>
+                  {utilisationRules.fields.map((f, i) => (
+                    <Box key={f.id}>
+                      {i > 0 ? <Divider sx={{ mb: 2 }} /> : null}
+                      <UtilisationRuleRow
+                        control={control}
+                        path={`utilisationRules.${i}`}
+                        index={i}
+                        onRemove={() => utilisationRules.remove(i)}
+                      />
+                    </Box>
+                  ))}
+                </Stack>
+                <Button size="small" startIcon={<AddIcon />} onClick={() => utilisationRules.append({ ruleType: 'ADMIN_OVERHEAD_COST', otherRuleType: '', limitPercentage: '', description: '' })} sx={{ mt: 2 }}>
+                  Add rule
                 </Button>
-              </Stack>
-              <Stack spacing={2}>
-                {utilisationRules.fields.map((f, i) => (
-                  <Box key={f.id}>
-                    {i > 0 ? <Divider sx={{ mb: 2 }} /> : null}
-                    <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-                      <Grid size={{ xs: 12, sm: 5 }}>
-                        <RhfTextField name={`utilisationRules.${i}.ruleType`} control={control} label="Rule type" required />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 2 }}>
-                        <RhfTextField name={`utilisationRules.${i}.limitPercentage`} control={control} label="Limit %" type="number" />
-                      </Grid>
-                      <Grid size={{ xs: 11, sm: 4 }}>
-                        <RhfTextField name={`utilisationRules.${i}.description`} control={control} label="Description" />
-                      </Grid>
-                      <Grid size={{ xs: 1 }}>
-                        <IconButton aria-label="Remove rule" onClick={() => utilisationRules.remove(i)} sx={{ mt: 1 }}>
-                          <DeleteOutlineIcon />
-                        </IconButton>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                ))}
-              </Stack>
+              </Collapse>
             </CardContent>
           </Card>
 
-          {/* Disbursement rules */}
+          {/* Disbursement Schedule */}
           <Card>
             <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="h4" component="h2">Disbursement rules</Typography>
-                <Button
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={() =>
-                    disbursementRules.append({
-                      ruleType: '',
-                      releaseTrigger: '',
-                      minPriorUtilisationRequired: '',
-                      milestoneRequired: false,
-                      ruleDescription: '',
-                    })
-                  }
-                >
-                  Add
-                </Button>
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, cursor: 'pointer' }} onClick={() => setDisbursementScheduleOpen((prev) => !prev)}>
+                <Box>
+                  <Typography variant="h4" component="h2">Disbursement Schedule</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Set how this grant is released. Choose a single payment or a series of tranches, then attach the conditions that must be met before each release.
+                  </Typography>
+                </Box>
+                <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDisbursementScheduleOpen((prev) => !prev); }}>
+                  {(disbursementScheduleOpen || hasExistingDisbursement) ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                </IconButton>
               </Stack>
-              <Stack spacing={2}>
-                {disbursementRules.fields.map((f, i) => (
-                  <Box key={f.id}>
-                    {i > 0 ? <Divider sx={{ mb: 2 }} /> : null}
-                    <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <RhfTextField name={`disbursementRules.${i}.ruleType`} control={control} label="Rule type" required />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <RhfTextField name={`disbursementRules.${i}.releaseTrigger`} control={control} label="Release trigger" />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 3 }}>
-                        <RhfTextField name={`disbursementRules.${i}.minPriorUtilisationRequired`} control={control} label="Prior util %" type="number" />
-                      </Grid>
-                      <Grid size={{ xs: 1 }}>
-                        <IconButton aria-label="Remove rule" onClick={() => disbursementRules.remove(i)} sx={{ mt: 1 }}>
-                          <DeleteOutlineIcon />
-                        </IconButton>
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 8 }}>
-                        <RhfTextField name={`disbursementRules.${i}.ruleDescription`} control={control} label="Description" />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <RhfSwitch name={`disbursementRules.${i}.milestoneRequired`} control={control} label="Milestone required" />
-                      </Grid>
-                    </Grid>
+
+              <Collapse in={(disbursementScheduleOpen || hasExistingDisbursement)}>
+                <Divider sx={{ my: 2.5 }} />
+
+                <Grid container spacing={3} sx={{ alignItems: 'flex-start', mb: 2.5 }}>
+                  {/* Total Amount Committed */}
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <RhfTextField
+                      name="totalAmountCommitted"
+                      control={control}
+                      label="Total amount committed *"
+                      required
+                      type="number"
+                      placeholder="1,00,00,000"
+                      slotProps={{
+                        htmlInput: { min: 0, step: '1' },
+                        input: { startAdornment: <InputAdornment position="start">₹</InputAdornment> },
+                      }}
+                      helperText="Carried from the agreement. All tranches must add up to this figure."
+                    />
+                  </Grid>
+
+                  {/* Disbursement Type */}
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 0.75 }}>
+                      Disbursement type *
+                    </Typography>
+                    <Box sx={{ display: 'inline-flex', bgcolor: 'var(--canvas, #F6F6F3)', border: '1px solid', borderColor: 'divider', borderRadius: 1.5, p: 0.5, gap: 0.5 }}>
+                      {DISBURSEMENT_TYPE_OPTIONS.map((opt) => (
+                        <Button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setValue('disbursementType', opt.value, { shouldValidate: true })}
+                          sx={{
+                            px: 2.5,
+                            py: 0.75,
+                            borderRadius: 1.2,
+                            fontWeight: 600,
+                            fontSize: 13,
+                            textTransform: 'none',
+                            color: disbursementType === opt.value ? '#fff' : 'text.primary',
+                            bgcolor: disbursementType === opt.value ? '#181818' : 'transparent',
+                            '&:hover': { bgcolor: disbursementType === opt.value ? '#000' : 'action.hover' },
+                          }}
+                        >
+                          {opt.label}
+                        </Button>
+                      ))}
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                {/* Conditional View: Lump sum vs Tranches */}
+                {isLumpSum ? (
+                  <Box sx={{ maxWidth: 360, mt: 2.5 }}>
+                    <RhfTextField
+                      name="receivingDate"
+                      control={control}
+                      label="Receiving date *"
+                      required
+                      type="date"
+                      slotProps={{ inputLabel: { shrink: true } }}
+                      helperText="The full committed amount is released on this date."
+                    />
                   </Box>
-                ))}
-              </Stack>
+                ) : (
+                  <Box sx={{ mt: 2.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 0.75 }}>
+                      Schedule type *{' '}
+                      <Typography component="span" variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em', ml: 0.5 }}>
+                        sets tranche frequency
+                      </Typography>
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 3 }}>
+                      {SCHEDULE_FREQUENCY_OPTIONS.map((opt) => {
+                        const selected = scheduleType === opt.value;
+                        return (
+                          <Chip
+                            key={opt.value}
+                            label={opt.label}
+                            onClick={() => setValue('scheduleType', opt.value, { shouldValidate: true })}
+                            sx={{
+                              px: 1.5,
+                              py: 2,
+                              fontWeight: 600,
+                              fontSize: 13,
+                              borderRadius: 2,
+                              cursor: 'pointer',
+                              bgcolor: selected ? '#F2E041' : 'background.paper',
+                              color: selected ? '#181818' : 'text.primary',
+                              border: '1px solid',
+                              borderColor: selected ? '#F2E041' : 'divider',
+                              '&:hover': { bgcolor: selected ? '#ecd730' : 'action.hover' },
+                            }}
+                          />
+                        );
+                      })}
+                    </Stack>
+
+                    <Divider sx={{ my: 3 }} />
+
+                    <Stack direction="row" sx={{ alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                      <Box>
+                        <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', color: 'text.secondary', fontWeight: 700, fontSize: 11 }}>
+                          RELEASES
+                        </Typography>
+                        <Typography variant="h4" component="h2" sx={{ mb: 0.5, fontWeight: 700 }}>
+                          Tranches
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Add a tranche for each release. Each carries the one condition that gates its payment.
+                        </Typography>
+                      </Box>
+                      {tranches.fields.length === 0 ? (
+                        <Button
+                          type="button"
+                          variant="contained"
+                          startIcon={<AddIcon />}
+                          onClick={() => {
+                            tranches.append(emptyTranche());
+                            setExpandedIndex(tranches.fields.length);
+                          }}
+                          sx={{ bgcolor: '#181818', color: '#fff', '&:hover': { bgcolor: '#000' }, fontWeight: 600, textTransform: 'none', px: 2, py: 1, borderRadius: 2 }}
+                        >
+                          Add tranche
+                        </Button>
+                      ) : null}
+                    </Stack>
+
+                    {tranches.fields.map((f, i) => (
+                      <FundProfileTrancheCard
+                        key={f.id}
+                        control={control}
+                        index={i}
+                        path={`tranches.${i}`}
+                        expanded={expandedIndex === i}
+                        onToggleExpanded={() => setExpandedIndex(expandedIndex === i ? null : i)}
+                        onRemove={() => tranches.remove(i)}
+                        frequencyLabel={scheduleLabel}
+                        lumpSum={false}
+                      />
+                    ))}
+
+                    {tranches.fields.length > 0 ? (
+                      <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 2 }}>
+                        <Button
+                          type="button"
+                          variant="contained"
+                          startIcon={<AddIcon />}
+                          onClick={() => {
+                            tranches.append(emptyTranche());
+                            setExpandedIndex(tranches.fields.length);
+                          }}
+                          sx={{ bgcolor: '#181818', color: '#fff', '&:hover': { bgcolor: '#000' }, fontWeight: 600, textTransform: 'none', px: 2, py: 1, borderRadius: 2 }}
+                        >
+                          Add tranche
+                        </Button>
+                      </Stack>
+                    ) : null}
+
+                    {tranches.fields.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                        No tranches yet — use &ldquo;Add tranche&rdquo;.
+                      </Typography>
+                    ) : null}
+                  </Box>
+                )}
+              </Collapse>
             </CardContent>
           </Card>
 

@@ -1,8 +1,12 @@
 package com.ngo.finance.donor.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
+import com.ngo.finance.donor.enums.RestrictionRuleType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -25,8 +29,8 @@ import lombok.ToString;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"fundProfile"}, callSuper = true)
-@ToString(exclude = {"fundProfile"})
+@EqualsAndHashCode(exclude = { "fundProfile" }, callSuper = true)
+@ToString(exclude = { "fundProfile" })
 public class DonorUtilisationRule extends AuditEntity {
 
     @ManyToOne
@@ -34,7 +38,11 @@ public class DonorUtilisationRule extends AuditEntity {
     private DonorFundProfile fundProfile;
 
     @Column(name = "rule_type", nullable = false, length = 50)
-    private String ruleType;
+    @Enumerated(EnumType.STRING)
+    private RestrictionRuleType ruleType;
+
+    @Column(name = "other_rule_type", length = 50)
+    private String otherRuleType;
 
     @Column(name = "limit_percentage", precision = 5, scale = 2)
     private BigDecimal limitPercentage;

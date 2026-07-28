@@ -19,6 +19,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
+import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { ACTIONS, PermissionGate } from '../../../core/permissions/index.js';
 import {
@@ -35,7 +36,7 @@ import { useFundProfile } from '../hooks/useFundProfiles.js';
 import { useDonor } from '../hooks/useDonors.js';
 import { useTranchesByGrant } from '../hooks/useTranches.js';
 import { grantService } from '../services/grantService.js';
-import { FUND_CLASS_CODE_TONE, GRANT_ACTIVE_TONE, MODULE_ID } from '../constants.js';
+import { FUND_CLASS_CODE_TONE, GRANT_ACTIVE_TONE, MODULE_ID, REPORTING_FREQUENCY_OPTIONS } from '../constants.js';
 import { DocumentsPanel } from '../components/DocumentsPanel.jsx';
 import { TranchesPanel } from '../components/TranchesPanel.jsx';
 import { FundingDonut } from '../components/FundingDonut.jsx';
@@ -134,30 +135,40 @@ function TrancheCycle({ tranche, currency }) {
   const committed = Number(tranche.trancheAmount) || 0;
   const received = Number(tranche.actualAmount) || 0;
   const utilised = Number(tranche.utilisedAmount) || 0;
-  const available = received - utilised;
+  const available = Math.max(0, received - utilised);
   const utilisedPct = received > 0 ? Math.min(100, Math.round((utilised / received) * 100)) : 0;
   const money = (n) => (currency && currency !== 'INR' ? `${currency} ` : '₹') + Number(n).toLocaleString('en-IN');
 
   return (
     <Box sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          Tranche {tranche.trancheNumber}
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1E293B' }}>
+          Tranche {tranche.trancheNumber} {tranche.trancheName ? `— ${tranche.trancheName}` : ''}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" sx={{ color: '#475569' }}>
           committed {money(committed)} · received {money(received)}
         </Typography>
       </Stack>
+
       <LinearProgress
         variant="determinate"
         value={utilisedPct}
-        sx={{ height: 6, borderRadius: 3 }}
+        sx={{
+          height: 7,
+          borderRadius: 3.5,
+          bgcolor: '#FFF3E0',
+          '& .MuiLinearProgress-bar': {
+            borderRadius: 3.5,
+            bgcolor: '#F57C00',
+          },
+        }}
       />
-      <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
-        <Typography variant="caption" color="text.secondary">
+
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.75 }}>
+        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 500 }}>
           utilised {money(utilised)} ({utilisedPct}%)
         </Typography>
-        <Typography variant="caption" sx={{ color: 'var(--ok)', fontWeight: 600 }}>
+        <Typography variant="caption" sx={{ color: '#059669', fontWeight: 600 }}>
           available {money(available)}
         </Typography>
       </Stack>
@@ -178,7 +189,7 @@ function FundingPosition({ grant, tranches, rule }) {
 
   // Per-tranche breakdown is only meaningful for tranche-based disbursement
   // (spec §3): a lump-sum grant has a single release, so hide the toggle.
-  const isTranched = deriveDisbursementType(rule, tranches) === 'Tranches' && tranches.length > 0;
+  const isTranched = deriveDisbursementType(rule) === 'Tranches' && tranches.length > 0;
 
   const rows = [
     { stage: 'Committed', amount: committedInr, basis: 'contracted / signed (receivable)' },
@@ -234,18 +245,45 @@ function FundingPosition({ grant, tranches, rule }) {
       </Table>
 
       {isTranched ? (
-        <Box>
-          <Button size="small" onClick={() => setAdvanced((v) => !v)} sx={{ px: 0 }}>
-            {advanced ? 'Hide per-tranche breakdown' : 'Advanced — per-tranche breakdown'}
-          </Button>
+        <Box sx={{ mt: 1 }}>
+          <Box
+            component="button"
+            type="button"
+            onClick={() => setAdvanced((v) => !v)}
+            sx={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              p: 1.5,
+              px: 2,
+              borderRadius: 1.5,
+              border: '1px solid',
+              borderColor: advanced ? 'primary.main' : 'divider',
+              bgcolor: 'var(--card2, rgba(0, 0, 0, 0.02))',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              textTransform: 'none',
+              textAlign: 'left',
+              fontFamily: 'inherit',
+              '&:hover': {
+                bgcolor: 'action.hover',
+                borderColor: 'primary.main',
+              },
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, color: 'text.primary' }}>
+              Advanced — per-tranche breakdown
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main', ml: 1 }}>
+              {advanced ? '▲ Hide' : '▼ Show'}
+            </Typography>
+          </Box>
           <Collapse in={advanced} unmountOnExit>
-            <Box sx={{ mt: 1 }}>
+            <Box sx={{ mt: 1.5 }}>
               {tranches.map((t) => (
                 <TrancheCycle key={t.id} tranche={t} currency={grant.grantCurrency} />
               ))}
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                Per-tranche amounts are in the grant currency. Received & utilised originate from Tally.
-              </Typography>
             </Box>
           </Collapse>
         </Box>
@@ -268,7 +306,7 @@ function DisbursementRule({ rule, tranches }) {
     );
   }
 
-  const disbursementType = deriveDisbursementType(rule, tranches);
+  const disbursementType = deriveDisbursementType(rule);
   const isTranched = disbursementType === 'Tranches';
   const criteria = deriveReleaseCriteria(rule);
   const firstDate = tranches.find((t) => t.plannedReleaseDate)?.plannedReleaseDate;
@@ -311,9 +349,9 @@ function DisbursementRule({ rule, tranches }) {
             </Stack>
           ))}
         </Stack>
-        {rule.ruleDescription ? (
+        {rule.totalAmountCommitted ? (
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-            {rule.ruleDescription}
+            Total committed: ₹{Number(rule.totalAmountCommitted).toLocaleString('en-IN')}
           </Typography>
         ) : null}
       </Box>
@@ -381,13 +419,22 @@ export function GrantDetailPage() {
               tone={GRANT_ACTIVE_TONE[grant.isActive] || 'neutral'}
             />
             <PermissionGate action={ACTIONS.EDIT} moduleId={MODULE_ID}>
-              <Button
-                variant="outlined"
-                startIcon={<EditIcon />}
-                onClick={() => navigate(`/grants/${grant.id}/edit`)}
-              >
-                Edit
-              </Button>
+              <Stack direction="row" spacing={1.5}>
+                <Button
+                  variant="outlined"
+                  startIcon={<EditIcon />}
+                  onClick={() => navigate(`/grants/${grant.id}/edit`)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<AccountBalanceWalletOutlinedIcon />}
+                  onClick={() => navigate(`/grants/${grant.id}/disbursement`)}
+                >
+                  Disbursement
+                </Button>
+              </Stack>
             </PermissionGate>
             <PermissionGate action={ACTIONS.APPROVE} moduleId={MODULE_ID}>
               <Stack direction="row" spacing={1.5}>
@@ -450,7 +497,9 @@ export function GrantDetailPage() {
               {formatInr(grant.reportingAmountInr ?? grant.totalGrantAmount)}
             </TermRow>
             <TermRow label="Approved by">
-              {grant.isApproved === 1 && grant.approvedBy ? grant.approvedBy : '—'}
+              {grant.isApproved === 1 && (grant.approvedByName || grant.approvedBy)
+                ? grant.approvedByName || grant.approvedBy
+                : '—'}
             </TermRow>
             {grant.isApproved === 1 && grant.approvalDate ? (
               <TermRow label="Approval date">{formatDateTime(grant.approvalDate)}</TermRow>
@@ -491,10 +540,14 @@ export function GrantDetailPage() {
                 </TermRow>
                 <TermRow label="Purpose">{profile.purpose || '—'}</TermRow>
                 <TermRow label="Overhead cap">
-                  {profile.overheadLimitPercent != null ? `${Number(profile.overheadLimitPercent)}%` : '—'}
+                  {(() => {
+                    const overheadRule = (profile.utilisationRules || [])
+                      .find((r) => r.ruleType === 'ADMIN_OVERHEAD_COST');
+                    return overheadRule?.limitPercentage != null ? `${Number(overheadRule.limitPercentage)}%` : '—';
+                  })()}
                 </TermRow>
                 <TermRow label="Reporting frequency" last>
-                  {profile.reportingFrequency || '—'}
+                  {REPORTING_FREQUENCY_OPTIONS.find((o) => o.value === profile.reportingFrequency)?.label || '—'}
                 </TermRow>
               </>
             ) : (

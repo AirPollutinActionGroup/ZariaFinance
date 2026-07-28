@@ -5,7 +5,10 @@ import { useNavigate } from 'react-router-dom';
 import { DataTable, StatusChip } from '../../../shared/components/index.js';
 import { ACTIONS, PermissionGate } from '../../../core/permissions/index.js';
 import { useFundProfilesByDonor } from '../hooks/useFundProfiles.js';
-import { MODULE_ID } from '../constants.js';
+import { MODULE_ID, REPORTING_FREQUENCY_OPTIONS } from '../constants.js';
+
+const reportingFrequencyLabel = (value) =>
+  REPORTING_FREQUENCY_OPTIONS.find((o) => o.value === value)?.label || value || '—';
 
 const CLASS_TONE = { A: 'error', B: 'warning', C: 'success' };
 
@@ -44,22 +47,16 @@ const columns = [
         </Tooltip>
       </Box>
     ),
-    render: (row) => row.reportingFrequency || '—',
-  },
-  {
-    key: 'overheadLimitPercent',
-    header: 'Overhead cap',
-    align: 'right',
-    render: (row) => (row.overheadLimitPercent != null ? `${row.overheadLimitPercent}%` : '—'),
+    render: (row) => reportingFrequencyLabel(row.reportingFrequency),
   },
   {
     key: 'rules',
     header: 'Rules',
     render: (row) => (
       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-        <Chip size="small" variant="outlined" label={`${row.geographies.length} geo`} />
-        <Chip size="small" variant="outlined" label={`${row.utilisationRules.length} util`} />
-        <Chip size="small" variant="outlined" label={`${row.disbursementRules.length} disb`} />
+        <Chip size="small" variant="outlined" label={`${(row.spendableLocations || []).length} loc`} />
+        <Chip size="small" variant="outlined" label={`${(row.utilisationRules || []).length} util`} />
+        <Chip size="small" variant="outlined" label={`${(row.disbursementRules || []).length} disb`} />
       </Box>
     ),
   },

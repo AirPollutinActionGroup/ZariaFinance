@@ -88,3 +88,71 @@ export const FUND_SOURCE_DOMICILE_TONE = Object.freeze({
   DOMESTIC: 'neutral',
   FOREIGN: 'graphite',
 });
+
+/** Mirrors RestrictionRuleType. */
+export const UTILISATION_RULE_TYPES = [
+  { value: 'ADMIN_OVERHEAD_COST', label: 'Admin / Overhead Cost', requiresLimit: true },
+  { value: 'NOT_APPLICABLE', label: 'Not applicable', requiresLimit: false },
+  { value: 'OTHER_CUSTOM', label: 'Other (Custom rule)', requiresLimit: true },
+];
+
+/** Mirrors ReportingFrequency. */
+export const REPORTING_FREQUENCY_OPTIONS = [
+  { value: '', label: '—' },
+  { value: 'QUARTERLY', label: 'Quarterly' },
+  { value: 'HALF_YEARLY', label: 'Half-yearly' },
+  { value: 'ANNUAL', label: 'Annual' },
+];
+
+/** Mirrors DisbursementType. */
+export const DISBURSEMENT_TYPE_OPTIONS = [
+  { value: 'LUMP_SUM', label: 'Lump sum' },
+  { value: 'TRANCHE', label: 'Tranches' },
+];
+
+/** Mirrors ScheduleFrequency. */
+export const SCHEDULE_FREQUENCY_OPTIONS = [
+  { value: 'ONE_TIME', label: 'One time' },
+  { value: 'MONTHLY', label: 'Monthly' },
+  { value: 'QUARTERLY', label: 'Quarterly' },
+  { value: 'HALF_YEARLY', label: 'Half-Yearly' },
+  { value: 'YEARLY', label: 'Yearly' },
+];
+
+/** Mirrors CriterionType; humanActioned gates the reminder & escalation block. */
+export const CRITERION_TYPE_OPTIONS = [
+  { value: 'ON_SIGNING', label: 'On Signing', humanActioned: false },
+  { value: 'FIXED_DATE', label: 'Fixed Date', humanActioned: false },
+  { value: 'MILESTONE_BASED', label: 'Milestone Based', humanActioned: true },
+  { value: 'UTILISATION_THRESHOLD', label: 'Utilisation Threshold', humanActioned: true },
+  { value: 'UTILISATION_CERTIFICATE', label: 'Utilisation Certificate (UC)', humanActioned: true },
+  { value: 'FINANCIAL_REPORT', label: 'Financial Report', humanActioned: true },
+  { value: 'NARRATIVE_REPORT', label: 'Narrative Report', humanActioned: true },
+  { value: 'AUDIT_REPORT', label: 'Audit Report', humanActioned: true },
+  { value: 'DONOR_APPROVAL', label: 'Donor Approval', humanActioned: true },
+  { value: 'OTHER', label: 'Other', humanActioned: false },
+];
+
+export function isCriterionHumanActioned(criterionType) {
+  return CRITERION_TYPE_OPTIONS.find((t) => t.value === criterionType)?.humanActioned ?? false;
+}
+
+/** Mirrors ApproverRole; used for both sign-off and reminder-responsible roles. */
+export const APPROVER_ROLE_OPTIONS = [
+  { value: 'PROGRAMME_MANAGER', label: 'Programme Manager' },
+  { value: 'CFO', label: 'CFO' },
+  { value: 'HEAD_OF_ORGANISATION', label: 'Head of Organisation' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+/** Free-text on the backend — these are just sensible UI defaults, not an enum contract. */
+export const TRIGGER_BASE_OPTIONS = [
+  { value: 'PREVIOUS_TRANCHE', label: 'Previous Tranche' },
+  { value: 'CUMULATIVE', label: 'Cumulative' },
+];
+
+export const REPEAT_REMINDER_OPTIONS = [
+  { value: 'ONCE', label: 'Once' },
+  { value: 'EVERY_3_DAYS', label: 'Every 3 days' },
+  { value: 'WEEKLY', label: 'Weekly until actioned' },
+];
