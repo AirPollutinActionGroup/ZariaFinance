@@ -1,4 +1,4 @@
-import { Box, Card, Grid, Stack, Typography } from '@mui/material';
+import { Box, Card, Grid, Stack, Typography, useTheme } from '@mui/material';
 import { formatInr } from '../../../lib/format/currency.js';
 
 const R = 54;
@@ -6,6 +6,9 @@ const STROKE = 18;
 const CIRC = 2 * Math.PI * R;
 
 export function FundingChainCard({ totals }) {
+  const theme = useTheme();
+  const receivedColor = '#FACC15'; // Soft Light Yellow
+
   const committed = totals.committed || 0;
   const received = totals.received || 0;
   const utilised = totals.utilised || 0;
@@ -21,8 +24,8 @@ export function FundingChainCard({ totals }) {
   const blockedPct = Math.round((100 * blocked) / denom);
 
   const pipelineSegments = [
-    { label: 'Received', value: received, pct: receivedPct, desc: 'cash in bank', color: '#2E7D32' },
-    { label: 'Open / Outstanding', value: open, pct: openPct, desc: 'contracted (receivable)', color: '#1E88E5' },
+    { label: 'Received', value: received, pct: receivedPct, desc: 'cash in bank', color: '#00E676' }, // Fluorescent Green
+    { label: 'Open / Outstanding', value: open, pct: openPct, desc: 'contracted (receivable)', color: '#FACC15' }, // Light Yellow
     { label: 'Write-off / Cancelled', value: blocked, pct: blockedPct, desc: 'cancelled / written off', color: '#E53935' },
   ];
 
@@ -60,7 +63,7 @@ export function FundingChainCard({ totals }) {
       {/* Two Visually Equal Pie Charts Side-by-Side */}
       <Grid container spacing={2} sx={{ px: 2.5, py: 1.5, flexGrow: 1 }}>
         {/* CHART 1: Pipeline Breakdown (Original Chart & Legend) */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Box
             sx={{
               p: 2,
@@ -168,7 +171,7 @@ export function FundingChainCard({ totals }) {
         </Grid>
 
         {/* CHART 2: New 4-State Flow Breakdown Chart & Details */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Box
             sx={{
               p: 2,

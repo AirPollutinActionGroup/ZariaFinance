@@ -109,6 +109,7 @@ export function FundProfileFormPage() {
   // Σ of the tranche plan — mirrors FundProfileResponse.plannedTotalAmount, which
   // becomes the Total Grant Amount of every grant on this profile.
   const trancheValues = useWatch({ control, name: 'tranches' });
+  const hasFinalTranche = (trancheValues || []).some((t) => Boolean(t?.isFinal));
   const programmeTied = useWatch({ control, name: 'programmeTied' });
   const selectedGeographies = useWatch({ control, name: 'selectedGeographies' }) || [];
   const geographySubtitle =
@@ -440,7 +441,7 @@ export function FundProfileFormPage() {
                           Add a tranche for each release. Each can carry one or more criteria that gate the payment.
                         </Typography>
                       </Box>
-                      {tranches.fields.length === 0 ? (
+                      {tranches.fields.length === 0 && !hasFinalTranche ? (
                         <Button
                           type="button"
                           variant="contained"
@@ -487,7 +488,7 @@ export function FundProfileFormPage() {
                     ))}
 
                     {/* Add Tranche Button below tranche cards (Right Aligned) */}
-                    {tranches.fields.length > 0 ? (
+                    {tranches.fields.length > 0 && !hasFinalTranche ? (
                       <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 2 }}>
                         <Button
                           type="button"

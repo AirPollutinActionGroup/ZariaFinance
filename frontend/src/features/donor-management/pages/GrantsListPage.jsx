@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Box, Button, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Button, FormControl, MenuItem, Select, Stack } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from 'react-router-dom';
 import { ACTIONS, PermissionGate } from '../../../core/permissions/index.js';
@@ -49,7 +49,7 @@ const columns = [
   },
   {
     key: 'isApproved',
-    header: 'Grant Status',
+    header: 'Approval Status',
     render: (row) => (
       <StatusChip
         label={GRANT_APPROVAL_STATUS[row.isApproved] || '—'}
@@ -59,26 +59,27 @@ const columns = [
   },
 ];
 
-/** Values: 'all' | 'active' | 'inactive'. */
-const STATUS_FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
+const APPROVAL_STATUS_OPTIONS = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'onhold', label: 'On hold' },
+  { value: 'completed', label: 'Completed' },
 ];
 
 /** Grant agreement pipeline — /grants. */
 export function GrantsListPage() {
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [approvalFilter, setApprovalFilter] = useState('all');
   const grantsQuery = useGrants(search ? { search } : {});
   const navigate = useNavigate();
 
   const rows = useMemo(() => {
     const grants = grantsQuery.data || [];
-    if (statusFilter === 'active') return grants.filter((grant) => grant.isActive);
-    if (statusFilter === 'inactive') return grants.filter((grant) => !grant.isActive);
+    if (approvalFilter === 'pending') return grants.filter((grant) => grant.isApproved === 2);
+    if (approvalFilter === 'onhold') return grants.filter((grant) => grant.isApproved === 3);
+    if (approvalFilter === 'completed') return grants.filter((grant) => grant.isApproved === 4);
     return grants;
-  }, [grantsQuery.data, statusFilter]);
+  }, [grantsQuery.data, approvalFilter]);
 
   return (
     <>
@@ -101,18 +102,25 @@ export function GrantsListPage() {
         <Box sx={{ maxWidth: 420, flex: 1, minWidth: 240 }}>
           <SearchField value={search} onChange={setSearch} placeholder="Search grants…" />
         </Box>
-        <ToggleButtonGroup
-          value={statusFilter}
-          exclusive
-          size="small"
-          onChange={(_, next) => next && setStatusFilter(next)}
-        >
-          {STATUS_FILTERS.map((option) => (
-            <ToggleButton key={option.value} value={option.value}>
-              {option.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+        <FormControl size="small" sx={{ minWidth: 150 }}>
+          <Select
+            value={approvalFilter}
+            onChange={(e) => setApprovalFilter(e.target.value)}
+            sx={{
+              height: 38,
+              borderRadius: 1.5,
+              fontSize: 13,
+              fontWeight: 500,
+              bgcolor: 'background.paper',
+            }}
+          >
+            {APPROVAL_STATUS_OPTIONS.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: 13 }}>
+                {opt.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Stack>
       <DataTable
         columns={columns}
