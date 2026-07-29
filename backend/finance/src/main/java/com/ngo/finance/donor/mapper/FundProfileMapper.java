@@ -4,7 +4,7 @@ import com.ngo.finance.donor.dto.request.CreateFundProfileRequest;
 import com.ngo.finance.donor.dto.response.FundProfileResponse;
 import com.ngo.finance.donor.entity.DonorDisbursementRule;
 import com.ngo.finance.donor.entity.DonorFundProfile;
-import com.ngo.finance.donor.entity.DonorGeography;
+import com.ngo.finance.donor.entity.DonorTrancheDetail;
 import com.ngo.finance.donor.entity.DonorUtilisationRule;
 import com.ngo.finance.donor.entity.FundProfileTranche;
 import java.util.Comparator;
@@ -16,13 +16,15 @@ import org.springframework.stereotype.Component;
  *
  * Hand-written (not MapStruct) because the profile owns three child collections
  * with parent back-references — clearer and less error-prone here than generated
- * mapping. The donor and programme associations are resolved in the service
- * (they need repository lookups) and are not touched here.
+ * mapping. The donor, programme and spendable-location (state) associations are
+ * resolved in the service (they need repository lookups) and are not touched
+ * here.
  */
 @Component
 public class FundProfileMapper {
 
-    /** Build a new entity graph from the request. Donor & programme set by the service. */
+    /** Build a new entity graph from the request. Donor, programme & spendable
+     *  locations are set by the service. */
     public DonorFundProfile toEntity(CreateFundProfileRequest request) {
         DonorFundProfile profile = DonorFundProfile.builder()
                 .fundMode(request.getFundMode())
@@ -30,8 +32,6 @@ public class FundProfileMapper {
                 .purpose(request.getPurpose())
                 .programmeTied(request.getProgrammeTied())
                 .reportingFrequency(request.getReportingFrequency())
-                .adminAllowed(request.getAdminAllowed())
-                .overheadLimitPercent(request.getOverheadLimitPercent())
                 .movementAllowed(request.getMovementAllowed())
                 .explanationRequired(request.getExplanationRequired())
                 .onboardingComplete(request.getOnboardingComplete())
@@ -40,21 +40,19 @@ public class FundProfileMapper {
         return profile;
     }
 
-    /** Update an existing entity's scalar fields and fully replace its child collections. */
+    /** Update an existing entity's scalar fields and fully replace its rule
+     *  collections (spendable locations are replaced by the service). */
     public void updateEntity(CreateFundProfileRequest request, DonorFundProfile profile) {
         profile.setFundMode(request.getFundMode());
         profile.setFundClassCode(request.getFundClassCode());
         profile.setPurpose(request.getPurpose());
         profile.setProgrammeTied(request.getProgrammeTied());
         profile.setReportingFrequency(request.getReportingFrequency());
-        profile.setAdminAllowed(request.getAdminAllowed());
-        profile.setOverheadLimitPercent(request.getOverheadLimitPercent());
         profile.setMovementAllowed(request.getMovementAllowed());
         profile.setExplanationRequired(request.getExplanationRequired());
         profile.setOnboardingComplete(request.getOnboardingComplete());
 
         // orphanRemoval on the collections deletes rows dropped from these lists.
-        profile.getGeographies().clear();
         profile.getUtilisationRules().clear();
         profile.getDisbursementRules().clear();
         profile.getTranches().clear();
@@ -62,19 +60,12 @@ public class FundProfileMapper {
     }
 
     private void applyChildren(CreateFundProfileRequest request, DonorFundProfile profile) {
-        if (request.getGeographies() != null) {
-            for (CreateFundProfileRequest.GeographyItem g : request.getGeographies()) {
-                profile.getGeographies().add(DonorGeography.builder()
-                        .fundProfile(profile)
-                        .geographyName(g.getGeographyName())
-                        .build());
-            }
-        }
         if (request.getUtilisationRules() != null) {
             for (CreateFundProfileRequest.UtilisationRuleItem u : request.getUtilisationRules()) {
                 profile.getUtilisationRules().add(DonorUtilisationRule.builder()
                         .fundProfile(profile)
                         .ruleType(u.getRuleType())
+                        .otherRuleType(u.getOtherRuleType())
                         .limitPercentage(u.getLimitPercentage())
                         .description(u.getDescription())
                         .build());
@@ -82,14 +73,36 @@ public class FundProfileMapper {
         }
         if (request.getDisbursementRules() != null) {
             for (CreateFundProfileRequest.DisbursementRuleItem d : request.getDisbursementRules()) {
-                profile.getDisbursementRules().add(DonorDisbursementRule.builder()
+                DonorDisbursementRule rule = DonorDisbursementRule.builder()
                         .fundProfile(profile)
-                        .ruleType(d.getRuleType())
-                        .releaseTrigger(d.getReleaseTrigger())
-                        .minPriorUtilisationRequired(d.getMinPriorUtilisationRequired())
-                        .milestoneRequired(d.getMilestoneRequired())
-                        .ruleDescription(d.getRuleDescription())
-                        .build());
+                        .totalAmountCommitted(d.getTotalAmountCommitted())
+                        .disbursementType(d.getDisbursementType())
+                        .build();
+                if (d.getTrancheDetail() != null) {
+                    for (CreateFundProfileRequest.TrancheDetailItem t : d.getTrancheDetail()) {
+                        rule.getTrancheDetail().add(DonorTrancheDetail.builder()
+                                .disbursementRule(rule)
+                                .amount(t.getAmount())
+                                .frequency(t.getFrequency())
+                                .isFinalTranche(t.getIsFinalTranche())
+                                .releaseCriteria(t.getReleaseCriteria())
+                                .releaseDate(t.getReleaseDate())
+                                .milestoneName(t.getMilestoneName())
+                                .signOfRole(t.getSignOfRole())
+                                .otherSignOfRole(t.getOtherSignOfRole())
+                                .targetDate(t.getTargetDate())
+                                .utilisationPercentage(t.getUtilisationPercentage())
+                                .triggerBase(t.getTriggerBase())
+                                .description(t.getDescription())
+                                .responsibleRole(t.getResponsibleRole())
+                                .otherResponsibleRole(t.getOtherResponsibleRole())
+                                .reminderLeadTime(t.getReminderLeadTime())
+                                .repeatReminder(t.getRepeatReminder())
+                                .escalateToDeputy(t.getEscalateToDeputy())
+                                .build());
+                    }
+                }
+                profile.getDisbursementRules().add(rule);
             }
         }
         if (request.getTranches() != null) {
@@ -109,10 +122,11 @@ public class FundProfileMapper {
     }
 
     public FundProfileResponse toResponse(DonorFundProfile p) {
-        List<FundProfileResponse.GeographyItem> geos = p.getGeographies().stream()
-                .map(g -> FundProfileResponse.GeographyItem.builder()
-                        .id(g.getId())
-                        .geographyName(g.getGeographyName())
+        List<FundProfileResponse.SpendableLocationItem> locations = p.getSpendableLocations().stream()
+                .map(l -> FundProfileResponse.SpendableLocationItem.builder()
+                        .id(l.getId())
+                        .stateId(l.getState() != null ? l.getState().getId() : null)
+                        .stateName(l.getState() != null ? l.getState().getStateName() : null)
                         .build())
                 .toList();
 
@@ -120,20 +134,14 @@ public class FundProfileMapper {
                 .map(u -> FundProfileResponse.UtilisationRuleItem.builder()
                         .id(u.getId())
                         .ruleType(u.getRuleType())
+                        .otherRuleType(u.getOtherRuleType())
                         .limitPercentage(u.getLimitPercentage())
                         .description(u.getDescription())
                         .build())
                 .toList();
 
         List<FundProfileResponse.DisbursementRuleItem> disbs = p.getDisbursementRules().stream()
-                .map(d -> FundProfileResponse.DisbursementRuleItem.builder()
-                        .id(d.getId())
-                        .ruleType(d.getRuleType())
-                        .releaseTrigger(d.getReleaseTrigger())
-                        .minPriorUtilisationRequired(d.getMinPriorUtilisationRequired())
-                        .milestoneRequired(d.getMilestoneRequired())
-                        .ruleDescription(d.getRuleDescription())
-                        .build())
+                .map(this::toDisbursementRuleItem)
                 .toList();
 
         List<FundProfileResponse.TrancheItem> tranches = p.getTranches().stream()
@@ -159,18 +167,48 @@ public class FundProfileMapper {
                 .programmeId(p.getProgramme() != null ? p.getProgramme().getId() : null)
                 .programmeName(p.getProgramme() != null ? p.getProgramme().getProgrammeName() : null)
                 .reportingFrequency(p.getReportingFrequency())
-                .adminAllowed(p.getAdminAllowed())
-                .overheadLimitPercent(p.getOverheadLimitPercent())
                 .movementAllowed(p.getMovementAllowed())
                 .explanationRequired(p.getExplanationRequired())
                 .onboardingComplete(p.getOnboardingComplete())
-                .geographies(geos)
+                .spendableLocations(locations)
                 .utilisationRules(utils)
                 .disbursementRules(disbs)
                 .tranches(tranches)
                 .plannedTotalAmount(p.plannedTotalAmount())
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
+                .build();
+    }
+
+    private FundProfileResponse.DisbursementRuleItem toDisbursementRuleItem(DonorDisbursementRule d) {
+        List<FundProfileResponse.TrancheDetailItem> tranches = d.getTrancheDetail().stream()
+                .map(t -> FundProfileResponse.TrancheDetailItem.builder()
+                        .id(t.getId())
+                        .amount(t.getAmount())
+                        .frequency(t.getFrequency())
+                        .isFinalTranche(t.getIsFinalTranche())
+                        .releaseCriteria(t.getReleaseCriteria())
+                        .releaseDate(t.getReleaseDate())
+                        .milestoneName(t.getMilestoneName())
+                        .signOfRole(t.getSignOfRole())
+                        .otherSignOfRole(t.getOtherSignOfRole())
+                        .targetDate(t.getTargetDate())
+                        .utilisationPercentage(t.getUtilisationPercentage())
+                        .triggerBase(t.getTriggerBase())
+                        .description(t.getDescription())
+                        .responsibleRole(t.getResponsibleRole())
+                        .otherResponsibleRole(t.getOtherResponsibleRole())
+                        .reminderLeadTime(t.getReminderLeadTime())
+                        .repeatReminder(t.getRepeatReminder())
+                        .escalateToDeputy(t.getEscalateToDeputy())
+                        .build())
+                .toList();
+
+        return FundProfileResponse.DisbursementRuleItem.builder()
+                .id(d.getId())
+                .totalAmountCommitted(d.getTotalAmountCommitted())
+                .disbursementType(d.getDisbursementType())
+                .trancheDetail(tranches)
                 .build();
     }
 }

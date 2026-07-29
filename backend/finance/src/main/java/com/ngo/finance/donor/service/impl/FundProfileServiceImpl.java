@@ -6,10 +6,13 @@ import com.ngo.finance.donor.dto.response.FundProfileResponse;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.Programme;
+import com.ngo.finance.donor.entity.SpendableLocation;
+import com.ngo.finance.donor.entity.StateMaster;
 import com.ngo.finance.donor.mapper.FundProfileMapper;
 import com.ngo.finance.donor.repository.DonorFundProfileRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.ProgrammeRepository;
+import com.ngo.finance.donor.repository.StateRepository;
 import com.ngo.finance.donor.service.FundProfileService;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +38,9 @@ public class FundProfileServiceImpl implements FundProfileService {
     private ProgrammeRepository programmeRepository;
 
     @Autowired
+    private StateRepository stateRepository;
+
+    @Autowired
     private FundProfileMapper mapper;
 
     @Override
@@ -47,6 +53,7 @@ public class FundProfileServiceImpl implements FundProfileService {
         DonorFundProfile profile = mapper.toEntity(request);
         profile.setDonor(donor);
         applyProgramme(request, profile);
+        applySpendableLocations(request, profile);
 
         DonorFundProfile saved = profileRepository.save(profile);
         log.info("Fund profile created with id: {}", saved.getId());
@@ -78,6 +85,7 @@ public class FundProfileServiceImpl implements FundProfileService {
         DonorFundProfile profile = findOrThrow(id);
         mapper.updateEntity(request, profile);
         applyProgramme(request, profile);
+        applySpendableLocations(request, profile);
         DonorFundProfile saved = profileRepository.save(profile);
         log.info("Fund profile updated: {}", saved.getId());
         return mapper.toResponse(saved);
@@ -95,6 +103,22 @@ public class FundProfileServiceImpl implements FundProfileService {
             profile.setProgramme(programme);
         } else {
             profile.setProgramme(null);
+        }
+    }
+
+    /** Replace the profile's spendable-location set from the request's state ids. */
+    private void applySpendableLocations(CreateFundProfileRequest request, DonorFundProfile profile) {
+        profile.getSpendableLocations().clear();
+        if (request.getStateIds() == null) {
+            return;
+        }
+        for (Long stateId : request.getStateIds()) {
+            StateMaster state = stateRepository.findById(stateId)
+                    .orElseThrow(() -> new ResourceNotFoundException("State", stateId));
+            profile.getSpendableLocations().add(SpendableLocation.builder()
+                    .donorFundProfile(profile)
+                    .state(state)
+                    .build());
         }
     }
 }

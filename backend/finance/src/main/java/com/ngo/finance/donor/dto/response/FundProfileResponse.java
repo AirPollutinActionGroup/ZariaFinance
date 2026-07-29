@@ -1,6 +1,12 @@
 package com.ngo.finance.donor.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.ngo.finance.donor.enums.ApproverRole;
+import com.ngo.finance.donor.enums.CriterionType;
+import com.ngo.finance.donor.enums.DisbursementType;
+import com.ngo.finance.donor.enums.ReportingFrequency;
+import com.ngo.finance.donor.enums.RestrictionRuleType;
+import com.ngo.finance.donor.enums.ScheduleFrequency;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -29,13 +35,11 @@ public class FundProfileResponse {
     private Boolean programmeTied;
     private Long programmeId;
     private String programmeName;
-    private String reportingFrequency;
-    private Boolean adminAllowed;
-    private BigDecimal overheadLimitPercent;
+    private ReportingFrequency reportingFrequency;
     private Boolean movementAllowed;
     private Boolean explanationRequired;
     private Boolean onboardingComplete;
-    private List<GeographyItem> geographies;
+    private List<SpendableLocationItem> spendableLocations;
     private List<UtilisationRuleItem> utilisationRules;
     private List<DisbursementRuleItem> disbursementRules;
     private List<TrancheItem> tranches;
@@ -48,9 +52,10 @@ public class FundProfileResponse {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class GeographyItem {
+    public static class SpendableLocationItem {
         private Long id;
-        private String geographyName;
+        private Long stateId;
+        private String stateName;
     }
 
     @Data
@@ -59,7 +64,8 @@ public class FundProfileResponse {
     @AllArgsConstructor
     public static class UtilisationRuleItem {
         private Long id;
-        private String ruleType;
+        private RestrictionRuleType ruleType;
+        private String otherRuleType;
         private BigDecimal limitPercentage;
         private String description;
     }
@@ -70,11 +76,34 @@ public class FundProfileResponse {
     @AllArgsConstructor
     public static class DisbursementRuleItem {
         private Long id;
-        private String ruleType;
-        private String releaseTrigger;
-        private BigDecimal minPriorUtilisationRequired;
-        private Boolean milestoneRequired;
-        private String ruleDescription;
+        private String totalAmountCommitted;
+        private DisbursementType disbursementType;
+        private List<TrancheDetailItem> trancheDetail;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TrancheDetailItem {
+        private Long id;
+        private String amount;
+        private ScheduleFrequency frequency;
+        private Boolean isFinalTranche;
+        private CriterionType releaseCriteria;
+        private LocalDate releaseDate;
+        private String milestoneName;
+        private ApproverRole signOfRole;
+        private String otherSignOfRole;
+        private LocalDate targetDate;
+        private String utilisationPercentage;
+        private String triggerBase;
+        private String description;
+        private ApproverRole responsibleRole;
+        private String otherResponsibleRole;
+        private String reminderLeadTime;
+        private String repeatReminder;
+        private Boolean escalateToDeputy;
     }
 
     @Data
