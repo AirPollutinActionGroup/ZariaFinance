@@ -72,7 +72,8 @@ public class ReportsServiceImpl implements ReportsService {
             entries.add(UtilisationComplianceEntry.builder()
                     .grantCode(grant.getGrantCode())
                     .donorName(grant.getDonor() != null ? grant.getDonor().getDonorName() : null)
-                    .fundClassCode(profile != null ? profile.getFundClassCode() : null)
+                    .fundClassCode(profile != null && profile.getFundClass() != null
+                            ? profile.getFundClass().name() : null)
                     .overheadLimitPercent(overheadLimitPercent(profile))
                     .committed(committed)
                     .received(received)

@@ -1,4 +1,4 @@
-import { Box, Chip, Divider, FormControlLabel, Grid, IconButton, Stack, Switch, Typography } from '@mui/material';
+import { Box, Button, Chip, Divider, FormControlLabel, Grid, IconButton, Stack, Switch, Typography } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { Controller, useWatch } from 'react-hook-form';
 import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
@@ -14,37 +14,107 @@ import {
 const CRITERION_OPTIONS = CRITERION_TYPES.map(({ value, label }) => ({ value, label }));
 
 /**
- * One release criterion (Disbursement Rules §4). The type drives which fields
- * appear; the reminder block (§5) is offered only for types a person has to
- * action — Utilisation Threshold is auto-checked and On Signing is instant, so a
- * reminder there would never fire.
+ * Single Criterion Box component matching the exact prototype HTML/UI spec.
  */
-export function CriterionFields({ control, path, index, onRemove, canRemove }) {
+export function CriterionFields({
+  control,
+  path,
+  index,
+  onRemove,
+  canRemove = true,
+  responsibleRoleOptions = RESPONSIBLE_ROLES,
+}) {
   const criterionType = useWatch({ control, name: `${path}.criterionType` });
+  const verificationRole = useWatch({ control, name: `${path}.verificationRole` });
+  const responsibleRole = useWatch({ control, name: `${path}.reminder.responsibleRole` });
   const hasReminder = useWatch({ control, name: `${path}.hasReminder` });
-  const met = useWatch({ control, name: `${path}.met` });
   const humanActioned = isHumanActioned(criterionType);
+  const numStr = String(index + 1).padStart(2, '0');
 
   return (
-    <Box>
-      {index > 0 ? <Divider sx={{ mb: 2 }} /> : null}
-      <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-        <Grid size={{ xs: 12, sm: 4 }}>
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 2,
+        p: 2,
+        bgcolor: '#fdfdfb',
+        mb: 1.5,
+      }}
+    >
+      {/* Criterion Header Row */}
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, mb: criterionType ? 1.5 : 0 }}>
+        <Typography
+          variant="caption"
+          sx={{
+            fontFamily: 'monospace',
+            fontWeight: 700,
+            fontSize: 13,
+            color: 'text.secondary',
+            minWidth: 20,
+          }}
+        >
+          {numStr}
+        </Typography>
+        <Typography
+          id={`criterion-type-label-${path}`}
+          sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}
+        >
+          {`Criterion ${index + 1}`}
+        </Typography>
+
+        <Box sx={{ flexGrow: 1, maxWidth: 340 }}>
           <RhfSelect
             name={`${path}.criterionType`}
             control={control}
-            label={`Criterion ${index + 1}`}
-            required
-            options={CRITERION_OPTIONS}
+            label={undefined}
+            options={[
+              { value: '', label: 'Select criterion type…' },
+              ...CRITERION_OPTIONS,
+            ]}
+            slotProps={{
+              select: {
+                labelId: `criterion-type-label-${path}`,
+                displayEmpty: true,
+                renderValue: (selected) => {
+                  if (!selected) {
+                    return <span style={{ color: '#9a9a94', fontWeight: 400 }}>Select criterion type…</span>;
+                  }
+                  return CRITERION_OPTIONS.find((opt) => opt.value === selected)?.label || selected;
+                },
+              },
+            }}
           />
-        </Grid>
+        </Box>
 
+        {canRemove ? (
+          <Button
+            type="button"
+            onClick={onRemove}
+            sx={{
+              ml: 'auto',
+              color: '#B4441B',
+              fontWeight: 600,
+              fontSize: 13,
+              textTransform: 'none',
+              minWidth: 'auto',
+              p: 0,
+              '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
+            }}
+          >
+            Remove
+          </Button>
+        ) : null}
+      </Stack>
+
+      {/* Dynamic Fields Grid */}
+      <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
         {criterionType === 'FIXED_DATE' ? (
-          <Grid size={{ xs: 12, sm: 3 }}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <RhfTextField
               name={`${path}.releaseDate`}
               control={control}
-              label="Release date"
+              label="Release date *"
               required
               type="date"
               slotProps={{ inputLabel: { shrink: true } }}
@@ -54,28 +124,40 @@ export function CriterionFields({ control, path, index, onRemove, canRemove }) {
 
         {criterionType === 'MILESTONE_BASED' ? (
           <>
-            <Grid size={{ xs: 12, sm: 4 }}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <RhfTextField
                 name={`${path}.milestoneName`}
                 control={control}
-                label="Milestone name"
+                label="Milestone name *"
+                placeholder="e.g. Teacher training completed"
                 required
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <RhfSelect
                 name={`${path}.verificationRole`}
                 control={control}
-                label="Verification sign-off"
+                label="Verification sign-off role *"
                 required
                 options={VERIFICATION_ROLES}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 3 }}>
+            {verificationRole === 'OTHER' ? (
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <RhfTextField
+                  name={`${path}.otherVerificationRole`}
+                  control={control}
+                  label="Specify verification role *"
+                  placeholder="e.g. Independent Auditor"
+                  required
+                />
+              </Grid>
+            ) : null}
+            <Grid size={{ xs: 12, sm: 6 }}>
               <RhfTextField
                 name={`${path}.targetDate`}
                 control={control}
-                label="Target date"
+                label="Target date (Optional)"
                 type="date"
                 slotProps={{ inputLabel: { shrink: true } }}
                 helperText="Optional — some milestones are event-driven"
@@ -86,52 +168,43 @@ export function CriterionFields({ control, path, index, onRemove, canRemove }) {
 
         {criterionType === 'UTILISATION_THRESHOLD' ? (
           <>
-            <Grid size={{ xs: 6, sm: 2 }}>
+            <Grid size={{ xs: 6, sm: 4 }}>
               <RhfTextField
                 name={`${path}.utilisationPercent`}
                 control={control}
-                label="Utilisation %"
+                label="Utilisation % *"
                 required
                 type="number"
+                placeholder="80"
                 slotProps={{ htmlInput: { min: 1, max: 100, step: '0.01' } }}
               />
             </Grid>
-            <Grid size={{ xs: 6, sm: 3 }}>
+            <Grid size={{ xs: 6, sm: 4 }}>
               <RhfSelect
                 name={`${path}.triggerBasis`}
                 control={control}
-                label="Trigger basis"
+                label="Trigger basis *"
                 required
                 options={TRIGGER_BASES}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 3 }}>
-              <RhfTextField name={`${path}.description`} control={control} label="Description" />
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <RhfTextField name={`${path}.description`} control={control} label="Description (Optional)" />
             </Grid>
           </>
         ) : null}
 
         {criterionType === 'OTHER' ? (
-          <Grid size={{ xs: 12, sm: 7 }}>
+          <Grid size={{ xs: 12 }}>
             <RhfTextField
               name={`${path}.description`}
               control={control}
-              label="Description"
+              label="Description *"
+              placeholder="Describe the release condition…"
               required
             />
           </Grid>
         ) : null}
-
-        <Grid size={{ xs: 12, sm: 'auto' }} sx={{ ml: 'auto' }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 1 }}>
-            {met ? <Chip size="small" color="success" label="Met" /> : null}
-            {canRemove ? (
-              <IconButton aria-label={`Remove criterion ${index + 1}`} onClick={onRemove}>
-                <DeleteOutlineIcon />
-              </IconButton>
-            ) : null}
-          </Stack>
-        </Grid>
 
         {humanActioned ? (
           <Grid size={{ xs: 12 }}>
@@ -155,58 +228,108 @@ export function CriterionFields({ control, path, index, onRemove, canRemove }) {
 
         {humanActioned && hasReminder ? (
           <Grid size={{ xs: 12 }}>
-            <Box sx={{ pl: 2, borderLeft: 2, borderColor: 'divider' }}>
-              <Typography variant="caption" color="text.secondary">
-                Counts down from the tranche&apos;s expected release date minus the lead time. The deputy is
-                notified only — approval stays with the responsible role.
-              </Typography>
-              <Grid container spacing={1.5} sx={{ mt: 0.5, alignItems: 'flex-start' }}>
-                <Grid size={{ xs: 12, sm: 4 }}>
+            <Box
+              sx={{
+                mt: 1.5,
+                p: 2,
+                borderRadius: 2,
+                border: '1px dashed #cfcfc7',
+                bgcolor: '#fbfbf7',
+              }}
+            >
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  Reminder & escalation
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 11.5 }}>
+                  runs against the release date
+                </Typography>
+              </Stack>
+
+              <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <RhfSelect
                     name={`${path}.reminder.responsibleRole`}
                     control={control}
-                    label="Responsible role"
+                    label="Responsible role *"
                     required
-                    options={RESPONSIBLE_ROLES}
+                    options={responsibleRoleOptions}
                   />
                 </Grid>
-                <Grid size={{ xs: 6, sm: 3 }}>
+                {responsibleRole === 'OTHER' ? (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <RhfTextField
+                      name={`${path}.reminder.otherResponsibleRole`}
+                      control={control}
+                      label="Specify responsible role *"
+                      placeholder="e.g. Field Officer"
+                      required
+                    />
+                  </Grid>
+                ) : null}
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <RhfTextField
                     name={`${path}.reminder.reminderLeadDays`}
                     control={control}
-                    label="Lead time (days)"
+                    label="Reminder lead time *"
                     required
                     type="number"
+                    placeholder="7"
+                    helperText="Days before the release date."
                     slotProps={{ htmlInput: { min: 0, max: 365 } }}
                   />
                 </Grid>
-                <Grid size={{ xs: 6, sm: 3 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <RhfSelect
                     name={`${path}.reminder.repeatReminder`}
                     control={control}
-                    label="Repeat"
+                    label="Repeat reminder"
                     options={REPEAT_REMINDERS}
                   />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 2 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Escalate to deputy
+                  </Typography>
                   <Controller
                     name={`${path}.reminder.escalateToDeputy`}
                     control={control}
                     render={({ field }) => (
                       <FormControlLabel
-                        sx={{ mt: 1 }}
                         control={
                           <Switch
                             checked={field.value !== false}
                             onChange={(e) => field.onChange(e.target.checked)}
                           />
                         }
-                        label="Deputy"
+                        label={
+                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                            {field.value !== false ? 'On — deputy is notified only' : 'Off'}
+                          </Typography>
+                        }
                       />
                     )}
                   />
                 </Grid>
               </Grid>
+
+              <Box
+                sx={{
+                  mt: 1.5,
+                  p: 1.2,
+                  px: 1.5,
+                  borderRadius: 1.5,
+                  bgcolor: '#FBF6C4',
+                  border: '1px solid #ece2a3',
+                  fontSize: 12,
+                  color: '#5f5713',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
+              >
+                Set a lead time to preview when reminders begin.
+              </Box>
             </Box>
           </Grid>
         ) : null}

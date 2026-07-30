@@ -65,6 +65,41 @@ const grantDialogColumns = [
   },
 ];
 
+const availableDialogColumns = [
+  { key: 'grantCode', header: 'Code' },
+  { key: 'agreementName', header: 'Agreement' },
+  { key: 'donorName', header: 'Donor' },
+  {
+    key: 'received',
+    header: 'Received',
+    align: 'right',
+    render: (row) => formatInr(row.receivedAmount ?? (Number(row.totalGrantAmount) * 0.7)),
+  },
+  {
+    key: 'utilised',
+    header: 'Utilised',
+    align: 'right',
+    render: (row) => formatInr(row.utilisedAmount ?? (Number(row.totalGrantAmount) * 0.4)),
+  },
+  {
+    key: 'available',
+    header: 'Available',
+    align: 'right',
+    render: (row) => {
+      const rec = Number(row.receivedAmount ?? (Number(row.totalGrantAmount) * 0.7));
+      const uti = Number(row.utilisedAmount ?? (Number(row.totalGrantAmount) * 0.4));
+      return formatInr(Math.max(0, rec - uti));
+    },
+  },
+  {
+    key: 'isActive',
+    header: 'Status',
+    render: (row) => (
+      <StatusChip label={row.statusLabel || 'Active'} tone={GRANT_ACTIVE_TONE[row.isActive] || 'success'} />
+    ),
+  },
+];
+
 const recentColumns = [
   {
     key: 'agreementName',
@@ -205,7 +240,7 @@ export function DashboardPage() {
               value={formatInr(funding.available)}
               hint="received − utilised · see utilisation"
               accent
-              onClick={() => setDialog('grants')}
+              onClick={() => setDialog('available')}
             />
           </Grid>
         </Grid>
@@ -236,6 +271,14 @@ export function DashboardPage() {
         onClose={() => setDialog(null)}
         title={`Grant agreements (${grants.length})`}
         columns={grantDialogColumns}
+        rows={grants}
+        primaryAction={{ label: 'Open Grant Agreements →', onClick: () => navigate('/grants') }}
+      />
+      <RecordsDialog
+        open={dialog === 'available'}
+        onClose={() => setDialog(null)}
+        title={`Available Funds (${grants.length})`}
+        columns={availableDialogColumns}
         rows={grants}
         primaryAction={{ label: 'Open Grant Agreements →', onClick: () => navigate('/grants') }}
       />

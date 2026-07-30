@@ -50,12 +50,12 @@ public interface GrantMapper {
     @Mapping(source = "programme.id", target = "programmeId")
     @Mapping(source = "programme.programmeName", target = "programmeName")
     @Mapping(source = "fundProfile.id", target = "fundProfileId")
-    @Mapping(source = "fundProfile.fundClassCode", target = "fundClassCode")
+    @Mapping(source = "fundProfile.fundClass", target = "fundClassCode")
     GrantDetailsResponse toDetailsResponse(GrantAgreement entity);
 
     @Mapping(source = "grantStatus", target = "status")
     @Mapping(source = "donor.donorName", target = "donorName")
     @Mapping(source = "programme.programmeName", target = "programmeName")
-    @Mapping(source = "fundProfile.fundClassCode", target = "fundClassCode")
+    @Mapping(source = "fundProfile.fundClass", target = "fundClassCode")
     GrantListResponse toListResponse(GrantAgreement entity);
 }

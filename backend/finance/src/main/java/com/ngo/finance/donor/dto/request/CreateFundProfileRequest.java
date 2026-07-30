@@ -1,15 +1,18 @@
 package com.ngo.finance.donor.dto.request;
 
-import com.ngo.finance.donor.enums.ApproverRole;
+import com.ngo.finance.donation.enums.FundMode;
 import com.ngo.finance.donor.enums.CriterionType;
 import com.ngo.finance.donor.enums.DisbursementType;
+import com.ngo.finance.donor.enums.FundClass;
+import com.ngo.finance.donor.enums.RepeatReminder;
 import com.ngo.finance.donor.enums.ReportingFrequency;
 import com.ngo.finance.donor.enums.RestrictionRuleType;
-import com.ngo.finance.donor.enums.ScheduleFrequency;
+import com.ngo.finance.donor.enums.ScheduleType;
+import com.ngo.finance.donor.enums.TriggerBasis;
+import com.ngo.finance.donor.enums.VerificationRole;
+import com.ngo.finance.donor.validator.annotation.ValidFundProfile;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,13 +32,14 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ValidFundProfile
 public class CreateFundProfileRequest {
 
-    @NotBlank(message = "Fund mode is required")
-    private String fundMode; // 'Restricted' | 'Unrestricted'
+    @NotNull(message = "Fund mode is required")
+    private FundMode fundMode;
 
-    @Pattern(regexp = "^[ABC]$", message = "Fund class code must be A, B or C")
-    private String fundClassCode; // nullable for edge/pending profiles
+    /** A/B/C restriction class; nullable for edge/pending profiles. */
+    private FundClass fundClass;
 
     private String purpose;
 
@@ -55,9 +59,9 @@ public class CreateFundProfileRequest {
     @Builder.Default
     private Boolean onboardingComplete = false;
 
-    /** State ids the fund may be spent in; empty = spendable anywhere. */
+    @Valid
     @Builder.Default
-    private List<Long> stateIds = new ArrayList<>();
+    private List<GeographyItem> geographies = new ArrayList<>();
 
     @Valid
     @Builder.Default
@@ -67,20 +71,30 @@ public class CreateFundProfileRequest {
     @Builder.Default
     private List<DisbursementRuleItem> disbursementRules = new ArrayList<>();
 
-    // The donor-agreed release schedule; Σ trancheAmount becomes the Total Grant
-    // Amount of every grant on this profile.
-    @Valid
-    @Builder.Default
-    private List<TrancheItem> tranches = new ArrayList<>();
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class GeographyItem {
+        private Long id;
+
+        @NotNull(message = "State is required")
+        private Long stateId;
+    }
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UtilisationRuleItem {
+        private Long id;
+
         @NotNull(message = "Rule type is required")
         private RestrictionRuleType ruleType;
+
+        /** Required only when ruleType == OTHER_CUSTOM; see FundProfileValidator. */
         private String otherRuleType;
+
         private BigDecimal limitPercentage;
         private String description;
     }
@@ -90,27 +104,33 @@ public class CreateFundProfileRequest {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class DisbursementRuleItem {
-        @NotBlank(message = "Total amount committed is required")
-        private String totalAmountCommitted;
+        private Long id;
+
+        private BigDecimal totalAmount;
 
         @NotNull(message = "Disbursement type is required")
         private DisbursementType disbursementType;
 
         @Valid
         @Builder.Default
-        private List<TrancheDetailItem> trancheDetail = new ArrayList<>();
+        private List<TrancheCriterionItem> trancheCriteria = new ArrayList<>();
     }
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class TrancheDetailItem {
-        @NotBlank(message = "Tranche amount is required")
-        private String amount;
+    public static class TrancheCriterionItem {
+        private Long id;
 
-        @NotNull(message = "Tranche frequency is required")
-        private ScheduleFrequency frequency;
+        @NotNull(message = "Tranche amount is required")
+        @Positive(message = "Tranche amount must be positive")
+        private BigDecimal amountCriteria;
+
+        private LocalDate expectedReleaseDate;
+
+        @Builder.Default
+        private ScheduleType frequency = ScheduleType.MONTHLY;
 
         @Builder.Default
         private Boolean isFinalTranche = false;
@@ -118,34 +138,31 @@ public class CreateFundProfileRequest {
         @NotNull(message = "Release criteria is required")
         private CriterionType releaseCriteria;
 
+        /** FIXED_DATE. */
         private LocalDate releaseDate;
-        private String milestoneName;
-        private ApproverRole signOfRole;
-        private String otherSignOfRole;
-        private LocalDate targetDate;
-        private String utilisationPercentage;
-        private String triggerBase;
-        private String description;
-        private ApproverRole responsibleRole;
-        private String otherResponsibleRole;
-        private String reminderLeadTime;
-        private String repeatReminder;
 
+        /** MILESTONE_BASED. */
+        private String milestoneName;
+        private VerificationRole verificationSignOffRole;
+        private String otherVerificationSignOffRole;
+        private LocalDate targetDate;
+
+        /** UTILISATION_THRESHOLD. */
+        private Double utilisationPercentage;
+        private TriggerBasis triggerBasis;
+
+        /** Optional for UTILISATION_THRESHOLD, mandatory for OTHER. */
+        private String description;
+
+        /** Reminder block — only meaningful when remindSomeone is true. */
+        @Builder.Default
+        private Boolean remindSomeone = false;
+        private VerificationRole responsibleRole;
+        private String otherResponsibleRole;
+        private Integer reminderLeadTime;
+        @Builder.Default
+        private RepeatReminder repeatReminder = RepeatReminder.ONCE;
         @Builder.Default
         private Boolean escalateToDeputy = false;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class TrancheItem {
-        // Optional: renumbered 1..n in list order when omitted.
-        private Integer trancheNumber;
-        private String trancheName;
-        @NotNull(message = "Tranche amount is required")
-        @Positive(message = "Tranche amount must be positive")
-        private BigDecimal trancheAmount;
-        private LocalDate plannedReleaseDate;
     }
 }

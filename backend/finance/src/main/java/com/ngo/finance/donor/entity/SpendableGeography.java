@@ -14,21 +14,21 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @Entity
-@Table(name = "spendable_location")
+@Table(name = "spendable_geography")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = { "donorFundProfile", "state" }, callSuper = true)
-@ToString(exclude = { "donorFundProfile", "state" })
-public class SpendableLocation extends AuditEntity {
+@EqualsAndHashCode(exclude = { "fundProfile" }, callSuper = true)
+@ToString(exclude = { "fundProfile" })
+public class SpendableGeography extends AuditEntity {
 
     @ManyToOne
-    @JoinColumn(name = "donor_fund_profile_id", nullable = false, foreignKey = @ForeignKey(name = "fk_spendable_location_donor_fund_profile"))
-    private DonorFundProfile donorFundProfile;
+    @JoinColumn(name = "fund_profile_id", nullable = false, foreignKey = @ForeignKey(name = "fk_geo_profile"))
+    private DonorFundProfile fundProfile;
 
     @ManyToOne
-    @JoinColumn(name = "state_id", nullable = false, foreignKey = @ForeignKey(name = "fk_spendable_location_state"))
+    @JoinColumn(name = "state_id", nullable = false, foreignKey = @ForeignKey(name = "fk_donation_location_state"))
     private StateMaster state;
 
 }

@@ -37,11 +37,11 @@ public class DonorUtilisationRule extends AuditEntity {
     @JoinColumn(name = "fund_profile_id", nullable = false, foreignKey = @ForeignKey(name = "fk_util_profile"))
     private DonorFundProfile fundProfile;
 
-    @Column(name = "rule_type", nullable = false, length = 50)
+    @Column(name = "rule_type", length = 50)
     @Enumerated(EnumType.STRING)
     private RestrictionRuleType ruleType;
 
-    @Column(name = "other_rule_type", length = 50)
+    @Column(name = "other_rule_type", nullable = false, length = 50)
     private String otherRuleType;
 
     @Column(name = "limit_percentage", precision = 5, scale = 2)

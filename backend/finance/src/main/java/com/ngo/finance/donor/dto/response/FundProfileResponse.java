@@ -1,12 +1,6 @@
 package com.ngo.finance.donor.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.ngo.finance.donor.enums.ApproverRole;
-import com.ngo.finance.donor.enums.CriterionType;
-import com.ngo.finance.donor.enums.DisbursementType;
-import com.ngo.finance.donor.enums.ReportingFrequency;
-import com.ngo.finance.donor.enums.RestrictionRuleType;
-import com.ngo.finance.donor.enums.ScheduleFrequency;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,21 +24,20 @@ public class FundProfileResponse {
     private Long donorId;
     private String donorName;
     private String fundMode;
-    private String fundClassCode;
+    private String fundClass;
+    private String fundClassLabel;
     private String purpose;
     private Boolean programmeTied;
     private Long programmeId;
     private String programmeName;
-    private ReportingFrequency reportingFrequency;
+    private String reportingFrequency;
+    private String reportingFrequencyLabel;
     private Boolean movementAllowed;
     private Boolean explanationRequired;
     private Boolean onboardingComplete;
-    private List<SpendableLocationItem> spendableLocations;
+    private List<GeographyItem> geographies;
     private List<UtilisationRuleItem> utilisationRules;
     private List<DisbursementRuleItem> disbursementRules;
-    private List<TrancheItem> tranches;
-    // Σ tranche amounts — the Total Grant Amount inherited by grants on this profile.
-    private BigDecimal plannedTotalAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -52,10 +45,11 @@ public class FundProfileResponse {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class SpendableLocationItem {
+    public static class GeographyItem {
         private Long id;
         private Long stateId;
         private String stateName;
+        private String stateCode;
     }
 
     @Data
@@ -64,7 +58,8 @@ public class FundProfileResponse {
     @AllArgsConstructor
     public static class UtilisationRuleItem {
         private Long id;
-        private RestrictionRuleType ruleType;
+        private String ruleType;
+        private String ruleTypeLabel;
         private String otherRuleType;
         private BigDecimal limitPercentage;
         private String description;
@@ -76,45 +71,47 @@ public class FundProfileResponse {
     @AllArgsConstructor
     public static class DisbursementRuleItem {
         private Long id;
-        private String totalAmountCommitted;
-        private DisbursementType disbursementType;
-        private List<TrancheDetailItem> trancheDetail;
+        private BigDecimal totalAmount;
+        private String disbursementType;
+        private String disbursementTypeLabel;
+        private List<TrancheCriterionItem> trancheCriteria;
+        /** Sigma of trancheCriteria.amountCriteria. */
+        private BigDecimal allocatedAmount;
+        /** totalAmount minus allocatedAmount. */
+        private BigDecimal unallocatedAmount;
+        private Boolean balanced;
     }
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class TrancheDetailItem {
+    public static class TrancheCriterionItem {
         private Long id;
-        private String amount;
-        private ScheduleFrequency frequency;
+        private BigDecimal amountCriteria;
+        private LocalDate expectedReleaseDate;
+        private String frequency;
+        private String frequencyLabel;
         private Boolean isFinalTranche;
-        private CriterionType releaseCriteria;
+        private String releaseCriteria;
+        private String releaseCriteriaLabel;
         private LocalDate releaseDate;
         private String milestoneName;
-        private ApproverRole signOfRole;
-        private String otherSignOfRole;
+        private String verificationSignOffRole;
+        private String verificationSignOffRoleLabel;
+        private String otherVerificationSignOffRole;
         private LocalDate targetDate;
-        private String utilisationPercentage;
-        private String triggerBase;
+        private Double utilisationPercentage;
+        private String triggerBasis;
+        private String triggerBasisLabel;
         private String description;
-        private ApproverRole responsibleRole;
+        private Boolean remindSomeone;
+        private String responsibleRole;
+        private String responsibleRoleLabel;
         private String otherResponsibleRole;
-        private String reminderLeadTime;
+        private Integer reminderLeadTime;
         private String repeatReminder;
+        private String repeatReminderLabel;
         private Boolean escalateToDeputy;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class TrancheItem {
-        private Long id;
-        private Integer trancheNumber;
-        private String trancheName;
-        private BigDecimal trancheAmount;
-        private LocalDate plannedReleaseDate;
     }
 }

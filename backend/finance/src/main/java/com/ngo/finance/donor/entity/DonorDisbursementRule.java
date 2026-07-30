@@ -2,6 +2,7 @@ package com.ngo.finance.donor.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
 import com.ngo.finance.donor.enums.DisbursementType;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,7 +21,6 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import java.util.List;
-import jakarta.persistence.CascadeType;
 
 /**
  * How money is released for a fund profile (workbook sheet 06) — tranche-on-UC
@@ -40,15 +41,15 @@ public class DonorDisbursementRule extends AuditEntity {
     @JoinColumn(name = "fund_profile_id", nullable = false, foreignKey = @ForeignKey(name = "fk_disb_profile"))
     private DonorFundProfile fundProfile;
 
-    @Column(name = "total_amount_committed", nullable = false)
-    private String totalAmountCommitted;
+    @Column(name = "total_amount", precision = 19, scale = 2)
+    private BigDecimal totalAmount;
 
     @Column(name = "disbursement_type", nullable = false, length = 50)
     @Enumerated(EnumType.STRING)
     private DisbursementType disbursementType;
 
-    @OneToMany(mappedBy = "disbursementRule", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "donorDisbursementRule", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<DonorTrancheDetail> trancheDetail = new ArrayList<>();
+    private List<DonorTrancheCriterion> donorTrancheCriteria = new ArrayList();
 
 }
