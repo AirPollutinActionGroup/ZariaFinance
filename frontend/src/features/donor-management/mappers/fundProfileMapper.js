@@ -53,9 +53,11 @@ export function toFundProfileRequest(values) {
     movementAllowed: Boolean(values.movementAllowed),
     explanationRequired: Boolean(values.explanationRequired),
     onboardingComplete: Boolean(values.onboardingComplete),
-    geographies: (values.geographies || [])
-      .map((g) => ({ geographyName: (g.geographyName || '').trim() }))
-      .filter((g) => g.geographyName),
+    geographies: (values.selectedGeographies && values.selectedGeographies.length > 0)
+      ? values.selectedGeographies.map((g) => ({ geographyName: g }))
+      : (values.geographies || [])
+          .map((g) => ({ geographyName: (g.geographyName || '').trim() }))
+          .filter((g) => g.geographyName),
     utilisationRules: (values.utilisationRules || [])
       .filter((r) => (r.ruleType || '').trim())
       .map((r) => ({
@@ -97,6 +99,7 @@ export function toFundProfileFormValues(dto) {
     movementAllowed: dto.movementAllowed ?? false,
     explanationRequired: dto.explanationRequired ?? false,
     onboardingComplete: dto.onboardingComplete ?? false,
+    selectedGeographies: (dto.geographies || []).map((g) => g.geographyName),
     geographies: (dto.geographies || []).map((g) => ({ geographyName: g.geographyName })),
     utilisationRules: (dto.utilisationRules || []).map((r) => ({
       ruleType: r.ruleType,

@@ -68,8 +68,8 @@ describe('DisbursementForm', () => {
 
   it('collapses saved tranches into summary cards with an Edit action', () => {
     renderForm();
-    expect(screen.getByText('Tranche 1')).toBeInTheDocument();
-    expect(screen.getByText('Tranche 2')).toBeInTheDocument();
+    expect(screen.getByText('First')).toBeInTheDocument();
+    expect(screen.getByText('Second')).toBeInTheDocument();
     // Summary view: figures as text, no inputs.
     expect(screen.getAllByRole('button', { name: /edit/i })).toHaveLength(2);
     expect(screen.queryByLabelText(/tranche name/i)).not.toBeInTheDocument();
@@ -126,7 +126,7 @@ describe('DisbursementForm', () => {
 
     expect(await screen.findByLabelText(/milestone name/i)).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: /verification sign-off/i })).toBeInTheDocument();
-    expect(screen.getByText(/optional — some milestones are event-driven/i)).toBeInTheDocument();
+    expect(screen.getByText(/some milestones are event-driven/i)).toBeInTheDocument();
     expect(screen.getByText(/remind someone about this/i)).toBeInTheDocument();
 
     // A threshold is checked by the system, so it offers no reminder.
@@ -147,9 +147,9 @@ describe('DisbursementForm', () => {
     await user.click(screen.getByLabelText(/remind someone about this/i));
 
     expect(await screen.findByRole('combobox', { name: /responsible role/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/lead time \(days\)/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/reminder lead time/i)).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: /repeat/i })).toBeInTheDocument();
-    expect(screen.getByText(/the deputy is notified only/i)).toBeInTheDocument();
+    expect(screen.getByText(/deputy is notified only/i)).toBeInTheDocument();
   });
 
   it('tracks allocation against the committed amount and gates finalising on it', async () => {
@@ -201,15 +201,18 @@ describe('DisbursementForm', () => {
 
     await user.click(screen.getByRole('button', { name: /add tranche/i }));
 
-    // The new card opens for editing: three saved-but-collapsed cards would hide it.
-    const cards = screen.getAllByText(/^Tranche \d$/);
-    expect(cards).toHaveLength(3);
+    // The new tranche has no server id yet, so it opens for editing while the
+    // two saved tranches stay collapsed.
+    expect(screen.getByText('First')).toBeInTheDocument();
+    expect(screen.getByText('Second')).toBeInTheDocument();
+    expect(screen.getByText('New tranche')).toBeInTheDocument();
     expect(await screen.findByRole('combobox', { name: /criterion 1/i })).toBeInTheDocument();
   });
 
   it('marks a met criterion in the tranche summary', () => {
     renderForm();
-    const secondCard = screen.getByText('Tranche 2').closest('div');
-    expect(within(secondCard).getByText(/donor approval · met/i)).toBeInTheDocument();
+    const secondCard = screen.getByText('Second').closest('.MuiCard-root');
+    expect(within(secondCard).getByText(/donor approval/i)).toBeInTheDocument();
+    expect(within(secondCard).getByText(/met/i)).toBeInTheDocument();
   });
 });

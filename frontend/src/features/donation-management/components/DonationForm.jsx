@@ -16,6 +16,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  GeographyMultiSelect,
   RhfMultiSelect,
   RhfRadioGroup,
   RhfSelect,
@@ -63,7 +64,6 @@ function SectionTitle({ children }) {
 export function DonationForm({
   donors,
   programmes,
-  states,
   defaultValues,
   onSubmit,
   submitting,
@@ -109,8 +109,6 @@ export function DonationForm({
   const programmeOptions = [{ value: '', label: '— not programme-tied —' }].concat(
     (programmes || []).map((p) => ({ value: String(p.id), label: p.programmeName })),
   );
-  const stateOptions = (states || []).map((s) => ({ value: String(s.id), label: s.stateName }));
-
   const submit = handleSubmit(async (values) => {
     try {
       await onSubmit(values);
@@ -211,13 +209,12 @@ export function DonationForm({
                 <RhfSelect name="programmeId" control={control} label="Programme" options={programmeOptions} />
               </Grid>
               <Grid size={{ xs: 12 }}>
-                <RhfMultiSelect
+                <GeographyMultiSelect
                   name="stateIds"
                   control={control}
                   label="Location / State"
                   required
-                  options={stateOptions}
-                  helperText="One gift may fund work across several states — feeds FCRA state-wise disclosure"
+                  helperText="One gift may fund work across several states — feeds FCRA state-wise disclosure (defaults to 'No geographies — spendable anywhere' if left blank)"
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>

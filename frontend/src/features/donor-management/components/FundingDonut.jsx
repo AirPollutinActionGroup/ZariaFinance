@@ -22,10 +22,15 @@ export function FundingDonut({ committed, received, utilised }) {
   const available = safeReceived - safeUtilised;
   const awaiting = safeCommitted - safeReceived;
 
+  const denom = safeCommitted || 1;
+  const utilisedPct = Math.round((100 * safeUtilised) / denom);
+  const availablePct = Math.round((100 * available) / denom);
+  const awaitingPct = Math.round((100 * awaiting) / denom);
+
   const segments = [
-    { label: 'Utilised', value: safeUtilised, color: 'var(--info)' },
-    { label: 'Available', value: available, color: 'var(--ok)' },
-    { label: 'Awaiting receipt', value: awaiting, color: 'var(--line)' },
+    { label: 'Utilised', value: safeUtilised, pct: utilisedPct, color: '#F57C00' },
+    { label: 'Available', value: available, pct: availablePct, color: '#00ACC1' },
+    { label: 'Awaiting receipt', value: awaiting, pct: awaitingPct, color: '#1E88E5' },
   ];
 
   let offset = 0;
@@ -34,11 +39,11 @@ export function FundingDonut({ committed, received, utilised }) {
     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} sx={{ alignItems: 'center' }}>
       <Box sx={{ position: 'relative', width: 140, height: 140, flexShrink: 0 }}>
         <svg viewBox="0 0 140 140" width="140" height="140" role="img" aria-label="Funding position split">
-          <circle cx="70" cy="70" r={R} fill="none" stroke="var(--line2)" strokeWidth={STROKE} />
+          <circle cx="70" cy="70" r={R} fill="none" stroke="var(--line2, #e0e0e0)" strokeWidth={STROKE} />
           <g transform="rotate(-90 70 70)">
             {segments.map((s) => {
               const frac = safeCommitted > 0 ? s.value / safeCommitted : 0;
-              const len = Math.max(0, frac * CIRC - 2); // 2px surface gap between fills
+              const len = Math.max(0, frac * CIRC - 2);
               const el = (
                 <circle
                   key={s.label}
@@ -66,12 +71,13 @@ export function FundingDonut({ committed, received, utilised }) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            textAlign: 'center',
           }}
         >
-          <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1, fontSize: 10 }}>
             Committed
           </Typography>
-          <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.25 }}>
+          <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.25, fontSize: 13.5 }}>
             {formatInr(safeCommitted)}
           </Typography>
         </Box>
@@ -79,15 +85,29 @@ export function FundingDonut({ committed, received, utilised }) {
 
       <Stack spacing={1} sx={{ minWidth: 0, flexGrow: 1 }}>
         {segments.map((s) => (
-          <Stack key={s.label} direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <Box sx={{ width: 12, height: 12, borderRadius: '3px', bgcolor: s.color, flexShrink: 0 }} />
-            <Typography variant="body2" sx={{ flexGrow: 1, color: 'text.secondary' }}>
+          <Box
+            key={s.label}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              px: 1.25,
+              py: 0.75,
+              borderRadius: 1,
+              bgcolor: 'var(--card2, rgba(0, 0, 0, 0.02))',
+              borderLeft: `3px solid ${s.color}`,
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 12, color: 'text.secondary' }}>
               {s.label}
             </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
-              {formatInr(s.value)}
+            <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>
+              {formatInr(s.value)}{' '}
+              <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400, fontSize: 10.5 }}>
+                ({s.pct}%)
+              </Box>
             </Typography>
-          </Stack>
+          </Box>
         ))}
       </Stack>
     </Stack>

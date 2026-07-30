@@ -16,7 +16,7 @@ function StatCard({ label, value, dark = false }) {
 function SideNav() {
   const budgetItems = ["Budget", "Forecast", "Actuals", "Variance"];
   const controlItems = ["Committed (Trading)", "Unassigned Funding", "Donor Mapping"];
-  const insightItems = ["Optimiser", "Reports"];
+  const insightItems = ["Optimiser"/* , "Reports" */];
 
   return (
     <aside className="dm-sidebar">
