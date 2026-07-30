@@ -48,8 +48,7 @@ public class FundProfileMapper {
         return profile;
     }
 
-    /** Update an existing entity's scalar fields and fully replace its rule
-     *  collections (spendable locations are replaced by the service). */
+    /** Update an existing entity's scalar fields and fully replace its child collections. */
     public void updateEntity(CreateFundProfileRequest request, DonorFundProfile profile) {
         profile.setFundMode(request.getFundMode());
         profile.setFundClass(request.getFundClass());
@@ -171,7 +170,7 @@ public class FundProfileMapper {
                 .movementAllowed(p.getMovementAllowed())
                 .explanationRequired(p.getExplanationRequired())
                 .onboardingComplete(p.getOnboardingComplete())
-                .spendableLocations(locations)
+                .geographies(geos)
                 .utilisationRules(utils)
                 .disbursementRules(disbs)
                 .createdAt(p.getCreatedAt())

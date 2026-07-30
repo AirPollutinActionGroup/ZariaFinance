@@ -26,8 +26,8 @@ import com.ngo.finance.donor.enums.VerificationRole;
  * nullable
  * {@code @Embedded} value object.
  *
- * Reuses existing enums {@link CriterionType} and {@link ApproverRole} — do not
- * redefine them here.
+ * Reuses existing enums {@link CriterionType} and {@link VerificationRole} — do
+ * not redefine them here.
  */
 @Entity
 @Table(name = "donor_tranche_criterion")

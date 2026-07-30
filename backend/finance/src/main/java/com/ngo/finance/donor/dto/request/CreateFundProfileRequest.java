@@ -59,9 +59,9 @@ public class CreateFundProfileRequest {
     @Builder.Default
     private Boolean onboardingComplete = false;
 
-    /** State ids the fund may be spent in; empty = spendable anywhere. */
+    @Valid
     @Builder.Default
-    private List<Long> stateIds = new ArrayList<>();
+    private List<GeographyItem> geographies = new ArrayList<>();
 
     @Valid
     @Builder.Default

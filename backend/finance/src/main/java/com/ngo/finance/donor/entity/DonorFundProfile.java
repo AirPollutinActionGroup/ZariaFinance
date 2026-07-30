@@ -57,10 +57,6 @@ public class DonorFundProfile extends AuditEntity {
     @Enumerated(EnumType.STRING)
     private ReportingFrequency reportingFrequency;
 
-    @Column(name = "reporting_frequency", length = 30)
-    @Enumerated(EnumType.STRING)
-    private ReportingFrequency reportingFrequency;
-
     @Column(columnDefinition = "TEXT")
     private String purpose;
 
@@ -84,7 +80,7 @@ public class DonorFundProfile extends AuditEntity {
     @Builder.Default
     private Boolean onboardingComplete = false;
 
-    @OneToMany(mappedBy = "donorFundProfile", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "fundProfile", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<SpendableGeography> geographies = new ArrayList<>();
 

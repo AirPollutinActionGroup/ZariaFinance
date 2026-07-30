@@ -1,12 +1,6 @@
 package com.ngo.finance.donor.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.ngo.finance.donor.enums.ApproverRole;
-import com.ngo.finance.donor.enums.CriterionType;
-import com.ngo.finance.donor.enums.DisbursementType;
-import com.ngo.finance.donor.enums.ReportingFrequency;
-import com.ngo.finance.donor.enums.RestrictionRuleType;
-import com.ngo.finance.donor.enums.ScheduleFrequency;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -41,7 +35,7 @@ public class FundProfileResponse {
     private Boolean movementAllowed;
     private Boolean explanationRequired;
     private Boolean onboardingComplete;
-    private List<SpendableLocationItem> spendableLocations;
+    private List<GeographyItem> geographies;
     private List<UtilisationRuleItem> utilisationRules;
     private List<DisbursementRuleItem> disbursementRules;
     private LocalDateTime createdAt;
@@ -51,7 +45,7 @@ public class FundProfileResponse {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class SpendableLocationItem {
+    public static class GeographyItem {
         private Long id;
         private Long stateId;
         private String stateName;
