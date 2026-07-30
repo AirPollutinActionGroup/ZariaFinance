@@ -16,7 +16,14 @@ const CRITERION_OPTIONS = CRITERION_TYPES.map(({ value, label }) => ({ value, la
 /**
  * Single Criterion Box component matching the exact prototype HTML/UI spec.
  */
-export function CriterionFields({ control, path, index, onRemove, canRemove = true }) {
+export function CriterionFields({
+  control,
+  path,
+  index,
+  onRemove,
+  canRemove = true,
+  responsibleRoleOptions = RESPONSIBLE_ROLES,
+}) {
   const criterionType = useWatch({ control, name: `${path}.criterionType` });
   const verificationRole = useWatch({ control, name: `${path}.verificationRole` });
   const responsibleRole = useWatch({ control, name: `${path}.reminder.responsibleRole` });
@@ -246,7 +253,7 @@ export function CriterionFields({ control, path, index, onRemove, canRemove = tr
                     control={control}
                     label="Responsible role *"
                     required
-                    options={RESPONSIBLE_ROLES}
+                    options={responsibleRoleOptions}
                   />
                 </Grid>
                 {responsibleRole === 'OTHER' ? (

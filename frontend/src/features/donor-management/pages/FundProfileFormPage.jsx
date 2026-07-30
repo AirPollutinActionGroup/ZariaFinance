@@ -37,23 +37,29 @@ import { fundProfileSchema, fundProfileFormDefaults } from '../validation/fundPr
 import { toFundProfileFormValues } from '../mappers/fundProfileMapper.js';
 import { TrancheCard } from '../components/TrancheCard.jsx';
 import { UtilisationRuleRow } from '../components/UtilisationRuleRow.jsx';
-import { emptyCriterion } from '../mappers/disbursementMapper.js';
+import { emptyCriterion, VERIFICATION_ROLES } from '../mappers/disbursementMapper.js';
 
 const FUND_MODE_OPTIONS = [
-  { value: 'Restricted', label: 'Restricted' },
-  { value: 'Unrestricted', label: 'Unrestricted' },
+  { value: 'RESTRICTED', label: 'Restricted' },
+  { value: 'UNRESTRICTED', label: 'Unrestricted' },
 ];
 const FUND_CLASS_OPTIONS = [
   { value: '', label: '— none (edge / pending) —' },
-  { value: 'A', label: 'Class A · Fully restricted' },
-  { value: 'B', label: 'Class B · Unrestricted w/ explanation' },
-  { value: 'C', label: 'Class C · Fully unrestricted' },
+  { value: 'CLASS_A_RESTRICTED', label: 'Class A · Fully restricted' },
+  { value: 'CLASS_B_UNRESTRICTED', label: 'Class B · Unrestricted w/ explanation' },
+  { value: 'CLASS_C_UNRESTRICTED', label: 'Class C · Fully unrestricted' },
 ];
 const REPORTING_OPTIONS = [
   { value: '', label: '—' },
-  { value: 'Quarterly', label: 'Quarterly' },
-  { value: 'Half-yearly', label: 'Half-yearly' },
-  { value: 'Annual', label: 'Annual' },
+  { value: 'QUARTERLY', label: 'Quarterly' },
+  { value: 'HALF_YEARLY', label: 'Half-yearly' },
+  { value: 'ANNUAL', label: 'Annual' },
+];
+const SCHEDULE_FREQUENCY_OPTIONS = [
+  { value: 'MONTHLY', label: 'Monthly' },
+  { value: 'QUARTERLY', label: 'Quarterly' },
+  { value: 'HALF_YEARLY', label: 'Half-Yearly' },
+  { value: 'YEARLY', label: 'Yearly' },
 ];
 
 /** Inline RHF-bound switch (booleans aren't covered by the shared form components). */
@@ -86,10 +92,6 @@ export function FundProfileFormPage() {
   const updateMutation = useUpdateFundProfile(id, donorId);
   const mutation = isEdit ? updateMutation : createMutation;
 
-  const [disbursementType, setDisbursementType] = useState('LUMP_SUM');
-  const [scheduleType, setScheduleType] = useState('Quarterly');
-  const [receivingDate, setReceivingDate] = useState('');
-  const [totalCommitted, setTotalCommitted] = useState('');
   const [expandedIndex, setExpandedIndex] = useState(0);
   const [disbursementScheduleOpen, setDisbursementScheduleOpen] = useState(false);
   const [geographiesOpen, setGeographiesOpen] = useState(false);
@@ -103,6 +105,8 @@ export function FundProfileFormPage() {
   const utilisationRules = useFieldArray({ control, name: 'utilisationRules' });
   const tranches = useFieldArray({ control, name: 'tranches' });
 
+  const disbursementType = useWatch({ control, name: 'disbursementType' });
+  const frequency = useWatch({ control, name: 'frequency' });
   const trancheValues = useWatch({ control, name: 'tranches' });
   const hasFinalTranche = (trancheValues || []).some((t) => Boolean(t?.isFinal));
   const programmeTied = useWatch({ control, name: 'programmeTied' });
@@ -116,7 +120,7 @@ export function FundProfileFormPage() {
   useEffect(() => {
     if (isEdit && profileQuery.data) {
       reset(toFundProfileFormValues(profileQuery.data));
-      if (profileQuery.data.disbursementSchedule || (profileQuery.data.tranches && profileQuery.data.tranches.length > 0)) {
+      if (profileQuery.data.disbursementRules && profileQuery.data.disbursementRules.length > 0) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time UI sync when async profile data first arrives
         setDisbursementScheduleOpen(true);
       }
@@ -162,7 +166,7 @@ export function FundProfileFormPage() {
                   <RhfSelect name="fundMode" control={control} label="Fund mode" options={FUND_MODE_OPTIONS} required />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                  <RhfSelect name="fundClassCode" control={control} label="Fund class (A/B/C)" options={FUND_CLASS_OPTIONS} />
+                  <RhfSelect name="fundClass" control={control} label="Fund class (A/B/C)" options={FUND_CLASS_OPTIONS} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                   <RhfSelect name="reportingFrequency" control={control} label="Reporting frequency" options={REPORTING_OPTIONS} />
@@ -243,7 +247,7 @@ export function FundProfileFormPage() {
                     </Box>
                   ))}
                 </Stack>
-                <Button size="small" startIcon={<AddIcon />} onClick={() => utilisationRules.append({ ruleType: 'ADMIN_OVERHEAD', limitPercentage: '', description: '' })} sx={{ mt: 2 }}>
+                <Button size="small" startIcon={<AddIcon />} onClick={() => utilisationRules.append({ ruleType: 'ADMIN_OVERHEAD_COST', limitPercentage: '', description: '' })} sx={{ mt: 2 }}>
                   Add rule
                 </Button>
               </Collapse>
@@ -274,36 +278,43 @@ export function FundProfileFormPage() {
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 0.75 }}>
                       Total amount committed *
                     </Typography>
-                    <TextField
-                      type="number"
-                      value={totalCommitted}
-                      onChange={(e) => setTotalCommitted(e.target.value)}
-                      placeholder="1,00,00,000"
-                      fullWidth
-                      slotProps={{
-                        htmlInput: { min: 0, step: '1' },
-                        input: {
-                          startAdornment: (
-                            <InputAdornment position="start" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: 'monospace' }}>
-                              ₹
-                            </InputAdornment>
-                          ),
-                          sx: {
-                            fontWeight: 600,
-                            fontFamily: 'monospace',
-                            fontSize: 15,
-                            borderRadius: 1.5,
-                            '& ::placeholder': {
-                              color: '#9a9a94',
-                              opacity: 1,
-                              fontWeight: 500,
+                    <Controller
+                      name="totalAmount"
+                      control={control}
+                      render={({ field, fieldState }) => (
+                        <TextField
+                          type="number"
+                          value={field.value ?? ''}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          placeholder="1,00,00,000"
+                          fullWidth
+                          error={Boolean(fieldState.error)}
+                          slotProps={{
+                            htmlInput: { min: 0, step: '1' },
+                            input: {
+                              startAdornment: (
+                                <InputAdornment position="start" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: 'monospace' }}>
+                                  ₹
+                                </InputAdornment>
+                              ),
+                              sx: {
+                                fontWeight: 600,
+                                fontFamily: 'monospace',
+                                fontSize: 15,
+                                borderRadius: 1.5,
+                                '& ::placeholder': {
+                                  color: '#9a9a94',
+                                  opacity: 1,
+                                  fontWeight: 500,
+                                },
+                              },
                             },
-                          },
-                        },
-                      }}
+                          }}
+                        />
+                      )}
                     />
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                      Carried from the agreement. All tranches must add up to this figure.
+                      Total committed for this profile. All tranches must add up to this figure.
                     </Typography>
                   </Grid>
 
@@ -312,56 +323,62 @@ export function FundProfileFormPage() {
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 0.75 }}>
                       Disbursement type *
                     </Typography>
-                    <Box
-                      sx={{
-                        display: 'inline-flex',
-                        bgcolor: 'var(--canvas, #F6F6F3)',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: 1.5,
-                        p: 0.5,
-                        gap: 0.5,
-                      }}
-                    >
-                      <Button
-                        type="button"
-                        onClick={() => setDisbursementType('LUMP_SUM')}
-                        sx={{
-                          px: 2.5,
-                          py: 0.75,
-                          borderRadius: 1.2,
-                          fontWeight: 600,
-                          fontSize: 13,
-                          textTransform: 'none',
-                          color: disbursementType === 'LUMP_SUM' ? '#fff' : 'text.primary',
-                          bgcolor: disbursementType === 'LUMP_SUM' ? '#181818' : 'transparent',
-                          '&:hover': {
-                            bgcolor: disbursementType === 'LUMP_SUM' ? '#000' : 'action.hover',
-                          },
-                        }}
-                      >
-                        Lump sum
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => setDisbursementType('TRANCHES')}
-                        sx={{
-                          px: 2.5,
-                          py: 0.75,
-                          borderRadius: 1.2,
-                          fontWeight: 600,
-                          fontSize: 13,
-                          textTransform: 'none',
-                          color: disbursementType === 'TRANCHES' ? '#fff' : 'text.primary',
-                          bgcolor: disbursementType === 'TRANCHES' ? '#181818' : 'transparent',
-                          '&:hover': {
-                            bgcolor: disbursementType === 'TRANCHES' ? '#000' : 'action.hover',
-                          },
-                        }}
-                      >
-                        Tranches
-                      </Button>
-                    </Box>
+                    <Controller
+                      name="disbursementType"
+                      control={control}
+                      render={({ field }) => (
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            bgcolor: 'var(--canvas, #F6F6F3)',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 1.5,
+                            p: 0.5,
+                            gap: 0.5,
+                          }}
+                        >
+                          <Button
+                            type="button"
+                            onClick={() => field.onChange('LUMP_SUM')}
+                            sx={{
+                              px: 2.5,
+                              py: 0.75,
+                              borderRadius: 1.2,
+                              fontWeight: 600,
+                              fontSize: 13,
+                              textTransform: 'none',
+                              color: field.value === 'LUMP_SUM' ? '#fff' : 'text.primary',
+                              bgcolor: field.value === 'LUMP_SUM' ? '#181818' : 'transparent',
+                              '&:hover': {
+                                bgcolor: field.value === 'LUMP_SUM' ? '#000' : 'action.hover',
+                              },
+                            }}
+                          >
+                            Lump sum
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={() => field.onChange('TRANCHES')}
+                            sx={{
+                              px: 2.5,
+                              py: 0.75,
+                              borderRadius: 1.2,
+                              fontWeight: 600,
+                              fontSize: 13,
+                              textTransform: 'none',
+                              color: field.value === 'TRANCHES' ? '#fff' : 'text.primary',
+                              bgcolor: field.value === 'TRANCHES' ? '#181818' : 'transparent',
+                              '&:hover': {
+                                bgcolor: field.value === 'TRANCHES' ? '#000' : 'action.hover',
+                              },
+                            }}
+                          >
+                            Tranches
+                          </Button>
+                        </Box>
+                      )}
+                    />
                   </Grid>
                 </Grid>
 
@@ -371,12 +388,18 @@ export function FundProfileFormPage() {
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 0.75 }}>
                       Receiving date *
                     </Typography>
-                    <TextField
-                      type="date"
-                      value={receivingDate}
-                      onChange={(e) => setReceivingDate(e.target.value)}
-                      fullWidth
-                      slotProps={{ inputLabel: { shrink: true } }}
+                    <Controller
+                      name="receivingDate"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          type="date"
+                          value={field.value ?? ''}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          fullWidth
+                          slotProps={{ inputLabel: { shrink: true } }}
+                        />
+                      )}
                     />
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
                       The full committed amount is released on this date.
@@ -390,33 +413,39 @@ export function FundProfileFormPage() {
                         sets tranche frequency
                       </Typography>
                     </Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 3 }}>
-                      {['Monthly', 'Quarterly', 'Half-Yearly', 'Yearly'].map((sched) => {
-                        const selected = scheduleType === sched;
-                        return (
-                          <Chip
-                            key={sched}
-                            label={sched}
-                            onClick={() => setScheduleType(sched)}
-                            sx={{
-                              px: 1.5,
-                              py: 2,
-                              fontWeight: 600,
-                              fontSize: 13,
-                              borderRadius: 2,
-                              cursor: 'pointer',
-                              bgcolor: selected ? '#F2E041' : 'background.paper',
-                              color: selected ? '#181818' : 'text.primary',
-                              border: '1px solid',
-                              borderColor: selected ? '#F2E041' : 'divider',
-                              '&:hover': {
-                                bgcolor: selected ? '#ecd730' : 'action.hover',
-                              },
-                            }}
-                          />
-                        );
-                      })}
-                    </Stack>
+                    <Controller
+                      name="frequency"
+                      control={control}
+                      render={({ field }) => (
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 3 }}>
+                          {SCHEDULE_FREQUENCY_OPTIONS.map((sched) => {
+                            const selected = field.value === sched.value;
+                            return (
+                              <Chip
+                                key={sched.value}
+                                label={sched.label}
+                                onClick={() => field.onChange(sched.value)}
+                                sx={{
+                                  px: 1.5,
+                                  py: 2,
+                                  fontWeight: 600,
+                                  fontSize: 13,
+                                  borderRadius: 2,
+                                  cursor: 'pointer',
+                                  bgcolor: selected ? '#F2E041' : 'background.paper',
+                                  color: selected ? '#181818' : 'text.primary',
+                                  border: '1px solid',
+                                  borderColor: selected ? '#F2E041' : 'divider',
+                                  '&:hover': {
+                                    bgcolor: selected ? '#ecd730' : 'action.hover',
+                                  },
+                                }}
+                              />
+                            );
+                          })}
+                        </Stack>
+                      )}
+                    />
 
                     <Divider sx={{ my: 3 }} />
 
@@ -473,9 +502,11 @@ export function FundProfileFormPage() {
                         expanded={expandedIndex === i}
                         onToggleExpanded={() => setExpandedIndex(expandedIndex === i ? null : i)}
                         onRemove={() => tranches.remove(i)}
-                        frequencyLabel={scheduleType}
+                        frequencyLabel={SCHEDULE_FREQUENCY_OPTIONS.find((o) => o.value === frequency)?.label}
                         lumpSum={false}
                         isFinal={Boolean(f.isFinal)}
+                        singleCriterion
+                        responsibleRoleOptions={VERIFICATION_ROLES}
                       />
                     ))}
 

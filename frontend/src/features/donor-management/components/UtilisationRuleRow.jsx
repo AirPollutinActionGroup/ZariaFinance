@@ -10,7 +10,7 @@ import { UTILISATION_RULE_TYPES } from '../constants.js';
 export function UtilisationRuleRow({ control, path, index, onRemove }) {
   const ruleType = useWatch({ control, name: `${path}.ruleType` });
   const isNotApplicable = ruleType === 'NOT_APPLICABLE';
-  const isOther = ruleType === 'OTHER';
+  const isOther = ruleType === 'OTHER_CUSTOM';
   const showLimit = Boolean(ruleType && !isNotApplicable);
 
   // Dynamic grid sizing based on visible fields
@@ -36,7 +36,7 @@ export function UtilisationRuleRow({ control, path, index, onRemove }) {
       {isOther ? (
         <Grid size={{ xs: 12, sm: 3 }}>
           <RhfTextField
-            name={`${path}.customRuleType`}
+            name={`${path}.otherRuleType`}
             control={control}
             label="Specify rule type"
             placeholder="e.g. Travel Cap"

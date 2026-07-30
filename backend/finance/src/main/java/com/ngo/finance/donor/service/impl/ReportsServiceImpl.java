@@ -3,9 +3,11 @@ package com.ngo.finance.donor.service.impl;
 import com.ngo.finance.donor.dto.response.FcraRegisterEntry;
 import com.ngo.finance.donor.dto.response.UtilisationComplianceEntry;
 import com.ngo.finance.donor.entity.DonorFundProfile;
+import com.ngo.finance.donor.entity.DonorUtilisationRule;
 import com.ngo.finance.donor.entity.GrantAgreement;
 import com.ngo.finance.donor.entity.GrantTranche;
 import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.donor.enums.RestrictionRuleType;
 import com.ngo.finance.donor.repository.GrantRepository;
 import com.ngo.finance.donor.service.ReportsService;
 import java.math.BigDecimal;
@@ -71,8 +73,9 @@ public class ReportsServiceImpl implements ReportsService {
             entries.add(UtilisationComplianceEntry.builder()
                     .grantCode(grant.getGrantCode())
                     .donorName(grant.getDonor() != null ? grant.getDonor().getDonorName() : null)
-                    .fundClassCode(profile != null ? profile.getFundClassCode() : null)
-                    .overheadLimitPercent(profile != null ? profile.getOverheadLimitPercent() : null)
+                    .fundClassCode(profile != null && profile.getFundClass() != null
+                            ? profile.getFundClass().name() : null)
+                    .overheadLimitPercent(overheadLimitPercent(profile))
                     .committed(committed)
                     .received(received)
                     .utilised(utilised)
@@ -97,5 +100,17 @@ public class ReportsServiceImpl implements ReportsService {
 
     private BigDecimal nz(BigDecimal v) {
         return v != null ? v : BigDecimal.ZERO;
+    }
+
+    /** The admin/overhead cap configured on the profile's utilisation rules, if any. */
+    private BigDecimal overheadLimitPercent(DonorFundProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        return profile.getUtilisationRules().stream()
+                .filter(r -> r.getRuleType() == RestrictionRuleType.ADMIN_OVERHEAD_COST)
+                .map(DonorUtilisationRule::getLimitPercentage)
+                .findFirst()
+                .orElse(null);
     }
 }

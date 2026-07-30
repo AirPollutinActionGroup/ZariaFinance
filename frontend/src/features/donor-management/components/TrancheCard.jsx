@@ -37,6 +37,8 @@ export function TrancheCard({
   frequencyLabel,
   lumpSum,
   isFinal: isFinalProp,
+  singleCriterion = false,
+  responsibleRoleOptions,
 }) {
   const criteria = useFieldArray({ control, name: `${path}.criteria` });
   const tranche = useWatch({ control, name: path });
@@ -380,13 +382,14 @@ export function TrancheCard({
                 control={control}
                 path={`${path}.criteria.${i}`}
                 index={i}
-                canRemove={criteria.fields.length > 1}
+                canRemove={!singleCriterion && criteria.fields.length > 1}
                 onRemove={() => criteria.remove(i)}
+                responsibleRoleOptions={responsibleRoleOptions}
               />
             ))}
           </Stack>
 
-          {criteria.fields.length === 0 ? (
+          {criteria.fields.length === 0 && !singleCriterion ? (
             <Button
               size="small"
               variant="outlined"

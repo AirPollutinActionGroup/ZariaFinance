@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RhfMultiSelect } from './RhfMultiSelect.jsx';
-import { geographyApi } from '../../../features/donor-management/api/geographyApi.js';
+import { geographyService } from '../../../features/donor-management/services/geographyService.js';
 
 /**
- * Reusable API-connected Multi-Select for States/UTs + "All".
- * Fetches states directly from backend geographyApi.listStates().
+ * Reusable API-connected Multi-Select for States/UTs + "All". Option values
+ * are numeric state ids (geographyService.listStates() already maps
+ * {value: state.id, label: state.stateName}) — every consumer sends these
+ * straight through as stateIds, not names.
  */
 export function GeographyMultiSelect({
   name = 'selectedGeographies',
@@ -16,16 +18,13 @@ export function GeographyMultiSelect({
 }) {
   const { data: apiStates } = useQuery({
     queryKey: ['geography', 'states'],
-    queryFn: () => geographyApi.listStates(),
+    queryFn: () => geographyService.listStates(),
     staleTime: 1000 * 60 * 60,
   });
 
   const options = useMemo(() => [
     { value: 'ALL', label: 'All (Spendable anywhere)' },
-    ...(apiStates || []).map((s) => ({
-      value: s.stateName || s.name || String(s.id),
-      label: s.stateName || s.name || String(s.label || s.id),
-    })),
+    ...(apiStates || []),
   ], [apiStates]);
 
   return (

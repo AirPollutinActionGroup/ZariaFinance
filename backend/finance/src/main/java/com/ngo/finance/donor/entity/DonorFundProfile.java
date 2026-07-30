@@ -1,9 +1,15 @@
 package com.ngo.finance.donor.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
+import com.ngo.finance.donation.enums.FundMode;
+import com.ngo.finance.donor.enums.FundClass;
+import com.ngo.finance.donor.enums.ReportingFrequency;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -20,14 +26,9 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 /**
- * Donor Fund Profile — the "behavioural heart" of the donor module (workbook
- * sheet 03). A donor has one or more fund profiles; each grant inherits exactly
- * one profile. The profile carries the fund-use behaviour (mode, restriction
- * class A/B/C, movement / explanation rules, overhead cap, reporting cadence)
- * and owns the donor-permitted geography, utilisation and disbursement rules.
- *
  * NOTE: {@code fundClassCode} (A/B/C) is the restriction class and is distinct
- * from {@link DonorMaster#getFundClass()} (the DOMESTIC/CORPORATE/... typology).
+ * from {@link DonorMaster#getFundClass()} (the DOMESTIC/CORPORATE/...
+ * typology).
  */
 @Entity
 @Table(name = "donor_fund_profile")
@@ -35,8 +36,9 @@ import lombok.ToString;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"donor", "programme", "geographies", "utilisationRules", "disbursementRules", "tranches"}, callSuper = true)
-@ToString(exclude = {"donor", "programme", "geographies", "utilisationRules", "disbursementRules", "tranches"})
+@EqualsAndHashCode(exclude = { "donor", "programme", "geographies", "utilisationRules",
+        "disbursementRules" }, callSuper = true)
+@ToString(exclude = { "donor", "programme", "geographies", "utilisationRules", "disbursementRules" })
 public class DonorFundProfile extends AuditEntity {
 
     @ManyToOne
@@ -44,31 +46,27 @@ public class DonorFundProfile extends AuditEntity {
     private DonorMaster donor;
 
     @Column(name = "fund_mode", length = 30)
-    private String fundMode;
+    @Enumerated(EnumType.STRING)
+    private FundMode fundMode;
 
-    @Column(name = "fund_class_code", length = 1)
-    private String fundClassCode;
+    @Column(name = "fund_class", length = 30)
+    @Enumerated(EnumType.STRING)
+    private FundClass fundClass;
+
+    @Column(name = "reporting_frequency", length = 30)
+    @Enumerated(EnumType.STRING)
+    private ReportingFrequency reportingFrequency;
 
     @Column(columnDefinition = "TEXT")
     private String purpose;
-
-    @Column(name = "programme_tied")
-    @Builder.Default
-    private Boolean programmeTied = false;
 
     @ManyToOne
     @JoinColumn(name = "programme_id", foreignKey = @ForeignKey(name = "fk_profile_programme"))
     private Programme programme;
 
-    @Column(name = "reporting_frequency", length = 30)
-    private String reportingFrequency;
-
-    @Column(name = "admin_allowed")
+    @Column(name = "programme_tied")
     @Builder.Default
-    private Boolean adminAllowed = true;
-
-    @Column(name = "overhead_limit_percent", precision = 5, scale = 2)
-    private BigDecimal overheadLimitPercent;
+    private Boolean programmeTied = false;
 
     @Column(name = "movement_allowed")
     @Builder.Default
@@ -84,7 +82,7 @@ public class DonorFundProfile extends AuditEntity {
 
     @OneToMany(mappedBy = "fundProfile", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<DonorGeography> geographies = new ArrayList<>();
+    private List<SpendableGeography> geographies = new ArrayList<>();
 
     @OneToMany(mappedBy = "fundProfile", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -94,17 +92,4 @@ public class DonorFundProfile extends AuditEntity {
     @Builder.Default
     private List<DonorDisbursementRule> disbursementRules = new ArrayList<>();
 
-    // The donor-agreed release schedule. Σ trancheAmount is the Total Grant Amount
-    // inherited by every grant on this profile.
-    @OneToMany(mappedBy = "fundProfile", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<FundProfileTranche> tranches = new ArrayList<>();
-
-    /** Σ of the tranche plan — the total this profile commits, in the donor's currency. */
-    public BigDecimal plannedTotalAmount() {
-        return tranches.stream()
-                .map(FundProfileTranche::getTrancheAmount)
-                .filter(java.util.Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
 }

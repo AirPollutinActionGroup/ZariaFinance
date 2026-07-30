@@ -7,7 +7,9 @@ import com.ngo.finance.donor.dto.request.DisbursementScheduleRequest.CriterionIt
 import com.ngo.finance.donor.dto.request.DisbursementScheduleRequest.ReminderItem;
 import com.ngo.finance.donor.dto.request.DisbursementScheduleRequest.TrancheItem;
 import com.ngo.finance.donor.dto.response.DisbursementScheduleResponse;
-import com.ngo.finance.donor.entity.FundProfileTranche;
+import com.ngo.finance.donor.entity.DonorDisbursementRule;
+import com.ngo.finance.donor.entity.DonorFundProfile;
+import com.ngo.finance.donor.entity.DonorTrancheCriterion;
 import com.ngo.finance.donor.entity.GrantAgreement;
 import com.ngo.finance.donor.entity.GrantCriteriaReminder;
 import com.ngo.finance.donor.entity.GrantDisbursementSchedule;
@@ -176,7 +178,11 @@ public class DisbursementServiceImpl implements DisbursementService {
     @Override
     public DisbursementScheduleResponse prefillFromFundProfile(Long grantId) {
         GrantAgreement grant = findGrant(grantId);
-        if (grant.getFundProfile() == null || grant.getFundProfile().getTranches().isEmpty()) {
+        DonorFundProfile profile = grant.getFundProfile();
+        DonorDisbursementRule activeRule = profile != null
+                ? profile.getDisbursementRules().stream().findFirst().orElse(null)
+                : null;
+        if (activeRule == null || activeRule.getDonorTrancheCriteria().isEmpty()) {
             throw new ValidationException("The grant's fund profile has no tranche plan to copy");
         }
         if (!orderedTranches(grantId).isEmpty()) {
@@ -193,19 +199,12 @@ public class DisbursementServiceImpl implements DisbursementService {
             throw error;
         }
 
-        List<TrancheItem> items = grant.getFundProfile().getTranches().stream()
-                .sorted(Comparator.comparing(FundProfileTranche::getTrancheNumber,
-                        Comparator.nullsLast(Comparator.naturalOrder())))
-                .map(t -> TrancheItem.builder()
-                        .trancheName(t.getTrancheName())
-                        .amount(t.getTrancheAmount())
-                        .expectedReleaseDate(t.getPlannedReleaseDate())
-                        // The profile plan carries no release conditions, so each
-                        // copied tranche starts with the neutral On Signing gate
-                        // for the user to refine.
-                        .criteria(List.of(CriterionItem.builder()
-                                .criterionType(CriterionType.ON_SIGNING).build()))
-                        .build())
+        List<TrancheItem> items = activeRule.getDonorTrancheCriteria().stream()
+                .sorted(Comparator.comparing(DonorTrancheCriterion::getExpectedReleaseDate,
+                                Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(DonorTrancheCriterion::getId,
+                                Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(this::toPrefillTrancheItem)
                 .toList();
 
         DisbursementScheduleRequest request = DisbursementScheduleRequest.builder()
@@ -216,6 +215,33 @@ public class DisbursementServiceImpl implements DisbursementService {
 
         log.info("Prefilling grant {} with {} tranches from its fund profile plan", grantId, items.size());
         return saveSchedule(grantId, request);
+    }
+
+    /**
+     * Carry a fund profile's planned tranche-criterion over to a new grant
+     * tranche, copying its release gate instead of always seeding the neutral
+     * On Signing placeholder — the profile side now models a real release
+     * criterion per tranche, not just an amount and a date.
+     */
+    private TrancheItem toPrefillTrancheItem(DonorTrancheCriterion source) {
+        CriterionItem criterion = CriterionItem.builder()
+                .criterionType(source.getReleaseCriteria() != null
+                        ? source.getReleaseCriteria() : CriterionType.ON_SIGNING)
+                .releaseDate(source.getReleaseDate())
+                .milestoneName(source.getMilestoneName())
+                .verificationRole(source.getVerificationSignOffRole())
+                .targetDate(source.getTargetDate())
+                .utilisationPercent(source.getUtilisationPercentage() != null
+                        ? BigDecimal.valueOf(source.getUtilisationPercentage()) : null)
+                .triggerBasis(source.getTriggerBasis())
+                .description(source.getDescription())
+                .build();
+
+        return TrancheItem.builder()
+                .amount(source.getAmountCriteria())
+                .expectedReleaseDate(source.getExpectedReleaseDate())
+                .criteria(List.of(criterion))
+                .build();
     }
 
     /**

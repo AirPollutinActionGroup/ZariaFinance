@@ -90,7 +90,7 @@ export const FUND_SOURCE_DOMICILE_TONE = Object.freeze({
 });
 
 export const UTILISATION_RULE_TYPES = [
-  { value: 'ADMIN_OVERHEAD', label: 'Admin / Overhead Cost', requiresLimit: true },
+  { value: 'ADMIN_OVERHEAD_COST', label: 'Admin / Overhead Cost', requiresLimit: true },
   { value: 'NOT_APPLICABLE', label: 'Not applicable', requiresLimit: false },
-  { value: 'OTHER', label: 'Other (Custom rule)', requiresLimit: true },
+  { value: 'OTHER_CUSTOM', label: 'Other (Custom rule)', requiresLimit: true },
 ];

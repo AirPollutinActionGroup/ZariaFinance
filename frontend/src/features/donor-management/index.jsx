@@ -26,8 +26,8 @@ export const donorManagementModule = {
   navItems: [
     { label: 'Donors Registry', path: '/donors', icon: VolunteerActivismOutlinedIcon },
     { label: 'Grants Agreements', path: '/grants', icon: HandshakeOutlinedIcon },
-    { label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
-    { label: 'Role directory', path: '/role-directory', icon: GroupsOutlinedIcon },
+    //{ label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
+    //{ label: 'Role directory', path: '/role-directory', icon: GroupsOutlinedIcon },
   ],
   routes: [
     { path: '/donors', element: <DonorsListPage /> },

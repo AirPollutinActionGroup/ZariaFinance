@@ -1,29 +1,33 @@
 /**
- * FundProfileMapper — FundProfileResponse ↔ view / form models. Backend field
- * names are preserved; the mapper attaches display labels and normalises the
- * nested rule collections for the form.
+ * FundProfileMapper — FundProfileResponse ↔ view / form models.
+ *
+ * The backend's disbursementRules/trancheCriteria are one level deeper and
+ * differently-named than the form's flat disbursementType/totalAmount/frequency
+ * + tranches[].criteria[0] shape (see fundProfileSchema.js / FundProfileFormPage.jsx):
+ * a profile has at most one meaningful disbursement rule, and each
+ * DonorTrancheCriterion row already carries its own amount, date AND single
+ * release gate (no separate tranche→criteria[] nesting on this side, unlike the
+ * grant-side disbursementMapper.js this reuses constants from).
  */
 
-const FUND_MODE_LABEL = { Restricted: 'Restricted', Unrestricted: 'Unrestricted' };
+const FUND_MODE_LABEL = { RESTRICTED: 'Restricted', UNRESTRICTED: 'Unrestricted' };
 
 /** A/B/C restriction class → human label (distinct from the donor typology). */
-export const FUND_CLASS_CODE_LABEL = {
-  A: 'Class A · Fully restricted',
-  B: 'Class B · Unrestricted w/ explanation',
-  C: 'Class C · Fully unrestricted',
+export const FUND_CLASS_LABEL = {
+  CLASS_A_RESTRICTED: 'Class A · Fully restricted',
+  CLASS_B_UNRESTRICTED: 'Class B · Unrestricted w/ explanation',
+  CLASS_C_UNRESTRICTED: 'Class C · Fully unrestricted',
 };
 
-/** FundProfileResponse → view model. */
+/** FundProfileResponse → view model (donor detail / list display). */
 export function fromFundProfileResponse(dto) {
   return {
     ...dto,
     fundModeLabel: FUND_MODE_LABEL[dto.fundMode] || dto.fundMode || '—',
-    fundClassLabel: FUND_CLASS_CODE_LABEL[dto.fundClassCode] || dto.fundClassCode || '—',
+    fundClassLabel: dto.fundClassLabel || FUND_CLASS_LABEL[dto.fundClass] || dto.fundClass || '—',
     geographies: dto.geographies || [],
     utilisationRules: dto.utilisationRules || [],
     disbursementRules: dto.disbursementRules || [],
-    tranches: dto.tranches || [],
-    plannedTotalAmount: dto.plannedTotalAmount ?? 0,
   };
 }
 
@@ -39,84 +43,148 @@ const trimOrNull = (v) => {
   return t === '' ? null : t;
 };
 
+/** One tranche row (amount/date + its single criterion) → a trancheCriteria item. */
+function toTrancheCriterionItem(t, frequency) {
+  const c = (t.criteria || [])[0] || {};
+  return {
+    amountCriteria: numOrNull(t.amount),
+    expectedReleaseDate: trimOrNull(t.expectedReleaseDate),
+    frequency: frequency || 'MONTHLY',
+    isFinalTranche: Boolean(t.isFinal),
+    releaseCriteria: c.criterionType || null,
+    releaseDate: trimOrNull(c.releaseDate),
+    milestoneName: trimOrNull(c.milestoneName),
+    verificationSignOffRole: trimOrNull(c.verificationRole),
+    otherVerificationSignOffRole: trimOrNull(c.otherVerificationRole),
+    targetDate: trimOrNull(c.targetDate),
+    utilisationPercentage: numOrNull(c.utilisationPercent),
+    triggerBasis: trimOrNull(c.triggerBasis),
+    description: trimOrNull(c.description),
+    remindSomeone: Boolean(c.hasReminder),
+    responsibleRole: c.hasReminder ? trimOrNull(c.reminder?.responsibleRole) : null,
+    otherResponsibleRole: c.hasReminder ? trimOrNull(c.reminder?.otherResponsibleRole) : null,
+    reminderLeadTime: c.hasReminder ? numOrNull(c.reminder?.reminderLeadDays) : null,
+    repeatReminder: c.hasReminder ? (c.reminder?.repeatReminder || 'ONCE') : null,
+    escalateToDeputy: c.hasReminder ? Boolean(c.reminder?.escalateToDeputy) : null,
+  };
+}
+
+/** The inverse of toTrancheCriterionItem: a trancheCriteria item → a tranche row. */
+function toTrancheFormValue(c) {
+  return {
+    amount: c.amountCriteria ?? '',
+    expectedReleaseDate: c.expectedReleaseDate || '',
+    isFinal: Boolean(c.isFinalTranche),
+    criteria: [
+      {
+        id: c.id ?? null,
+        criterionType: c.releaseCriteria || '',
+        releaseDate: c.releaseDate || '',
+        milestoneName: c.milestoneName || '',
+        verificationRole: c.verificationSignOffRole || '',
+        otherVerificationRole: c.otherVerificationSignOffRole || '',
+        targetDate: c.targetDate || '',
+        utilisationPercent: c.utilisationPercentage ?? '',
+        triggerBasis: c.triggerBasis || '',
+        description: c.description || '',
+        hasReminder: Boolean(c.remindSomeone),
+        reminder: {
+          responsibleRole: c.responsibleRole || '',
+          otherResponsibleRole: c.otherResponsibleRole || '',
+          reminderLeadDays: c.reminderLeadTime ?? '',
+          repeatReminder: c.repeatReminder || 'ONCE',
+          escalateToDeputy: c.escalateToDeputy ?? true,
+        },
+      },
+    ],
+  };
+}
+
 /** Form values → CreateFundProfileRequest. */
 export function toFundProfileRequest(values) {
+  const geographies =
+    (values.selectedGeographies || []).length === 0 || values.selectedGeographies.includes('ALL')
+      ? []
+      : values.selectedGeographies.map((stateId) => ({ stateId: Number(stateId) }));
+
+  const utilisationRules = (values.utilisationRules || [])
+    .filter((r) => (r.ruleType || '').trim())
+    .map((r) => ({
+      ruleType: r.ruleType,
+      otherRuleType: r.ruleType === 'OTHER_CUSTOM' ? trimOrNull(r.otherRuleType) : null,
+      limitPercentage: numOrNull(r.limitPercentage),
+      description: trimOrNull(r.description),
+    }));
+
+  const disbursementActive = !isBlank(values.totalAmount) || (values.tranches || []).length > 0;
+  const disbursementRules = disbursementActive
+    ? [
+        {
+          totalAmount: numOrNull(values.totalAmount),
+          disbursementType: values.disbursementType,
+          trancheCriteria:
+            values.disbursementType === 'LUMP_SUM'
+              ? [
+                  {
+                    amountCriteria: numOrNull(values.totalAmount),
+                    expectedReleaseDate: trimOrNull(values.receivingDate),
+                    frequency: 'MONTHLY',
+                    isFinalTranche: true,
+                    releaseCriteria: 'ON_SIGNING',
+                  },
+                ]
+              : (values.tranches || []).map((t) => toTrancheCriterionItem(t, values.frequency)),
+        },
+      ]
+    : [];
+
   return {
     fundMode: values.fundMode,
-    fundClassCode: values.fundClassCode || null,
+    fundClass: values.fundClass || null,
     purpose: trimOrNull(values.purpose),
     programmeTied: Boolean(values.programmeTied),
     programmeId: values.programmeId ? Number(values.programmeId) : null,
-    reportingFrequency: trimOrNull(values.reportingFrequency),
-    adminAllowed: Boolean(values.adminAllowed),
-    overheadLimitPercent: numOrNull(values.overheadLimitPercent),
+    reportingFrequency: values.reportingFrequency || null,
     movementAllowed: Boolean(values.movementAllowed),
     explanationRequired: Boolean(values.explanationRequired),
     onboardingComplete: Boolean(values.onboardingComplete),
-    geographies: (values.selectedGeographies && values.selectedGeographies.length > 0)
-      ? values.selectedGeographies.map((g) => ({ geographyName: g }))
-      : (values.geographies || [])
-          .map((g) => ({ geographyName: (g.geographyName || '').trim() }))
-          .filter((g) => g.geographyName),
-    utilisationRules: (values.utilisationRules || [])
-      .filter((r) => (r.ruleType || '').trim())
-      .map((r) => ({
-        ruleType: r.ruleType.trim(),
-        limitPercentage: numOrNull(r.limitPercentage),
-        description: trimOrNull(r.description),
-      })),
-    disbursementRules: (values.disbursementRules || [])
-      .filter((r) => (r.ruleType || '').trim())
-      .map((r) => ({
-        ruleType: r.ruleType.trim(),
-        releaseTrigger: trimOrNull(r.releaseTrigger),
-        minPriorUtilisationRequired: numOrNull(r.minPriorUtilisationRequired),
-        milestoneRequired: Boolean(r.milestoneRequired),
-        ruleDescription: trimOrNull(r.ruleDescription),
-      })),
-    // Blank rows are dropped; the backend renumbers what survives 1..n.
-    tranches: (values.tranches || [])
-      .filter((t) => numOrNull(t.trancheAmount) !== null)
-      .map((t) => ({
-        trancheName: trimOrNull(t.trancheName),
-        trancheAmount: numOrNull(t.trancheAmount),
-        plannedReleaseDate: trimOrNull(t.plannedReleaseDate),
-      })),
+    geographies,
+    utilisationRules,
+    disbursementRules,
   };
+}
+
+function isBlank(v) {
+  return v === undefined || v === null || v === '';
 }
 
 /** FundProfileResponse → form default values for the edit screen. */
 export function toFundProfileFormValues(dto) {
+  const rule = (dto.disbursementRules || [])[0] || null;
+  const trancheCriteria = rule?.trancheCriteria || [];
+  const lumpSum = rule?.disbursementType === 'LUMP_SUM';
+
   return {
-    fundMode: dto.fundMode || 'Restricted',
-    fundClassCode: dto.fundClassCode || '',
+    fundMode: dto.fundMode || 'RESTRICTED',
+    fundClass: dto.fundClass || '',
     purpose: dto.purpose || '',
     programmeTied: Boolean(dto.programmeTied),
     programmeId: dto.programmeId || '',
     reportingFrequency: dto.reportingFrequency || '',
-    adminAllowed: dto.adminAllowed ?? true,
-    overheadLimitPercent: dto.overheadLimitPercent ?? '',
-    movementAllowed: dto.movementAllowed ?? false,
-    explanationRequired: dto.explanationRequired ?? false,
-    onboardingComplete: dto.onboardingComplete ?? false,
-    selectedGeographies: (dto.geographies || []).map((g) => g.geographyName),
-    geographies: (dto.geographies || []).map((g) => ({ geographyName: g.geographyName })),
+    movementAllowed: Boolean(dto.movementAllowed),
+    explanationRequired: Boolean(dto.explanationRequired),
+    onboardingComplete: Boolean(dto.onboardingComplete),
+    selectedGeographies: (dto.geographies || []).map((g) => g.stateId),
     utilisationRules: (dto.utilisationRules || []).map((r) => ({
       ruleType: r.ruleType,
+      otherRuleType: r.otherRuleType || '',
       limitPercentage: r.limitPercentage ?? '',
       description: r.description || '',
     })),
-    disbursementRules: (dto.disbursementRules || []).map((r) => ({
-      ruleType: r.ruleType,
-      releaseTrigger: r.releaseTrigger || '',
-      minPriorUtilisationRequired: r.minPriorUtilisationRequired ?? '',
-      milestoneRequired: Boolean(r.milestoneRequired),
-      ruleDescription: r.ruleDescription || '',
-    })),
-    tranches: (dto.tranches || []).map((t) => ({
-      trancheName: t.trancheName || '',
-      trancheAmount: t.trancheAmount ?? '',
-      plannedReleaseDate: t.plannedReleaseDate || '',
-    })),
+    disbursementType: rule?.disbursementType || 'LUMP_SUM',
+    totalAmount: rule?.totalAmount ?? '',
+    frequency: trancheCriteria[0]?.frequency || 'QUARTERLY',
+    receivingDate: lumpSum ? (trancheCriteria[0]?.expectedReleaseDate || '') : '',
+    tranches: lumpSum ? [] : trancheCriteria.map(toTrancheFormValue),
   };
 }
