@@ -25,8 +25,8 @@ import lombok.NoArgsConstructor;
 
 /**
  * Request DTO for creating / updating a Donor Fund Profile (workbook sheet 03),
- * with its geography, utilisation and disbursement rules embedded. The owning
- * donor is taken from the URL path, not this body.
+ * with its spendable-location, utilisation and disbursement rules embedded. The
+ * owning donor is taken from the URL path, not this body.
  */
 @Data
 @Builder
@@ -59,9 +59,9 @@ public class CreateFundProfileRequest {
     @Builder.Default
     private Boolean onboardingComplete = false;
 
-    @Valid
+    /** State ids the fund may be spent in; empty = spendable anywhere. */
     @Builder.Default
-    private List<GeographyItem> geographies = new ArrayList<>();
+    private List<Long> stateIds = new ArrayList<>();
 
     @Valid
     @Builder.Default

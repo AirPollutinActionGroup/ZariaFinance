@@ -87,6 +87,16 @@ public class ReportsServiceImpl implements ReportsService {
         return entries;
     }
 
+    /** The profile's admin/overhead utilisation cap, if one is configured. */
+    private BigDecimal overheadLimitPercent(DonorFundProfile profile) {
+        if (profile == null) return null;
+        return profile.getUtilisationRules().stream()
+                .filter(r -> r.getRuleType() == RestrictionRuleType.ADMIN_OVERHEAD_COST)
+                .map(r -> r.getLimitPercentage())
+                .findFirst()
+                .orElse(null);
+    }
+
     /** Total received in INR = Σ actual tranche amount × the grant's locked FX rate. */
     private BigDecimal sumReceived(GrantAgreement grant) {
         BigDecimal fx = nz(grant.getFxLockedRate());
