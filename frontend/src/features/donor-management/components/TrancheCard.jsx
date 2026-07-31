@@ -382,7 +382,7 @@ export function TrancheCard({
                 control={control}
                 path={`${path}.criteria.${i}`}
                 index={i}
-                canRemove={!singleCriterion}
+                canRemove={!singleCriterion && criteria.fields.length > 1}
                 onRemove={() => criteria.remove(i)}
                 responsibleRoleOptions={responsibleRoleOptions}
               />
