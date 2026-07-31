@@ -5,10 +5,42 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
 import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
 import { donorSchema, donorFormDefaults } from '../validation/donorSchema.js';
-import { DONOR_TYPE, FUND_SOURCE_DOMICILE, toOptions } from '../constants.js';
+import { DONOR_TYPE, FUND_SOURCE_DOMICILE, INDIVIDUAL_ID_TYPE, toOptions } from '../constants.js';
 import { donorService } from '../services/donorService.js';
 import { useState, useEffect } from 'react';
 import { geographyService } from '../services/geographyService.js';
+
+function getIdNumberLabel(idType) {
+  switch (idType) {
+    case 'PAN': return 'PAN Card Number';
+    case 'AADHAR': return 'Aadhaar Number';
+    case 'VOTER_ID': return 'Voter ID Number';
+    case 'DRIVING_LICENSE': return 'Driving License Number';
+    case 'PASSPORT': return 'Passport ID';
+    case 'FOREIGN_TAX_ID': return 'Foreign Tax Identifier';
+    default: return 'ID number';
+  }
+}
+
+function getIdNumberPlaceholder(idType) {
+  switch (idType) {
+    case 'PAN': return 'e.g. ABCDE1234F (10 chars)';
+    case 'AADHAR': return '12-digit Aadhaar number';
+    case 'VOTER_ID': return 'e.g. ABC1234567';
+    case 'DRIVING_LICENSE': return 'e.g. DL-1420110012345';
+    case 'PASSPORT': return 'e.g. A12345678 (9 chars)';
+    case 'FOREIGN_TAX_ID': return 'e.g. SSN / Tax ID';
+    default: return 'ID number';
+  }
+}
+
+function getIdNumberSlotProps(idType) {
+  if (idType === 'PAN') return { htmlInput: { maxLength: 10, style: { textTransform: 'uppercase' } } };
+  if (idType === 'AADHAR') return { htmlInput: { maxLength: 12 } };
+  if (idType === 'PASSPORT') return { htmlInput: { maxLength: 9, style: { textTransform: 'uppercase' } } };
+  if (idType === 'FOREIGN_TAX_ID') return { htmlInput: { maxLength: 15 } };
+  return { htmlInput: { style: { textTransform: 'uppercase' } } };
+}
 
 export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitError, onCancel }) {
   const { control, handleSubmit, setError, watch, setValue } = useForm({
@@ -16,7 +48,10 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
     defaultValues: defaultValues || donorFormDefaults,
   });
 
+  const donorType = watch('donorType');
+  const idType = watch('idType');
   const fundSourceDomicile = watch('fundSourceDomicile');
+  const isIndividual = donorType === 'INDIVIDUAL';
   const isForeign = fundSourceDomicile === 'FOREIGN';
   const [foreignCountries, setForeignCountries] = useState([]);
 
@@ -31,6 +66,7 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
 
   useEffect(() => {
     setValue('fcraApplicable', isForeign);
+    setValue('book', isForeign ? 'FC' : 'LC');
     if (!isForeign) {
       setValue('registrationNumber', '');
     }
@@ -76,7 +112,7 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
               <Grid size={{ xs: 12, sm: 8 }}>
                 <RhfTextField name="donorName" control={control} label="Donor name" required />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 3 }}>
                 <RhfSelect
                   name="donorType"
                   control={control}
@@ -85,7 +121,7 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                   options={toOptions(DONOR_TYPE)}
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 3 }}>
                 <RhfSelect
                   name="fundSourceDomicile"
                   control={control}
@@ -94,7 +130,16 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                   options={toOptions(FUND_SOURCE_DOMICILE)}
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 3 }}>
+                <TextField
+                  label="Book"
+                  value={isForeign ? 'FC · Foreign contribution' : 'LC · Local contribution'}
+                  disabled
+                  fullWidth
+                  helperText="Derived from fund source domicile"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 3 }}>
                 <TextField
                   label="FCRA applicable"
                   value={isForeign ? 'Yes' : 'No'}
@@ -103,6 +148,44 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                   helperText="Derived from fund source domicile"
                 />
               </Grid>
+
+              {!isForeign ? (
+                <>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <RhfSelect
+                      name="idType"
+                      control={control}
+                      label="ID type"
+                      options={[
+                        { value: '', label: 'Select your preference' },
+                        ...toOptions(INDIVIDUAL_ID_TYPE),
+                      ]}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <RhfTextField
+                      name="idNumber"
+                      control={control}
+                      label={getIdNumberLabel(idType)}
+                      placeholder={getIdNumberPlaceholder(idType)}
+                      slotProps={getIdNumberSlotProps(idType)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const formatted = idType === 'AADHAR'
+                          ? val.replace(/\D/g, '')
+                          : val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                        setValue('idNumber', formatted, { shouldValidate: true });
+                        if (idType === 'PAN') {
+                          setValue('panCardNumber', formatted);
+                        }
+                        if (idType === 'PASSPORT') {
+                          setValue('passportNumber', formatted);
+                        }
+                      }}
+                    />
+                  </Grid>
+                </>
+              ) : null}
             </Grid>
           </section>
 
@@ -129,18 +212,67 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <RhfTextField
-                    name="foreignTaxIdentifier"
-                    control={control}
-                    label="Foreign tax identifier"
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <RhfTextField
                     name="registrationNumber"
                     control={control}
                     label="Registration/Incorporation Number"
                   />
                 </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <RhfTextField
+                    name="passportNumber"
+                    control={control}
+                    label="Passport ID"
+                    required
+                    placeholder="e.g. A12345678"
+                    slotProps={{ htmlInput: { maxLength: 9, style: { textTransform: 'uppercase' } } }}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                      setValue('passportNumber', clean, { shouldValidate: true });
+                    }}
+                  />
+                </Grid>
+
+                {isIndividual ? (
+                  <>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <RhfSelect
+                        name="idType"
+                        control={control}
+                        label="ID type"
+                        options={[
+                          { value: '', label: 'Select your preference' },
+                          ...toOptions(
+                            Object.fromEntries(
+                              Object.entries(INDIVIDUAL_ID_TYPE).filter(([key]) => key !== 'PASSPORT')
+                            )
+                          ),
+                        ]}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <RhfTextField
+                        name="idNumber"
+                        control={control}
+                        label={getIdNumberLabel(idType)}
+                        placeholder={getIdNumberPlaceholder(idType)}
+                        slotProps={getIdNumberSlotProps(idType)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const formatted = idType === 'AADHAR'
+                            ? val.replace(/\D/g, '')
+                            : val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                          setValue('idNumber', formatted, { shouldValidate: true });
+                          if (idType === 'PAN') {
+                            setValue('panCardNumber', formatted);
+                          }
+                          if (idType === 'PASSPORT') {
+                            setValue('passportNumber', formatted);
+                          }
+                        }}
+                      />
+                    </Grid>
+                  </>
+                ) : null}
               </Grid>
             </section>
           ) : null}
@@ -158,9 +290,6 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <RhfTextField name="website" control={control} label="Website" />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <RhfTextField name="panCardNumber" control={control} label="PAN card number" />
               </Grid>
             </Grid>
           </section>
