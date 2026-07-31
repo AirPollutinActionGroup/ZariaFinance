@@ -1,4 +1,4 @@
-import { Box, Button, Chip, Divider, FormControlLabel, Grid, IconButton, Stack, Switch, Typography } from '@mui/material';
+import { Box, Button, Chip, Divider, FormControlLabel, Grid, IconButton, Stack, Switch, Typography, useTheme } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { Controller, useWatch } from 'react-hook-form';
 import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
@@ -24,6 +24,8 @@ export function CriterionFields({
   canRemove = true,
   responsibleRoleOptions = RESPONSIBLE_ROLES,
 }) {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
   const criterionType = useWatch({ control, name: `${path}.criterionType` });
   const verificationRole = useWatch({ control, name: `${path}.verificationRole` });
   const responsibleRole = useWatch({ control, name: `${path}.reminder.responsibleRole` });
@@ -38,7 +40,7 @@ export function CriterionFields({
         borderColor: 'divider',
         borderRadius: 2,
         p: 2,
-        bgcolor: '#fdfdfb',
+        bgcolor: isDarkMode ? 'action.hover' : '#fdfdfb',
         mb: 1.5,
       }}
     >
@@ -78,7 +80,7 @@ export function CriterionFields({
                 displayEmpty: true,
                 renderValue: (selected) => {
                   if (!selected) {
-                    return <span style={{ color: '#9a9a94', fontWeight: 400 }}>Select criterion type…</span>;
+                    return <Typography component="span" sx={{ color: 'text.secondary', fontWeight: 400, fontSize: 14 }}>Select criterion type…</Typography>;
                   }
                   return CRITERION_OPTIONS.find((opt) => opt.value === selected)?.label || selected;
                 },
@@ -233,8 +235,9 @@ export function CriterionFields({
                 mt: 1.5,
                 p: 2,
                 borderRadius: 2,
-                border: '1px dashed #cfcfc7',
-                bgcolor: '#fbfbf7',
+                border: '1px dashed',
+                borderColor: isDarkMode ? 'divider' : '#cfcfc7',
+                bgcolor: isDarkMode ? 'background.paper' : '#fbfbf7',
               }}
             >
               <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
