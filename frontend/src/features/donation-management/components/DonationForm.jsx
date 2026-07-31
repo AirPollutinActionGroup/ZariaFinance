@@ -214,7 +214,8 @@ export function DonationForm({
                   control={control}
                   label="Location / State"
                   required
-                  helperText="One gift may fund work across several states — feeds FCRA state-wise disclosure (defaults to 'No geographies — spendable anywhere' if left blank)"
+                  helperText="One gift may fund work across several states — feeds FCRA state-wise disclosure. Select All to apply every state."
+                  allSelectsEverything
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>

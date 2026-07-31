@@ -65,7 +65,7 @@ export const donationSchema = z
     fundMode: z.string().min(1, 'Fund mode is required'),
     fundClassCode: z.string().optional().or(z.literal('')),
     programmeId: z.string().optional().or(z.literal('')),
-    stateIds: z.array(z.string()).min(1, 'At least one location/state is required'),
+    stateIds: z.array(z.union([z.string(), z.number()])).min(1, 'At least one location/state is required'),
     utilisationPeriodType: z.string().min(1, 'Utilisation period is required'),
     utilisationStartDate: z.string().optional().or(z.literal('')),
     utilisationEndDate: z.string().optional().or(z.literal('')),

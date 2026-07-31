@@ -116,7 +116,12 @@ export function toCreateDonationRequest(values) {
     fundMode: values.fundMode,
     fundClassCode: nullIfBlank(values.fundClassCode),
     programmeId: values.programmeId ? Number(values.programmeId) : null,
-    stateIds: (values.stateIds || []).map(Number),
+    // 'ALL' is GeographyMultiSelect's client-only sentinel for "spendable
+    // anywhere" — it isn't a real state id, so it must not reach the backend.
+    stateIds: (values.stateIds || [])
+      .filter((id) => id !== 'ALL')
+      .map(Number)
+      .filter((n) => Number.isFinite(n)),
     utilisationPeriodType: values.utilisationPeriodType,
     utilisationStartDate: nullIfBlank(values.utilisationStartDate),
     utilisationEndDate: nullIfBlank(values.utilisationEndDate),
