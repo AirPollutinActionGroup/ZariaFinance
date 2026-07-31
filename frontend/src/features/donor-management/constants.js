@@ -18,6 +18,15 @@ export const FUND_SOURCE_DOMICILE = Object.freeze({
   FOREIGN: 'Foreign',
 });
 
+export const INDIVIDUAL_ID_TYPE = Object.freeze({
+  PAN: 'PAN Card',
+  AADHAR: 'Aadhaar Card',
+  VOTER_ID: 'Voter ID',
+  DRIVING_LICENSE: 'Driving License',
+  PASSPORT: 'Passport ID',
+  FOREIGN_TAX_ID: 'Foreign Tax Identification Number',
+});
+
 /** Donor lifecycle is a plain isActive boolean now (no multi-step status). */
 export const DONOR_ACTIVE_TONE = Object.freeze({
   true: 'success',

@@ -416,8 +416,8 @@ public class DonationServiceImpl implements DonationService {
             failureReason = "Organisation does not hold a valid 80G/Section 35 registration on the receipt date";
         } else if (donation.getIdentification() == DonorIdentification.ANONYMOUS) {
             failureReason = "Donor is anonymous — no named donor to report";
-        } else if (donation.getDonor() == null || donation.getDonor().getPanCardNumber() == null
-                || donation.getDonor().getPanCardNumber().isBlank()) {
+        } else if (donation.getDonor() == null || donation.getDonor().getDocumentNumber() == null
+                || donation.getDonor().getDocumentNumber().isBlank()) {
             failureReason = "No valid ID number on file for the donor";
         } else if (donation.getDonor().getAddress() == null || donation.getDonor().getAddress().isBlank()) {
             failureReason = "Donor address is not on file";

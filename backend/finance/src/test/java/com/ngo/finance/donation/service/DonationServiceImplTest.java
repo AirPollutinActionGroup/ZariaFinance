@@ -203,7 +203,7 @@ public class DonationServiceImplTest {
     @Test
     void testCreateDonation_Gik_AlwaysNotEightyGEligible() {
         DonorMaster donor = DonorMaster.builder().donorName("Sunrise Textiles").fundSourceDomicile(FundSourceDomicile.DOMESTIC)
-                .panCardNumber("ABCDE1234F").address("Indore, MP").build();
+                .documentNumber("ABCDE1234F").address("Indore, MP").build();
         donor.setId(3L);
         when(donorRepository.findById(3L)).thenReturn(java.util.Optional.of(donor));
         mockOneState();
@@ -260,7 +260,7 @@ public class DonationServiceImplTest {
     @Test
     void testEightyGChain_OrgNotRegistered_BlocksEvenNamedDonor() {
         DonorMaster donor = DonorMaster.builder().donorName("Rohan Kapadia").fundSourceDomicile(FundSourceDomicile.DOMESTIC)
-                .panCardNumber("ABCDE1234F").address("Delhi").build();
+                .documentNumber("ABCDE1234F").address("Delhi").build();
         donor.setId(1L);
         when(donorRepository.findById(1L)).thenReturn(java.util.Optional.of(donor));
         mockOneState();
@@ -285,7 +285,7 @@ public class DonationServiceImplTest {
     @Test
     void testTenBd_MissingPan_NotReportable() {
         DonorMaster donor = DonorMaster.builder().donorName("Rohan Kapadia").fundSourceDomicile(FundSourceDomicile.DOMESTIC)
-                .panCardNumber(null).address("Delhi").build();
+                .documentNumber(null).address("Delhi").build();
         donor.setId(1L);
         when(donorRepository.findById(1L)).thenReturn(java.util.Optional.of(donor));
         mockOneState();

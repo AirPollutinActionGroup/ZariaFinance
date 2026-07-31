@@ -65,7 +65,7 @@ public class DonationControllerIntegrationTest {
                 .spocNameOfThePerson("Test Contact")
                 .spocEmail("donor-donation-test@example.com")
                 .fundSourceDomicile(FundSourceDomicile.DOMESTIC)
-                .panCardNumber("ABCDE1234F")
+                .documentNumber("ABCDE1234F")
                 .address("14 Nehru Park, New Delhi 110021")
                 .isActive(true)
                 .build());
