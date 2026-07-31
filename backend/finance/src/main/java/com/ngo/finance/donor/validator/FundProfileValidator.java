@@ -2,6 +2,7 @@ package com.ngo.finance.donor.validator;
 
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.DisbursementRuleItem;
+import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.ReleaseCriterionItem;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.TrancheCriterionItem;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.UtilisationRuleItem;
 import com.ngo.finance.donor.enums.RestrictionRuleType;
@@ -14,8 +15,9 @@ import java.util.List;
 /**
  * Validates the shape of a fund profile (Fund Profile workbook sheets 04-06).
  * Errors are attached to the offending path — e.g.
- * {@code disbursementRules[0].trancheCriteria[1].milestoneName} — so the form
- * can highlight the exact field rather than showing one generic message.
+ * {@code disbursementRules[0].trancheCriteria[1].criteria[0].milestoneName} —
+ * so the form can highlight the exact field rather than showing one generic
+ * message.
  */
 public class FundProfileValidator implements ConstraintValidator<ValidFundProfile, CreateFundProfileRequest> {
 
@@ -37,10 +39,20 @@ public class FundProfileValidator implements ConstraintValidator<ValidFundProfil
         List<DisbursementRuleItem> disbursementRules = value.getDisbursementRules() == null
                 ? List.of() : value.getDisbursementRules();
         for (int d = 0; d < disbursementRules.size(); d++) {
-            List<TrancheCriterionItem> criteria = disbursementRules.get(d).getTrancheCriteria() == null
+            List<TrancheCriterionItem> tranches = disbursementRules.get(d).getTrancheCriteria() == null
                     ? List.of() : disbursementRules.get(d).getTrancheCriteria();
-            for (int c = 0; c < criteria.size(); c++) {
-                valid = validateCriterion(criteria.get(c), context, d, c) && valid;
+            for (int c = 0; c < tranches.size(); c++) {
+                TrancheCriterionItem tranche = tranches.get(c);
+                List<ReleaseCriterionItem> criteria = tranche.getCriteria() == null
+                        ? List.of() : tranche.getCriteria();
+                if (criteria.isEmpty()) {
+                    error(context, "A tranche needs at least one release criterion",
+                            "disbursementRules", d, "trancheCriteria", c, "criteria");
+                    valid = false;
+                }
+                for (int i = 0; i < criteria.size(); i++) {
+                    valid = validateCriterion(criteria.get(i), context, d, c, i) && valid;
+                }
             }
         }
 
@@ -56,8 +68,8 @@ public class FundProfileValidator implements ConstraintValidator<ValidFundProfil
         return true;
     }
 
-    /** The "Additional Fields" each tranche criterion's release type requires. */
-    private boolean validateCriterion(TrancheCriterionItem item, ConstraintValidatorContext context, int d, int c) {
+    /** The "Additional Fields" each release criterion's type requires. */
+    private boolean validateCriterion(ReleaseCriterionItem item, ConstraintValidatorContext context, int d, int c, int i) {
         if (item.getReleaseCriteria() == null) {
             return true; // @NotNull reports it
         }
@@ -67,43 +79,43 @@ public class FundProfileValidator implements ConstraintValidator<ValidFundProfil
             case FIXED_DATE -> {
                 if (item.getReleaseDate() == null) {
                     error(context, "Release date is required for a fixed-date criterion",
-                            "disbursementRules", d, "trancheCriteria", c, "releaseDate");
+                            "disbursementRules", d, "trancheCriteria", c, "criteria", i, "releaseDate");
                     valid = false;
                 }
             }
             case MILESTONE_BASED -> {
                 if (isBlank(item.getMilestoneName())) {
                     error(context, "Milestone name is required",
-                            "disbursementRules", d, "trancheCriteria", c, "milestoneName");
+                            "disbursementRules", d, "trancheCriteria", c, "criteria", i, "milestoneName");
                     valid = false;
                 }
                 if (item.getVerificationSignOffRole() == null) {
                     error(context, "Verification sign-off role is required",
-                            "disbursementRules", d, "trancheCriteria", c, "verificationSignOffRole");
+                            "disbursementRules", d, "trancheCriteria", c, "criteria", i, "verificationSignOffRole");
                     valid = false;
                 } else if (item.getVerificationSignOffRole() == VerificationRole.OTHER
                         && isBlank(item.getOtherVerificationSignOffRole())) {
                     error(context, "Custom verification role is required",
-                            "disbursementRules", d, "trancheCriteria", c, "otherVerificationSignOffRole");
+                            "disbursementRules", d, "trancheCriteria", c, "criteria", i, "otherVerificationSignOffRole");
                     valid = false;
                 }
             }
             case UTILISATION_THRESHOLD -> {
                 if (item.getUtilisationPercentage() == null) {
                     error(context, "Utilisation % is required",
-                            "disbursementRules", d, "trancheCriteria", c, "utilisationPercentage");
+                            "disbursementRules", d, "trancheCriteria", c, "criteria", i, "utilisationPercentage");
                     valid = false;
                 }
                 if (item.getTriggerBasis() == null) {
                     error(context, "Trigger basis is required",
-                            "disbursementRules", d, "trancheCriteria", c, "triggerBasis");
+                            "disbursementRules", d, "trancheCriteria", c, "criteria", i, "triggerBasis");
                     valid = false;
                 }
             }
             case OTHER -> {
                 if (isBlank(item.getDescription())) {
                     error(context, "Description is required for an 'Other' criterion",
-                            "disbursementRules", d, "trancheCriteria", c, "description");
+                            "disbursementRules", d, "trancheCriteria", c, "criteria", i, "description");
                     valid = false;
                 }
             }
@@ -112,12 +124,12 @@ public class FundProfileValidator implements ConstraintValidator<ValidFundProfil
             }
         }
 
-        valid = validateReminder(item, context, d, c) && valid;
+        valid = validateReminder(item, context, d, c, i) && valid;
         return valid;
     }
 
     /** Reminders chase a person; there is nobody to chase for a criterion nobody actions. */
-    private boolean validateReminder(TrancheCriterionItem item, ConstraintValidatorContext context, int d, int c) {
+    private boolean validateReminder(ReleaseCriterionItem item, ConstraintValidatorContext context, int d, int c, int i) {
         if (!Boolean.TRUE.equals(item.getRemindSomeone())) {
             return true;
         }
@@ -127,23 +139,23 @@ public class FundProfileValidator implements ConstraintValidator<ValidFundProfil
             error(context,
                     "A reminder cannot be set on " + item.getReleaseCriteria().getLabel()
                             + " — it is not actioned by a person",
-                    "disbursementRules", d, "trancheCriteria", c, "remindSomeone");
+                    "disbursementRules", d, "trancheCriteria", c, "criteria", i, "remindSomeone");
             return false;
         }
 
         if (item.getResponsibleRole() == null) {
             error(context, "Responsible role is required",
-                    "disbursementRules", d, "trancheCriteria", c, "responsibleRole");
+                    "disbursementRules", d, "trancheCriteria", c, "criteria", i, "responsibleRole");
             valid = false;
         } else if (item.getResponsibleRole() == VerificationRole.OTHER
                 && isBlank(item.getOtherResponsibleRole())) {
             error(context, "Custom responsible role is required",
-                    "disbursementRules", d, "trancheCriteria", c, "otherResponsibleRole");
+                    "disbursementRules", d, "trancheCriteria", c, "criteria", i, "otherResponsibleRole");
             valid = false;
         }
         if (item.getReminderLeadTime() == null) {
             error(context, "Reminder lead time is required",
-                    "disbursementRules", d, "trancheCriteria", c, "reminderLeadTime");
+                    "disbursementRules", d, "trancheCriteria", c, "criteria", i, "reminderLeadTime");
             valid = false;
         }
         return valid;

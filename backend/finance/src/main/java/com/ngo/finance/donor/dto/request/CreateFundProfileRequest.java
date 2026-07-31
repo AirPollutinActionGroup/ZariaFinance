@@ -135,6 +135,19 @@ public class CreateFundProfileRequest {
         @Builder.Default
         private Boolean isFinalTranche = false;
 
+        /** A tranche may carry more than one release gate — see FundProfileValidator. */
+        @Valid
+        @Builder.Default
+        private List<ReleaseCriterionItem> criteria = new ArrayList<>();
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReleaseCriterionItem {
+        private Long id;
+
         @NotNull(message = "Release criteria is required")
         private CriterionType releaseCriteria;
 

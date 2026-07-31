@@ -18,6 +18,7 @@ import com.ngo.finance.donor.dto.request.GrantRemarksRequest;
 import com.ngo.finance.donor.entity.DonorDisbursementRule;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
+import com.ngo.finance.donor.entity.DonorReleaseCriteria;
 import com.ngo.finance.donor.entity.DonorTrancheCriterion;
 import com.ngo.finance.donor.entity.Programme;
 import com.ngo.finance.donor.enums.CriterionType;
@@ -109,13 +110,19 @@ public class GrantControllerIntegrationTest {
         DonorTrancheCriterion first = new DonorTrancheCriterion();
         first.setDonorDisbursementRule(rule);
         first.setAmountCriteria(new BigDecimal("150000.00"));
-        first.setReleaseCriteria(CriterionType.ON_SIGNING);
+        DonorReleaseCriteria firstCriterion = new DonorReleaseCriteria();
+        firstCriterion.setDonorTrancheCriterion(first);
+        firstCriterion.setReleaseCriteria(CriterionType.ON_SIGNING);
+        first.getDonorReleaseCriteria().add(firstCriterion);
         rule.getDonorTrancheCriteria().add(first);
 
         DonorTrancheCriterion second = new DonorTrancheCriterion();
         second.setDonorDisbursementRule(rule);
         second.setAmountCriteria(new BigDecimal("100000.00"));
-        second.setReleaseCriteria(CriterionType.UTILISATION_CERTIFICATE);
+        DonorReleaseCriteria secondCriterion = new DonorReleaseCriteria();
+        secondCriterion.setDonorTrancheCriterion(second);
+        secondCriterion.setReleaseCriteria(CriterionType.UTILISATION_CERTIFICATE);
+        second.getDonorReleaseCriteria().add(secondCriterion);
         rule.getDonorTrancheCriteria().add(second);
 
         profile.getDisbursementRules().add(rule);

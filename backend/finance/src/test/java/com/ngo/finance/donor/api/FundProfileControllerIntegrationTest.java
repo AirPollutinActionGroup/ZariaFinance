@@ -11,6 +11,7 @@ import com.ngo.finance.donation.enums.FundMode;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.DisbursementRuleItem;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.GeographyItem;
+import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.ReleaseCriterionItem;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.TrancheCriterionItem;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.UtilisationRuleItem;
 import com.ngo.finance.donor.entity.DonorMaster;
@@ -86,7 +87,9 @@ public class FundProfileControllerIntegrationTest {
                 .amountCriteria(new BigDecimal(amount))
                 .expectedReleaseDate(date)
                 .isFinalTranche(finalTranche)
-                .releaseCriteria(CriterionType.ON_SIGNING)
+                .criteria(List.of(ReleaseCriterionItem.builder()
+                        .releaseCriteria(CriterionType.ON_SIGNING)
+                        .build()))
                 .build();
     }
 
@@ -238,7 +241,9 @@ public class FundProfileControllerIntegrationTest {
                         .disbursementType(DisbursementType.LUMP_SUM)
                         .trancheCriteria(List.of(TrancheCriterionItem.builder()
                                 .amountCriteria(new BigDecimal("100000.00"))
-                                .releaseCriteria(CriterionType.MILESTONE_BASED)
+                                .criteria(List.of(ReleaseCriterionItem.builder()
+                                        .releaseCriteria(CriterionType.MILESTONE_BASED)
+                                        .build()))
                                 .build()))
                         .build()))
                 .build();
@@ -248,9 +253,12 @@ public class FundProfileControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors['disbursementRules.0.trancheCriteria.0.milestoneName']").exists())
                 .andExpect(
-                        jsonPath("$.errors['disbursementRules.0.trancheCriteria.0.verificationSignOffRole']")
+                        jsonPath("$.errors['disbursementRules.0.trancheCriteria.0.criteria.0.milestoneName']")
+                                .exists())
+                .andExpect(
+                        jsonPath(
+                                "$.errors['disbursementRules.0.trancheCriteria.0.criteria.0.verificationSignOffRole']")
                                 .exists());
     }
 
@@ -265,10 +273,12 @@ public class FundProfileControllerIntegrationTest {
                         .disbursementType(DisbursementType.LUMP_SUM)
                         .trancheCriteria(List.of(TrancheCriterionItem.builder()
                                 .amountCriteria(new BigDecimal("100000.00"))
-                                .releaseCriteria(CriterionType.ON_SIGNING)
-                                .remindSomeone(true)
-                                .responsibleRole(VerificationRole.CFO)
-                                .reminderLeadTime(7)
+                                .criteria(List.of(ReleaseCriterionItem.builder()
+                                        .releaseCriteria(CriterionType.ON_SIGNING)
+                                        .remindSomeone(true)
+                                        .responsibleRole(VerificationRole.CFO)
+                                        .reminderLeadTime(7)
+                                        .build()))
                                 .build()))
                         .build()))
                 .build();
@@ -278,6 +288,8 @@ public class FundProfileControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors['disbursementRules.0.trancheCriteria.0.remindSomeone']").exists());
+                .andExpect(
+                        jsonPath("$.errors['disbursementRules.0.trancheCriteria.0.criteria.0.remindSomeone']")
+                                .exists());
     }
 }

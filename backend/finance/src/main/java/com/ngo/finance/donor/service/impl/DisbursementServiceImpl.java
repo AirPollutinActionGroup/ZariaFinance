@@ -9,6 +9,7 @@ import com.ngo.finance.donor.dto.request.DisbursementScheduleRequest.TrancheItem
 import com.ngo.finance.donor.dto.response.DisbursementScheduleResponse;
 import com.ngo.finance.donor.entity.DonorDisbursementRule;
 import com.ngo.finance.donor.entity.DonorFundProfile;
+import com.ngo.finance.donor.entity.DonorReleaseCriteria;
 import com.ngo.finance.donor.entity.DonorTrancheCriterion;
 import com.ngo.finance.donor.entity.GrantAgreement;
 import com.ngo.finance.donor.entity.GrantCriteriaReminder;
@@ -218,29 +219,37 @@ public class DisbursementServiceImpl implements DisbursementService {
     }
 
     /**
-     * Carry a fund profile's planned tranche-criterion over to a new grant
-     * tranche, copying its release gate instead of always seeding the neutral
-     * On Signing placeholder — the profile side now models a real release
-     * criterion per tranche, not just an amount and a date.
+     * Carry a fund profile's planned tranche-criteria over to a new grant
+     * tranche, copying every release gate instead of always seeding the neutral
+     * On Signing placeholder — the profile side now models real release
+     * criteria per tranche (possibly several), not just an amount and a date.
      */
     private TrancheItem toPrefillTrancheItem(DonorTrancheCriterion source) {
-        CriterionItem criterion = CriterionItem.builder()
-                .criterionType(source.getReleaseCriteria() != null
-                        ? source.getReleaseCriteria() : CriterionType.ON_SIGNING)
-                .releaseDate(source.getReleaseDate())
-                .milestoneName(source.getMilestoneName())
-                .verificationRole(source.getVerificationSignOffRole())
-                .targetDate(source.getTargetDate())
-                .utilisationPercent(source.getUtilisationPercentage() != null
-                        ? BigDecimal.valueOf(source.getUtilisationPercentage()) : null)
-                .triggerBasis(source.getTriggerBasis())
-                .description(source.getDescription())
-                .build();
+        List<CriterionItem> criteria = source.getDonorReleaseCriteria().stream()
+                .map(this::toPrefillCriterionItem)
+                .toList();
+        if (criteria.isEmpty()) {
+            criteria = List.of(CriterionItem.builder().criterionType(CriterionType.ON_SIGNING).build());
+        }
 
         return TrancheItem.builder()
                 .amount(source.getAmountCriteria())
                 .expectedReleaseDate(source.getExpectedReleaseDate())
-                .criteria(List.of(criterion))
+                .criteria(criteria)
+                .build();
+    }
+
+    private CriterionItem toPrefillCriterionItem(DonorReleaseCriteria rc) {
+        return CriterionItem.builder()
+                .criterionType(rc.getReleaseCriteria() != null ? rc.getReleaseCriteria() : CriterionType.ON_SIGNING)
+                .releaseDate(rc.getReleaseDate())
+                .milestoneName(rc.getMilestoneName())
+                .verificationRole(rc.getVerificationSignOffRole())
+                .targetDate(rc.getTargetDate())
+                .utilisationPercent(rc.getUtilisationPercentage() != null
+                        ? BigDecimal.valueOf(rc.getUtilisationPercentage()) : null)
+                .triggerBasis(rc.getTriggerBasis())
+                .description(rc.getDescription())
                 .build();
     }
 

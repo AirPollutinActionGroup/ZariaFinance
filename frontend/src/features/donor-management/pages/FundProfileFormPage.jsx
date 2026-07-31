@@ -16,6 +16,7 @@ import {
   Switch,
   TextField,
   Typography,
+  useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -24,10 +25,13 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import SaveIcon from '@mui/icons-material/Save';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader, LoadingState, ErrorState } from '../../../shared/components/index.js';
 import { GeographyMultiSelect, RhfSelect, RhfTextField } from '../../../shared/components/index.js';
 import { useProgrammes } from '../hooks/useProgrammes.js';
+import { useDonor } from '../hooks/useDonors.js';
+import { geographyService } from '../services/geographyService.js';
 import {
   useCreateFundProfile,
   useFundProfile,
@@ -80,6 +84,8 @@ function RhfSwitch({ name, control, label }) {
 
 /** Create / edit a donor fund profile with its geography and rule collections. */
 export function FundProfileFormPage() {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
   const { donorId: donorIdParam, id } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
@@ -87,6 +93,9 @@ export function FundProfileFormPage() {
   const profileQuery = useFundProfile(isEdit ? id : null);
   const programmesQuery = useProgrammes();
   const donorId = isEdit ? profileQuery.data?.donorId : Number(donorIdParam);
+  const donorQuery = useDonor(donorId);
+  const isForeign = donorQuery.data?.fundSourceDomicile === 'FOREIGN';
+  const bookValue = isForeign ? 'FC · Foreign contribution' : 'LC · Local contribution';
 
   const createMutation = useCreateFundProfile(donorId);
   const updateMutation = useUpdateFundProfile(id, donorId);
@@ -111,10 +120,24 @@ export function FundProfileFormPage() {
   const hasFinalTranche = (trancheValues || []).some((t) => Boolean(t?.isFinal));
   const programmeTied = useWatch({ control, name: 'programmeTied' });
   const selectedGeographies = useWatch({ control, name: 'selectedGeographies' }) || [];
+  const statesQuery = useQuery({
+    queryKey: ['geography', 'states'],
+    queryFn: () => geographyService.listStates(),
+    staleTime: 1000 * 60 * 60,
+  });
+  const stateNameById = new Map((statesQuery.data || []).map((s) => [String(s.value), s.label]));
   const geographySubtitle =
     !selectedGeographies || selectedGeographies.length === 0 || selectedGeographies.includes('ALL')
       ? 'No geographies — spendable anywhere'
-      : selectedGeographies.join(', ');
+      : selectedGeographies.map((id) => stateNameById.get(String(id)) || id).join(', ');
+
+  const handleToggleUtilisationRules = () => {
+    const nextState = !utilisationRulesOpen;
+    setUtilisationRulesOpen(nextState);
+    if (nextState && utilisationRules.fields.length === 0) {
+      utilisationRules.append({ ruleType: 'ADMIN_OVERHEAD_COST', limitPercentage: '', description: '' });
+    }
+  };
 
   // Populate the form once the profile loads (edit mode only).
   useEffect(() => {
@@ -162,14 +185,23 @@ export function FundProfileFormPage() {
                 Behaviour
               </Typography>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <RhfSelect name="fundMode" control={control} label="Fund mode" options={FUND_MODE_OPTIONS} required />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <RhfSelect name="fundClass" control={control} label="Fund class (A/B/C)" options={FUND_CLASS_OPTIONS} />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <RhfSelect name="reportingFrequency" control={control} label="Reporting frequency" options={REPORTING_OPTIONS} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <TextField
+                    label="Book"
+                    value={bookValue}
+                    disabled
+                    fullWidth
+                    helperText="Derived from donor fund source domicile"
+                  />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 8 }}>
                   <RhfTextField name="purpose" control={control} label="Purpose" />
@@ -224,11 +256,21 @@ export function FundProfileFormPage() {
           {/* Utilisation rules */}
           <Card>
             <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, cursor: 'pointer' }} onClick={() => setUtilisationRulesOpen((prev) => !prev)}>
+              <Stack
+                direction="row"
+                sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, cursor: 'pointer' }}
+                onClick={handleToggleUtilisationRules}
+              >
                 <Box>
                   <Typography variant="h4" component="h2">Utilisation Rules</Typography>
                 </Box>
-                <IconButton size="small" onClick={(e) => { e.stopPropagation(); setUtilisationRulesOpen((prev) => !prev); }}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleUtilisationRules();
+                  }}
+                >
                   {utilisationRulesOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                 </IconButton>
               </Stack>
@@ -330,7 +372,7 @@ export function FundProfileFormPage() {
                         <Box
                           sx={{
                             display: 'inline-flex',
-                            bgcolor: 'var(--canvas, #F6F6F3)',
+                            bgcolor: isDarkMode ? 'action.hover' : 'var(--canvas, #F6F6F3)',
                             border: '1px solid',
                             borderColor: 'divider',
                             borderRadius: 1.5,
@@ -348,10 +390,10 @@ export function FundProfileFormPage() {
                               fontWeight: 600,
                               fontSize: 13,
                               textTransform: 'none',
-                              color: field.value === 'LUMP_SUM' ? '#fff' : 'text.primary',
-                              bgcolor: field.value === 'LUMP_SUM' ? '#181818' : 'transparent',
+                              color: field.value === 'LUMP_SUM' ? (isDarkMode ? '#181818' : '#fff') : 'text.primary',
+                              bgcolor: field.value === 'LUMP_SUM' ? (isDarkMode ? '#fff' : '#181818') : 'transparent',
                               '&:hover': {
-                                bgcolor: field.value === 'LUMP_SUM' ? '#000' : 'action.hover',
+                                bgcolor: field.value === 'LUMP_SUM' ? (isDarkMode ? '#e0e0e0' : '#000') : 'action.hover',
                               },
                             }}
                           >
@@ -367,10 +409,10 @@ export function FundProfileFormPage() {
                               fontWeight: 600,
                               fontSize: 13,
                               textTransform: 'none',
-                              color: field.value === 'TRANCHES' ? '#fff' : 'text.primary',
-                              bgcolor: field.value === 'TRANCHES' ? '#181818' : 'transparent',
+                              color: field.value === 'TRANCHES' ? (isDarkMode ? '#181818' : '#fff') : 'text.primary',
+                              bgcolor: field.value === 'TRANCHES' ? (isDarkMode ? '#fff' : '#181818') : 'transparent',
                               '&:hover': {
-                                bgcolor: field.value === 'TRANCHES' ? '#000' : 'action.hover',
+                                bgcolor: field.value === 'TRANCHES' ? (isDarkMode ? '#e0e0e0' : '#000') : 'action.hover',
                               },
                             }}
                           >
@@ -505,7 +547,6 @@ export function FundProfileFormPage() {
                         frequencyLabel={SCHEDULE_FREQUENCY_OPTIONS.find((o) => o.value === frequency)?.label}
                         lumpSum={false}
                         isFinal={Boolean(f.isFinal)}
-                        singleCriterion
                         responsibleRoleOptions={VERIFICATION_ROLES}
                       />
                     ))}

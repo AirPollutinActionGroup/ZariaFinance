@@ -93,6 +93,15 @@ public class FundProfileResponse {
         private String frequency;
         private String frequencyLabel;
         private Boolean isFinalTranche;
+        private List<ReleaseCriterionItem> criteria;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReleaseCriterionItem {
+        private Long id;
         private String releaseCriteria;
         private String releaseCriteriaLabel;
         private LocalDate releaseDate;

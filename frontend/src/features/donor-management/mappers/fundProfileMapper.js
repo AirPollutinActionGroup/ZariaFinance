@@ -3,11 +3,11 @@
  *
  * The backend's disbursementRules/trancheCriteria are one level deeper and
  * differently-named than the form's flat disbursementType/totalAmount/frequency
- * + tranches[].criteria[0] shape (see fundProfileSchema.js / FundProfileFormPage.jsx):
- * a profile has at most one meaningful disbursement rule, and each
- * DonorTrancheCriterion row already carries its own amount, date AND single
- * release gate (no separate tranche→criteria[] nesting on this side, unlike the
- * grant-side disbursementMapper.js this reuses constants from).
+ * + tranches[] shape (see fundProfileSchema.js / FundProfileFormPage.jsx): a
+ * profile has at most one meaningful disbursement rule, and each
+ * DonorTrancheCriterion row carries its own amount/date plus a criteria[] list
+ * (a tranche can have more than one release gate — mirrors tranches[].criteria[]
+ * on the form and DonorReleaseCriteria on the backend).
  */
 
 const FUND_MODE_LABEL = { RESTRICTED: 'Restricted', UNRESTRICTED: 'Unrestricted' };
@@ -43,14 +43,10 @@ const trimOrNull = (v) => {
   return t === '' ? null : t;
 };
 
-/** One tranche row (amount/date + its single criterion) → a trancheCriteria item. */
-function toTrancheCriterionItem(t, frequency) {
-  const c = (t.criteria || [])[0] || {};
+/** One form criterion → a ReleaseCriterionItem. */
+function toReleaseCriterionItem(c) {
   return {
-    amountCriteria: numOrNull(t.amount),
-    expectedReleaseDate: trimOrNull(t.expectedReleaseDate),
-    frequency: frequency || 'MONTHLY',
-    isFinalTranche: Boolean(t.isFinal),
+    id: c.id ?? null,
     releaseCriteria: c.criterionType || null,
     releaseDate: trimOrNull(c.releaseDate),
     milestoneName: trimOrNull(c.milestoneName),
@@ -69,34 +65,48 @@ function toTrancheCriterionItem(t, frequency) {
   };
 }
 
+/** One tranche row (amount/date + all its criteria) → a trancheCriteria item. */
+function toTrancheCriterionItem(t, frequency) {
+  return {
+    amountCriteria: numOrNull(t.amount),
+    expectedReleaseDate: trimOrNull(t.expectedReleaseDate),
+    frequency: frequency || 'MONTHLY',
+    isFinalTranche: Boolean(t.isFinal),
+    criteria: (t.criteria || []).map(toReleaseCriterionItem),
+  };
+}
+
+/** The inverse of toReleaseCriterionItem: a ReleaseCriterionItem → a form criterion. */
+function toCriterionFormValue(c) {
+  return {
+    id: c.id ?? null,
+    criterionType: c.releaseCriteria || '',
+    releaseDate: c.releaseDate || '',
+    milestoneName: c.milestoneName || '',
+    verificationRole: c.verificationSignOffRole || '',
+    otherVerificationRole: c.otherVerificationSignOffRole || '',
+    targetDate: c.targetDate || '',
+    utilisationPercent: c.utilisationPercentage ?? '',
+    triggerBasis: c.triggerBasis || '',
+    description: c.description || '',
+    hasReminder: Boolean(c.remindSomeone),
+    reminder: {
+      responsibleRole: c.responsibleRole || '',
+      otherResponsibleRole: c.otherResponsibleRole || '',
+      reminderLeadDays: c.reminderLeadTime ?? '',
+      repeatReminder: c.repeatReminder || 'ONCE',
+      escalateToDeputy: c.escalateToDeputy ?? true,
+    },
+  };
+}
+
 /** The inverse of toTrancheCriterionItem: a trancheCriteria item → a tranche row. */
 function toTrancheFormValue(c) {
   return {
     amount: c.amountCriteria ?? '',
     expectedReleaseDate: c.expectedReleaseDate || '',
     isFinal: Boolean(c.isFinalTranche),
-    criteria: [
-      {
-        id: c.id ?? null,
-        criterionType: c.releaseCriteria || '',
-        releaseDate: c.releaseDate || '',
-        milestoneName: c.milestoneName || '',
-        verificationRole: c.verificationSignOffRole || '',
-        otherVerificationRole: c.otherVerificationSignOffRole || '',
-        targetDate: c.targetDate || '',
-        utilisationPercent: c.utilisationPercentage ?? '',
-        triggerBasis: c.triggerBasis || '',
-        description: c.description || '',
-        hasReminder: Boolean(c.remindSomeone),
-        reminder: {
-          responsibleRole: c.responsibleRole || '',
-          otherResponsibleRole: c.otherResponsibleRole || '',
-          reminderLeadDays: c.reminderLeadTime ?? '',
-          repeatReminder: c.repeatReminder || 'ONCE',
-          escalateToDeputy: c.escalateToDeputy ?? true,
-        },
-      },
-    ],
+    criteria: (c.criteria || []).map(toCriterionFormValue),
   };
 }
 
