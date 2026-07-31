@@ -5,10 +5,11 @@ package com.ngo.finance.donor.enums;
  * Rules §5). Resolved to a person and a deputy through the role directory.
  */
 public enum ResponsibleRole {
-    PROGRAMME_MANAGER("Programme Manager"),
     CFO("CFO"),
+    PROGRAMME_MANAGER("Programme Manager"),
     HEAD_OF_ORGANISATION("Head of Organisation"),
-    ACCOUNTS("Accounts");
+    ACCOUNTS("Accounts"),
+    OTHER("Other");
 
     private final String label;
 
