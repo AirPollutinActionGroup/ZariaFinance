@@ -44,7 +44,7 @@ public interface DonationMapper {
     @Mapping(target = "donorName",
             expression = "java(entity.getDonor() != null ? entity.getDonor().getDonorName() : \"Anonymous\")")
     @Mapping(target = "donorPanCardNumber",
-            expression = "java(entity.getDonor() != null ? entity.getDonor().getPanCardNumber() : null)")
+            expression = "java(entity.getDonor() != null ? entity.getDonor().getDocumentNumber() : null)")
     @Mapping(target = "donorAddress",
             expression = "java(entity.getDonor() != null ? entity.getDonor().getAddress() : null)")
     @Mapping(source = "programme.id", target = "programmeId")

@@ -21,8 +21,6 @@ export const donorSchema = z.object({
   idNumber: z.string().trim().optional().or(z.literal('')),
   foreignFundSourceType: z.string().trim().optional().or(z.literal('')),
   foreignCountryId: z.string().trim().optional().or(z.literal('')),
-  panCardNumber: z.string().trim().optional().or(z.literal('')),
-  foreignTaxIdentifier: z.string().trim().max(15, 'Foreign tax identifier must be at most 15 characters').optional().or(z.literal('')),
   passportNumber: z
     .string()
     .trim()
@@ -64,8 +62,6 @@ export const donorFormDefaults = {
   idNumber: '',
   foreignFundSourceType: '',
   foreignCountryId: '',
-  panCardNumber: '',
-  foreignTaxIdentifier: '',
   passportNumber: '',
   email: '',
   phoneNumber: '',

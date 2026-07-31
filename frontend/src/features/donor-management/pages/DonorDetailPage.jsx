@@ -132,7 +132,6 @@ export function DonorDetailPage() {
               <Field label="Phone" value={donor.phoneNumber} />
               <Field label="Website" value={donor.website} />
               <Field label="Registration no." value={donor.registrationNumber} />
-              <Field label="PAN card number" value={donor.panCardNumber} />
               {donor.idType ? (
                 <Field
                   label={INDIVIDUAL_ID_TYPE[donor.idType] || 'Identity Document'}

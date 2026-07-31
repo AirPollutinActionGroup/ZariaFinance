@@ -175,9 +175,6 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                           ? val.replace(/\D/g, '')
                           : val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
                         setValue('idNumber', formatted, { shouldValidate: true });
-                        if (idType === 'PAN') {
-                          setValue('panCardNumber', formatted);
-                        }
                         if (idType === 'PASSPORT') {
                           setValue('passportNumber', formatted);
                         }
