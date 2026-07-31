@@ -4,9 +4,11 @@ import { Autocomplete, TextField } from '@mui/material';
 /**
  * React Hook Form ↔ MUI Autocomplete(multiple) binding.
  * options: [{ value, label }]. Field value is an array of `value`s.
- * `transformSelection` lets a caller post-process the raw selected values
- * (e.g. expanding a sentinel option into every other option's value) before
- * they reach the field.
+ * `transformSelection(values, previousValues)` lets a caller post-process the
+ * raw selected values (e.g. expanding a sentinel option into every other
+ * option's value, or making it exclusive of the rest) before they reach the
+ * field; `previousValues` is the field's value before this change, so the
+ * caller can tell what was just added vs already there.
  */
 export function RhfMultiSelect({ name, control, label, options, required = false, helperText, transformSelection }) {
   return (
@@ -22,7 +24,7 @@ export function RhfMultiSelect({ name, control, label, options, required = false
           value={options.filter((o) => (field.value || []).includes(o.value))}
           onChange={(_event, selected) => {
             const values = selected.map((o) => o.value);
-            field.onChange(transformSelection ? transformSelection(values) : values);
+            field.onChange(transformSelection ? transformSelection(values, field.value || []) : values);
           }}
           renderInput={(params) => (
             <TextField

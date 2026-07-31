@@ -35,9 +35,24 @@ export function GeographyMultiSelect({
     ...(apiStates || []),
   ], [apiStates]);
 
-  const transformSelection = allSelectsEverything
-    ? (values) => (values.includes('ALL') ? (apiStates || []).map((s) => s.value) : values)
-    : undefined;
+  // "All" is exclusive of specific states either way: picking it drops
+  // whatever states were already selected, and picking a state while "All"
+  // is active drops "All" rather than silently keeping both (the mapper would
+  // otherwise treat the selection as "All" and discard the states unnoticed).
+  const transformSelection = (values, previousValues) => {
+    if (allSelectsEverything) {
+      return values.includes('ALL') ? (apiStates || []).map((s) => s.value) : values;
+    }
+    const hadAll = (previousValues || []).includes('ALL');
+    const hasAll = values.includes('ALL');
+    if (hasAll && !hadAll) {
+      return ['ALL'];
+    }
+    if (hasAll && hadAll && values.length > 1) {
+      return values.filter((v) => v !== 'ALL');
+    }
+    return values;
+  };
 
   const defaultHelperText = allSelectsEverything
     ? "Select Indian states / UTs, or select All to apply every state"

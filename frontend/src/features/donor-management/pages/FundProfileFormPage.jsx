@@ -25,11 +25,13 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import SaveIcon from '@mui/icons-material/Save';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader, LoadingState, ErrorState } from '../../../shared/components/index.js';
 import { GeographyMultiSelect, RhfSelect, RhfTextField } from '../../../shared/components/index.js';
 import { useProgrammes } from '../hooks/useProgrammes.js';
 import { useDonor } from '../hooks/useDonors.js';
+import { geographyService } from '../services/geographyService.js';
 import {
   useCreateFundProfile,
   useFundProfile,
@@ -118,10 +120,16 @@ export function FundProfileFormPage() {
   const hasFinalTranche = (trancheValues || []).some((t) => Boolean(t?.isFinal));
   const programmeTied = useWatch({ control, name: 'programmeTied' });
   const selectedGeographies = useWatch({ control, name: 'selectedGeographies' }) || [];
+  const statesQuery = useQuery({
+    queryKey: ['geography', 'states'],
+    queryFn: () => geographyService.listStates(),
+    staleTime: 1000 * 60 * 60,
+  });
+  const stateNameById = new Map((statesQuery.data || []).map((s) => [String(s.value), s.label]));
   const geographySubtitle =
     !selectedGeographies || selectedGeographies.length === 0 || selectedGeographies.includes('ALL')
       ? 'No geographies — spendable anywhere'
-      : selectedGeographies.join(', ');
+      : selectedGeographies.map((id) => stateNameById.get(String(id)) || id).join(', ');
 
   const handleToggleUtilisationRules = () => {
     const nextState = !utilisationRulesOpen;
