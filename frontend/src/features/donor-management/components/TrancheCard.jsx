@@ -13,6 +13,7 @@ import {
   Switch,
   TextField,
   Typography,
+  useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -40,6 +41,8 @@ export function TrancheCard({
   singleCriterion = false,
   responsibleRoleOptions,
 }) {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
   const criteria = useFieldArray({ control, name: `${path}.criteria` });
   const tranche = useWatch({ control, name: path });
   const received = Boolean(tranche?.received);
@@ -223,7 +226,7 @@ export function TrancheCard({
           gap: 1.5,
           p: 2,
           px: 2.5,
-          bgcolor: '#fbfbf9',
+          bgcolor: isDarkMode ? 'action.hover' : '#fbfbf9',
           borderBottom: '1px solid',
           borderColor: 'divider',
         }}
@@ -313,11 +316,8 @@ export function TrancheCard({
                 input: {
                   sx: {
                     fontWeight: 600,
-                    color: '#181818',
                     '&.Mui-disabled': {
-                      bgcolor: 'var(--canvas, #f4f4f0)',
-                      color: '#181818',
-                      WebkitTextFillColor: '#181818',
+                      bgcolor: isDarkMode ? 'action.hover' : '#f4f4f0',
                     },
                   },
                 },
@@ -334,7 +334,7 @@ export function TrancheCard({
             p: 1.5,
             px: 2,
             borderRadius: 2,
-            bgcolor: 'var(--canvas, #f4f4f0)',
+            bgcolor: isDarkMode ? 'action.hover' : '#f4f4f0',
             border: '1px solid',
             borderColor: 'divider',
             display: 'flex',
@@ -382,14 +382,14 @@ export function TrancheCard({
                 control={control}
                 path={`${path}.criteria.${i}`}
                 index={i}
-                canRemove={!singleCriterion && criteria.fields.length > 1}
+                canRemove={!singleCriterion}
                 onRemove={() => criteria.remove(i)}
                 responsibleRoleOptions={responsibleRoleOptions}
               />
             ))}
           </Stack>
 
-          {criteria.fields.length === 0 && !singleCriterion ? (
+          {!singleCriterion ? (
             <Button
               size="small"
               variant="outlined"
