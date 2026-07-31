@@ -5,6 +5,7 @@ import com.ngo.finance.donor.dto.request.CreateFundProfileRequest;
 import com.ngo.finance.donor.dto.response.FundProfileResponse;
 import com.ngo.finance.donor.entity.DonorDisbursementRule;
 import com.ngo.finance.donor.entity.DonorFundProfile;
+import com.ngo.finance.donor.entity.DonorReleaseCriteria;
 import com.ngo.finance.donor.entity.DonorTrancheCriterion;
 import com.ngo.finance.donor.entity.DonorUtilisationRule;
 import com.ngo.finance.donor.entity.SpendableGeography;
@@ -105,21 +106,30 @@ public class FundProfileMapper {
                         criterion.setExpectedReleaseDate(c.getExpectedReleaseDate());
                         criterion.setFrequency(c.getFrequency());
                         criterion.setIsFinalTranche(c.getIsFinalTranche());
-                        criterion.setReleaseCriteria(c.getReleaseCriteria());
-                        criterion.setReleaseDate(c.getReleaseDate());
-                        criterion.setMilestoneName(c.getMilestoneName());
-                        criterion.setVerificationSignOffRole(c.getVerificationSignOffRole());
-                        criterion.setOtherVerificationSignOffRole(c.getOtherVerificationSignOffRole());
-                        criterion.setTargetDate(c.getTargetDate());
-                        criterion.setUtilisationPercentage(c.getUtilisationPercentage());
-                        criterion.setTriggerBasis(c.getTriggerBasis());
-                        criterion.setDescription(c.getDescription());
-                        criterion.setRemindSomeone(c.getRemindSomeone());
-                        criterion.setResponsibleRole(c.getResponsibleRole());
-                        criterion.setOtherResponsibleRole(c.getOtherResponsibleRole());
-                        criterion.setReminderLeadTime(c.getReminderLeadTime());
-                        criterion.setRepeatReminder(c.getRepeatReminder());
-                        criterion.setEscalateToDeputy(c.getEscalateToDeputy());
+
+                        if (c.getCriteria() != null) {
+                            for (CreateFundProfileRequest.ReleaseCriterionItem rc : c.getCriteria()) {
+                                DonorReleaseCriteria releaseCriteria = new DonorReleaseCriteria();
+                                releaseCriteria.setDonorTrancheCriterion(criterion);
+                                releaseCriteria.setReleaseCriteria(rc.getReleaseCriteria());
+                                releaseCriteria.setReleaseDate(rc.getReleaseDate());
+                                releaseCriteria.setMilestoneName(rc.getMilestoneName());
+                                releaseCriteria.setVerificationSignOffRole(rc.getVerificationSignOffRole());
+                                releaseCriteria.setOtherVerificationSignOffRole(rc.getOtherVerificationSignOffRole());
+                                releaseCriteria.setTargetDate(rc.getTargetDate());
+                                releaseCriteria.setUtilisationPercentage(rc.getUtilisationPercentage());
+                                releaseCriteria.setTriggerBasis(rc.getTriggerBasis());
+                                releaseCriteria.setDescription(rc.getDescription());
+                                releaseCriteria.setRemindSomeone(rc.getRemindSomeone());
+                                releaseCriteria.setResponsibleRole(rc.getResponsibleRole());
+                                releaseCriteria.setOtherResponsibleRole(rc.getOtherResponsibleRole());
+                                releaseCriteria.setReminderLeadTime(rc.getReminderLeadTime());
+                                releaseCriteria.setRepeatReminder(rc.getRepeatReminder());
+                                releaseCriteria.setEscalateToDeputy(rc.getEscalateToDeputy());
+                                criterion.getDonorReleaseCriteria().add(releaseCriteria);
+                            }
+                        }
+
                         rule.getDonorTrancheCriteria().add(criterion);
                     }
                 }
@@ -207,6 +217,10 @@ public class FundProfileMapper {
     }
 
     private FundProfileResponse.TrancheCriterionItem toTrancheCriterionItem(DonorTrancheCriterion c) {
+        List<FundProfileResponse.ReleaseCriterionItem> criteria = c.getDonorReleaseCriteria().stream()
+                .map(this::toReleaseCriterionItem)
+                .toList();
+
         return FundProfileResponse.TrancheCriterionItem.builder()
                 .id(c.getId())
                 .amountCriteria(c.getAmountCriteria())
@@ -214,28 +228,35 @@ public class FundProfileMapper {
                 .frequency(c.getFrequency() != null ? c.getFrequency().name() : null)
                 .frequencyLabel(c.getFrequency() != null ? c.getFrequency().getLabel() : null)
                 .isFinalTranche(c.getIsFinalTranche())
-                .releaseCriteria(c.getReleaseCriteria() != null ? c.getReleaseCriteria().name() : null)
-                .releaseCriteriaLabel(c.getReleaseCriteria() != null ? c.getReleaseCriteria().getLabel() : null)
-                .releaseDate(c.getReleaseDate())
-                .milestoneName(c.getMilestoneName())
+                .criteria(criteria)
+                .build();
+    }
+
+    private FundProfileResponse.ReleaseCriterionItem toReleaseCriterionItem(DonorReleaseCriteria rc) {
+        return FundProfileResponse.ReleaseCriterionItem.builder()
+                .id(rc.getId())
+                .releaseCriteria(rc.getReleaseCriteria() != null ? rc.getReleaseCriteria().name() : null)
+                .releaseCriteriaLabel(rc.getReleaseCriteria() != null ? rc.getReleaseCriteria().getLabel() : null)
+                .releaseDate(rc.getReleaseDate())
+                .milestoneName(rc.getMilestoneName())
                 .verificationSignOffRole(
-                        c.getVerificationSignOffRole() != null ? c.getVerificationSignOffRole().name() : null)
+                        rc.getVerificationSignOffRole() != null ? rc.getVerificationSignOffRole().name() : null)
                 .verificationSignOffRoleLabel(
-                        c.getVerificationSignOffRole() != null ? c.getVerificationSignOffRole().getLabel() : null)
-                .otherVerificationSignOffRole(c.getOtherVerificationSignOffRole())
-                .targetDate(c.getTargetDate())
-                .utilisationPercentage(c.getUtilisationPercentage())
-                .triggerBasis(c.getTriggerBasis() != null ? c.getTriggerBasis().name() : null)
-                .triggerBasisLabel(c.getTriggerBasis() != null ? c.getTriggerBasis().getLabel() : null)
-                .description(c.getDescription())
-                .remindSomeone(c.getRemindSomeone())
-                .responsibleRole(c.getResponsibleRole() != null ? c.getResponsibleRole().name() : null)
-                .responsibleRoleLabel(c.getResponsibleRole() != null ? c.getResponsibleRole().getLabel() : null)
-                .otherResponsibleRole(c.getOtherResponsibleRole())
-                .reminderLeadTime(c.getReminderLeadTime())
-                .repeatReminder(c.getRepeatReminder() != null ? c.getRepeatReminder().name() : null)
-                .repeatReminderLabel(c.getRepeatReminder() != null ? c.getRepeatReminder().getLabel() : null)
-                .escalateToDeputy(c.getEscalateToDeputy())
+                        rc.getVerificationSignOffRole() != null ? rc.getVerificationSignOffRole().getLabel() : null)
+                .otherVerificationSignOffRole(rc.getOtherVerificationSignOffRole())
+                .targetDate(rc.getTargetDate())
+                .utilisationPercentage(rc.getUtilisationPercentage())
+                .triggerBasis(rc.getTriggerBasis() != null ? rc.getTriggerBasis().name() : null)
+                .triggerBasisLabel(rc.getTriggerBasis() != null ? rc.getTriggerBasis().getLabel() : null)
+                .description(rc.getDescription())
+                .remindSomeone(rc.getRemindSomeone())
+                .responsibleRole(rc.getResponsibleRole() != null ? rc.getResponsibleRole().name() : null)
+                .responsibleRoleLabel(rc.getResponsibleRole() != null ? rc.getResponsibleRole().getLabel() : null)
+                .otherResponsibleRole(rc.getOtherResponsibleRole())
+                .reminderLeadTime(rc.getReminderLeadTime())
+                .repeatReminder(rc.getRepeatReminder() != null ? rc.getRepeatReminder().name() : null)
+                .repeatReminderLabel(rc.getRepeatReminder() != null ? rc.getRepeatReminder().getLabel() : null)
+                .escalateToDeputy(rc.getEscalateToDeputy())
                 .build();
     }
 }

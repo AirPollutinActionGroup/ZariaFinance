@@ -19,6 +19,7 @@ import com.ngo.finance.donor.dto.request.ReceiveTrancheRequest;
 import com.ngo.finance.donor.entity.DonorDisbursementRule;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
+import com.ngo.finance.donor.entity.DonorReleaseCriteria;
 import com.ngo.finance.donor.entity.DonorTrancheCriterion;
 import com.ngo.finance.donor.entity.Programme;
 import com.ngo.finance.donor.enums.CriterionType;
@@ -108,16 +109,22 @@ public class DisbursementControllerIntegrationTest {
         first.setDonorDisbursementRule(rule);
         first.setAmountCriteria(new BigDecimal("150000.00"));
         first.setExpectedReleaseDate(LocalDate.of(2026, 4, 1));
-        first.setReleaseCriteria(CriterionType.MILESTONE_BASED);
-        first.setMilestoneName("Kickoff milestone");
-        first.setVerificationSignOffRole(VerificationRole.CFO);
+        DonorReleaseCriteria firstCriterion = new DonorReleaseCriteria();
+        firstCriterion.setDonorTrancheCriterion(first);
+        firstCriterion.setReleaseCriteria(CriterionType.MILESTONE_BASED);
+        firstCriterion.setMilestoneName("Kickoff milestone");
+        firstCriterion.setVerificationSignOffRole(VerificationRole.CFO);
+        first.getDonorReleaseCriteria().add(firstCriterion);
         rule.getDonorTrancheCriteria().add(first);
 
         DonorTrancheCriterion second = new DonorTrancheCriterion();
         second.setDonorDisbursementRule(rule);
         second.setAmountCriteria(new BigDecimal("100000.00"));
-        second.setReleaseCriteria(CriterionType.ON_SIGNING);
         second.setIsFinalTranche(true);
+        DonorReleaseCriteria secondCriterion = new DonorReleaseCriteria();
+        secondCriterion.setDonorTrancheCriterion(second);
+        secondCriterion.setReleaseCriteria(CriterionType.ON_SIGNING);
+        second.getDonorReleaseCriteria().add(secondCriterion);
         rule.getDonorTrancheCriteria().add(second);
 
         profile.getDisbursementRules().add(rule);
