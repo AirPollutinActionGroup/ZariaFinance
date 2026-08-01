@@ -149,6 +149,14 @@ export const fundProfileSchema = z
       });
     }
 
+    if (data.movementAllowed && !data.programmeTied && isBlank(data.purpose)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Purpose is required when Movement allowed is enabled and Programme-tied is off',
+        path: ['purpose'],
+      });
+    }
+
     const disbursementActive = !isBlank(data.totalAmount) || (data.tranches || []).length > 0;
     if (!disbursementActive) {
       return;

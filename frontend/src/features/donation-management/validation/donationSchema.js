@@ -9,12 +9,32 @@ import { ANONYMOUS_ALLOWED_TYPES } from '../constants.js';
  * 80G/10BD chain) — this schema only prevents obviously incomplete submits.
  */
 
-const gikItemSchema = z.object({
-  itemDescription: z.string().trim().min(1, 'Item description is required'),
-  fairValue: z.string().trim().min(1, 'Fair value is required').refine((v) => Number(v) > 0, 'Must be positive'),
-  intendedUse: z.string().min(1, 'Intended use is required'),
-  expiryDate: z.string().optional().or(z.literal('')),
-});
+const gikItemSchema = z
+  .object({
+    itemDescription: z.string().trim().min(1, 'Item description is required'),
+    quantity: z.string().optional().or(z.literal('')),
+    fairValue: z.string().trim().min(1, 'Fair value is required').refine((v) => Number(v) > 0, 'Must be positive'),
+    valuationBasis: z.string().optional().or(z.literal('')),
+    valuationSource: z.string().optional().or(z.literal('')),
+    intendedUse: z.string().min(1, 'Intended use is required'),
+    treatment: z.string().optional().or(z.literal('')),
+    programmeId: z.union([z.number(), z.string()]).optional().or(z.literal('')),
+    otherProgramme: z.string().optional().or(z.literal('')),
+    expiryDate: z.string().optional().or(z.literal('')),
+    realisationStatus: z.string().optional().or(z.literal('')),
+    actualSaleDate: z.string().optional().or(z.literal('')),
+    actualProceeds: z.string().optional().or(z.literal('')),
+    matchingLeg: z.string().optional().or(z.literal('')),
+  })
+  .superRefine((data, ctx) => {
+    if (data.programmeId === 'OTHER' && (!data.otherProgramme || !data.otherProgramme.trim())) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['otherProgramme'],
+        message: 'Please specify the other programme / purpose',
+      });
+    }
+  });
 
 const corpusDetailSchema = z.object({
   writtenDirectionRef: z.string().trim(),
@@ -30,6 +50,7 @@ const recurringMandateSchema = z.object({
   mandateStatus: z.string().optional().or(z.literal('')),
   nextExpectedDebitDate: z.string().optional().or(z.literal('')),
   sponsorshipTie: z.string().optional().or(z.literal('')),
+  otherSponsorshipTie: z.string().optional().or(z.literal('')),
 });
 
 const payrollEmployeeSchema = z.object({
@@ -43,6 +64,10 @@ const payrollEmployeeSchema = z.object({
 const payrollBatchSchema = z.object({
   employer: z.string().trim(),
   employerMatchRouting: z.string().optional().or(z.literal('')),
+  matchAmount: z.string().optional().or(z.literal('')),
+  employerMoneyRouting: z.string().optional().or(z.literal('')),
+  csrFinancialYear: z.string().optional().or(z.literal('')),
+  csrProjectRef: z.string().optional().or(z.literal('')),
   employees: z.array(payrollEmployeeSchema),
 });
 
@@ -60,6 +85,8 @@ export const donationSchema = z
     channel: z.string().min(1, 'Channel is required'),
     identification: z.string().min(1, 'Donor identification is required'),
     donorId: z.string().optional().or(z.literal('')),
+    idType: z.string().optional().or(z.literal('')),
+    idNumber: z.string().optional().or(z.literal('')),
     anonymousCollectionSource: z.string().optional().or(z.literal('')),
     anonymousSourceReference: z.string().optional().or(z.literal('')),
     fundMode: z.string().min(1, 'Fund mode is required'),
@@ -77,6 +104,8 @@ export const donationSchema = z
     bankAccountType: z.string().min(1, 'Bank account type is required'),
     transactionRef: z.string().optional().or(z.literal('')),
     tallyVoucherRef: z.string().optional().or(z.literal('')),
+    receiptNumber80g: z.string().optional().or(z.literal('')),
+    certificate10be: z.string().optional().or(z.literal('')),
     gikItems: z.array(gikItemSchema),
     corpusDetail: corpusDetailSchema,
     recurringMandate: recurringMandateSchema,
@@ -151,6 +180,13 @@ export const donationSchema = z
           message: 'Mandate start date is required',
         });
       }
+      if (values.recurringMandate?.sponsorshipTie === 'OTHER' && (!values.recurringMandate?.otherSponsorshipTie || !values.recurringMandate?.otherSponsorshipTie.trim())) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['recurringMandate', 'otherSponsorshipTie'],
+          message: 'Please specify the other sponsorship tie',
+        });
+      }
     }
     if (values.donationType === 'PAYROLL_GIVING') {
       if (!values.payrollBatch.employer.trim()) {
@@ -180,19 +216,29 @@ export const donationSchema = z
         });
       }
     }
+    if (values.programmeId === 'OTHER' && (!values.otherProgramme || !values.otherProgramme.trim())) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['otherProgramme'],
+        message: 'Please specify the other programme / purpose',
+      });
+    }
   });
 
 export const donationFormDefaults = {
   donationType: '',
-  receiptDate: '',
-  channel: '',
+  receiptDate: new Date().toISOString().split('T')[0],
+  channel: 'BANK_TRANSFER',
   identification: 'NAMED',
   donorId: '',
+  idType: '',
+  idNumber: '',
   anonymousCollectionSource: '',
   anonymousSourceReference: '',
   fundMode: 'UNRESTRICTED',
   fundClassCode: '',
   programmeId: '',
+  otherProgramme: '',
   stateIds: [],
   utilisationPeriodType: 'SINGLE_FY',
   utilisationStartDate: '',
@@ -205,6 +251,8 @@ export const donationFormDefaults = {
   bankAccountType: 'DOMESTIC_CURRENT',
   transactionRef: '',
   tallyVoucherRef: '',
+  receiptNumber80g: '',
+  certificate10be: '',
   gikItems: [],
   corpusDetail: {
     writtenDirectionRef: '',
@@ -219,10 +267,15 @@ export const donationFormDefaults = {
     mandateStatus: 'ACTIVE',
     nextExpectedDebitDate: '',
     sponsorshipTie: '',
+    otherSponsorshipTie: '',
   },
   payrollBatch: {
     employer: '',
-    employerMatchRouting: 'PAYROLL_GIVING_TAGGED',
+    employerMatchRouting: 'NO',
+    matchAmount: '',
+    employerMoneyRouting: 'PAYROLL_GIVING_TAGGED',
+    csrFinancialYear: 'FY 2026-27',
+    csrProjectRef: '',
     employees: [],
   },
   legacyDetail: {

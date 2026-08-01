@@ -106,7 +106,7 @@ export function FundProfileFormPage() {
   const [geographiesOpen, setGeographiesOpen] = useState(false);
   const [utilisationRulesOpen, setUtilisationRulesOpen] = useState(false);
 
-  const { control, handleSubmit, reset } = useForm({
+  const { control, handleSubmit, reset, setValue } = useForm({
     resolver: zodResolver(fundProfileSchema),
     defaultValues: fundProfileFormDefaults,
   });
@@ -119,6 +119,8 @@ export function FundProfileFormPage() {
   const trancheValues = useWatch({ control, name: 'tranches' });
   const hasFinalTranche = (trancheValues || []).some((t) => Boolean(t?.isFinal));
   const programmeTied = useWatch({ control, name: 'programmeTied' });
+  const movementAllowed = useWatch({ control, name: 'movementAllowed' });
+  const isPurposeRequired = movementAllowed && !programmeTied;
   const selectedGeographies = useWatch({ control, name: 'selectedGeographies' }) || [];
   const statesQuery = useQuery({
     queryKey: ['geography', 'states'],
@@ -130,6 +132,12 @@ export function FundProfileFormPage() {
     !selectedGeographies || selectedGeographies.length === 0 || selectedGeographies.includes('ALL')
       ? 'No geographies — spendable anywhere'
       : selectedGeographies.map((id) => stateNameById.get(String(id)) || id).join(', ');
+
+  useEffect(() => {
+    if (movementAllowed && !programmeTied) {
+      setValue('explanationRequired', true);
+    }
+  }, [movementAllowed, programmeTied, setValue]);
 
   const handleToggleUtilisationRules = () => {
     const nextState = !utilisationRulesOpen;
@@ -204,7 +212,12 @@ export function FundProfileFormPage() {
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 8 }}>
-                  <RhfTextField name="purpose" control={control} label="Purpose" />
+                  <RhfTextField
+                    name="purpose"
+                    control={control}
+                    label={isPurposeRequired ? 'Purpose *' : 'Purpose'}
+                    required={Boolean(isPurposeRequired)}
+                  />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <RhfSelect
