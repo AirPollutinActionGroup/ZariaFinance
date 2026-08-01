@@ -34,6 +34,7 @@ import {
 import {
   BOOK_TONE,
   EIGHTY_G_STATUS_TONE,
+  EMPLOYER_MATCH_ROUTING,
   FUND_MODE_TONE,
   GIK_INTENDED_USE,
   GIK_REALISATION_STATUS_TONE,
@@ -494,7 +495,9 @@ export function DonationDetailPage() {
                 <TableHead>
                   <TableRow>
                     <TableCell>Item</TableCell>
+                    <TableCell align="right">Qty</TableCell>
                     <TableCell align="right">Fair value</TableCell>
+                    <TableCell>Valuation source</TableCell>
                     <TableCell>Intended use</TableCell>
                     <TableCell>Liquidation due</TableCell>
                     <TableCell>Status</TableCell>
@@ -505,7 +508,9 @@ export function DonationDetailPage() {
                   {donation.gikItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>{item.itemDescription}</TableCell>
+                      <TableCell align="right">{item.quantity ?? '—'}</TableCell>
                       <TableCell align="right">{formatInrExact(item.fairValue)}</TableCell>
+                      <TableCell>{item.valuationSource || '—'}</TableCell>
                       <TableCell>{item.intendedUseLabel}</TableCell>
                       <TableCell>{item.liquidationDueDate ? formatDate(item.liquidationDueDate) : '—'}</TableCell>
                       <TableCell>
@@ -577,9 +582,26 @@ export function DonationDetailPage() {
             <SectionCard title="Payroll giving batch">
               <TermRow label="Employer">{donation.payrollBatch.employer}</TermRow>
               <TermRow label="Indian → LC">{formatInr(donation.payrollBatch.indianTotal)}</TermRow>
-              <TermRow label="Foreign → FC" last>
+              <TermRow label="Foreign → FC">
                 {formatInr(donation.payrollBatch.foreignTotal)}
               </TermRow>
+              {donation.payrollBatch.matchAmount != null ? (
+                <>
+                  <TermRow label="Employer match">
+                    {formatInrExact(donation.payrollBatch.matchAmount)} ·{' '}
+                    {EMPLOYER_MATCH_ROUTING[donation.payrollBatch.employerMatchRouting]
+                      || donation.payrollBatch.employerMatchRouting}
+                  </TermRow>
+                  {donation.payrollBatch.csrFinancialYear ? (
+                    <TermRow label="CSR financial year">{donation.payrollBatch.csrFinancialYear}</TermRow>
+                  ) : null}
+                  {donation.payrollBatch.csrProjectRef ? (
+                    <TermRow label="CSR project reference" last>
+                      {donation.payrollBatch.csrProjectRef}
+                    </TermRow>
+                  ) : null}
+                </>
+              ) : null}
               <Table size="small" sx={{ mt: 2 }}>
                 <TableHead>
                   <TableRow>

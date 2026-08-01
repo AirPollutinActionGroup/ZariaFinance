@@ -133,17 +133,13 @@ export function DonationForm({
 
   const getGikTreatment = (intendedUse) => {
     switch (intendedUse) {
-      case 'DISTRIBUTE_FREE':
-      case 'Distribute free to beneficiaries':
+      case 'DISTRIBUTE':
         return 'Consumed — expense on distribution';
       case 'USE_INTERNALLY':
-      case 'Use internally / consume in operations':
         return 'Consumed — expense on consumption';
       case 'RETAIN_FIXED_ASSET':
-      case 'Retain and use as a fixed asset':
         return 'Kept — capitalise';
-      case 'SELL_CONVERT_CASH':
-      case 'Sell / convert to cash':
+      case 'SELL':
         return 'Held for sale — neither kept nor consumed';
       default:
         return '—';
@@ -178,7 +174,7 @@ export function DonationForm({
         fairValue: '',
         valuationBasis: 'MARKET_QUOTATION',
         valuationSource: '',
-        intendedUse: 'DISTRIBUTE_FREE',
+        intendedUse: 'DISTRIBUTE',
         treatment: '',
         programmeId: '',
         expiryDate: '',
@@ -798,7 +794,7 @@ export function DonationForm({
                       fairValue: '',
                       valuationBasis: 'MARKET_QUOTATION',
                       valuationSource: '',
-                      intendedUse: 'DISTRIBUTE_FREE',
+                      intendedUse: 'DISTRIBUTE',
                       treatment: '',
                       programmeId: '',
                       expiryDate: '',
@@ -944,7 +940,7 @@ export function DonationForm({
                           </Grid>
                         ) : null}
 
-                        {currentIntendedUse === 'RETAIN_FIXED_ASSET' || currentIntendedUse === 'Retain and use as a fixed asset' ? null : currentIntendedUse === 'SELL_CONVERT_CASH' || currentIntendedUse === 'Sell / convert to cash' ? (
+                        {currentIntendedUse === 'RETAIN_FIXED_ASSET' ? null : currentIntendedUse === 'SELL' ? (
                           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                             <TextField
                               label="Liquidation due date"
@@ -967,7 +963,7 @@ export function DonationForm({
                         )}
 
                         {/* Extra row for Sell / convert to cash: Liquidation status, Actual sale date, Actual proceeds */}
-                        {currentIntendedUse === 'SELL_CONVERT_CASH' || currentIntendedUse === 'Sell / convert to cash' ? (
+                        {currentIntendedUse === 'SELL' ? (
                           <>
                             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                               <RhfSelect
@@ -977,7 +973,7 @@ export function DonationForm({
                                 required
                                 options={[
                                   { value: 'PENDING', label: 'Pending' },
-                                  { value: 'REALISED', label: 'Realised' },
+                                  { value: 'SOLD', label: 'Sold' },
                                 ]}
                               />
                             </Grid>
@@ -1116,12 +1112,12 @@ export function DonationForm({
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <RhfTextField
-                  name="receiptNumber80g"
-                  control={control}
+                <TextField
                   label="80G receipt number"
-                  placeholder="Enter receipt number"
-                  disabled={donationType === 'GIK'}
+                  value="—"
+                  disabled
+                  fullWidth
+                  helperText="Assigned automatically once the 80G receipt is issued"
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
@@ -1141,12 +1137,12 @@ export function DonationForm({
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <RhfTextField
-                  name="certificate10be"
-                  control={control}
+                <TextField
                   label="10BE certificate"
-                  placeholder="Enter 10BE certificate detail"
-                  disabled={donationType === 'GIK'}
+                  value="—"
+                  disabled
+                  fullWidth
+                  helperText="Filed after the financial year closes, once 10BD is submitted"
                 />
               </Grid>
             </Grid>

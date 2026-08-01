@@ -94,10 +94,10 @@ export const GIK_VALUATION_BASIS = Object.freeze({
 });
 
 export const GIK_INTENDED_USE = Object.freeze({
-  DISTRIBUTE_FREE: 'Distribute free to beneficiaries',
-  USE_INTERNALLY: 'Use internally / consume in operations',
-  RETAIN_FIXED_ASSET: 'Retain and use as a fixed asset',
-  SELL_CONVERT_CASH: 'Sell / convert to cash',
+  DISTRIBUTE: 'Distribute — programme expense',
+  USE_INTERNALLY: 'Use internally — expense on consumption',
+  RETAIN_FIXED_ASSET: 'Retain as fixed asset — capitalise',
+  SELL: 'Sell — held for sale, liquidation deadline applies',
 });
 
 export const GIK_REALISATION_STATUS = Object.freeze({
