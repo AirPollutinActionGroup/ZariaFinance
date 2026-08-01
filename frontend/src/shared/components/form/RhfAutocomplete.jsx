@@ -35,6 +35,22 @@ export function RhfAutocomplete({
           value={options.find((o) => asKey(o.value) === asKey(field.value)) || null}
           onChange={(_event, selected) => field.onChange(selected ? selected.value : '')}
           onBlur={field.onBlur}
+          slotProps={{
+            paper: {
+              elevation: 4,
+              sx: {
+                maxHeight: 180,
+                border: '1px solid',
+                borderColor: 'divider',
+                boxShadow: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? '0 8px 24px rgba(0,0,0,0.5)'
+                    : '0 8px 24px rgba(0,0,0,0.1)',
+                borderRadius: 2,
+                mt: 0.5,
+              },
+            },
+          }}
           renderInput={(params) => (
             <TextField
               {...params}

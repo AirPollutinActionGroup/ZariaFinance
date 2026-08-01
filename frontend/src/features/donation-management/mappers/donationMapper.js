@@ -115,15 +115,16 @@ export function toCreateDonationRequest(values) {
       values.identification === 'ANONYMOUS' ? nullIfBlank(values.anonymousSourceReference) : null,
     fundMode: values.fundMode,
     fundClassCode: nullIfBlank(values.fundClassCode),
-    programmeId: values.programmeId ? Number(values.programmeId) : null,
-    stateIds: (values.stateIds || []).map(Number),
+    programmeId: values.programmeId && values.programmeId !== 'OTHER' ? Number(values.programmeId) : null,
+    otherProgramme: values.programmeId === 'OTHER' ? nullIfBlank(values.otherProgramme) : null,
+    stateIds: (values.stateIds || []).map(Number).filter((n) => !isNaN(n)),
     utilisationPeriodType: values.utilisationPeriodType,
     utilisationStartDate: nullIfBlank(values.utilisationStartDate),
     utilisationEndDate: nullIfBlank(values.utilisationEndDate),
     isConditionalGift: values.isConditionalGift === 'true' || values.isConditionalGift === true,
     conditionDescription: nullIfBlank(values.conditionDescription),
     currency: (values.currency || 'INR').trim().toUpperCase(),
-    amount: Number(values.amount),
+    amount: Number(values.amount) || 0,
     fxRate: numberOrNull(values.fxRate) ?? 1,
     bankAccountType: values.bankAccountType,
     transactionRef: nullIfBlank(values.transactionRef),
@@ -139,8 +140,11 @@ export function toCreateDonationRequest(values) {
     case 'GIK':
       base.gikItems = (values.gikItems || []).map((item) => ({
         itemDescription: item.itemDescription.trim(),
-        fairValue: Number(item.fairValue),
+        fairValue: Number(item.fairValue) || 0,
         intendedUse: item.intendedUse,
+        treatment: nullIfBlank(item.treatment),
+        programmeId: item.programmeId && item.programmeId !== 'OTHER' ? Number(item.programmeId) : null,
+        otherProgramme: item.programmeId === 'OTHER' ? nullIfBlank(item.otherProgramme) : null,
         expiryDate: nullIfBlank(item.expiryDate),
       }));
       break;
@@ -160,6 +164,7 @@ export function toCreateDonationRequest(values) {
         mandateStatus: values.recurringMandate.mandateStatus || 'ACTIVE',
         nextExpectedDebitDate: nullIfBlank(values.recurringMandate.nextExpectedDebitDate),
         sponsorshipTie: nullIfBlank(values.recurringMandate.sponsorshipTie),
+        otherSponsorshipTie: values.recurringMandate?.sponsorshipTie === 'OTHER' ? nullIfBlank(values.recurringMandate?.otherSponsorshipTie) : null,
       };
       break;
     case 'PAYROLL_GIVING':

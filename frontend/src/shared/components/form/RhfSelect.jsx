@@ -23,7 +23,7 @@ export function RhfSelect({ name, control, label, options, required = false, hel
           fullWidth
         >
           {options.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
+            <MenuItem key={option.value} value={option.value} disabled={option.disabled}>
               {option.label}
             </MenuItem>
           ))}

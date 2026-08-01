@@ -2,7 +2,7 @@ import { Grid } from '@mui/material';
 import { SearchableSelect } from '../../../components/SearchableSelect.jsx';
 import { useGeographyCascade } from '../hooks/useGeographyCascade.js';
 
-export function GeographyFields({ setValue, errors }) {
+export function GeographyFields({ setValue, errors, isDomestic = false }) {
   const {
     countries,
     states,
@@ -15,7 +15,7 @@ export function GeographyFields({ setValue, errors }) {
     setSelectedCity,
     loadingStates,
     loadingCities,
-  } = useGeographyCascade(setValue);
+  } = useGeographyCascade(setValue, isDomestic);
 
   return (
     <>
@@ -27,6 +27,7 @@ export function GeographyFields({ setValue, errors }) {
           options={countries}
           value={selectedCountry}
           onChange={setSelectedCountry}
+          disabled={isDomestic}
           error={errors?.countryId?.message || errors?.country?.message}
         />
       </Grid>

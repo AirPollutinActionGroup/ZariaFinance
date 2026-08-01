@@ -153,7 +153,7 @@ export function DonorDetailPage() {
               <Field label="City" value={donor.cityName} />
               <Field label="State" value={donor.stateName} />
               <Field label="Country" value={donor.countryName} />
-              <Field label="Postal code" value={donor.postalCode} />
+              <Field label="PIN / Postal code" value={donor.postalCode} />
               <Field label="Created" value={formatDateTime(donor.createdAt)} />
               <Field label="Last updated" value={formatDateTime(donor.updatedAt)} />
             </Grid>

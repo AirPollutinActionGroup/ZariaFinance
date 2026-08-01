@@ -11,7 +11,7 @@ export const DONATION_TYPE = Object.freeze({
   ONE_TIME: 'One-time donation',
   RECURRING: 'Recurring giving',
   PAYROLL_GIVING: 'Payroll giving',
-  LEGACY: 'Legacy / bequest',
+  LEGACY: 'Legacy / bequest — DORMANT (not available)',
   GIK: 'Gift in kind',
   CORPUS: 'Corpus',
 });
@@ -34,6 +34,15 @@ export const BOOK = Object.freeze({
 export const DONOR_IDENTIFICATION = Object.freeze({
   NAMED: 'Named donor',
   ANONYMOUS: 'Anonymous',
+});
+
+export const INDIVIDUAL_ID_TYPE = Object.freeze({
+  PAN: 'PAN Card',
+  AADHAR: 'Aadhaar Card',
+  VOTER_ID: 'Voter ID',
+  DRIVING_LICENSE: 'Driving License',
+  PASSPORT: 'Passport ID',
+  FOREIGN_TAX_ID: 'Foreign Tax Identification Number',
 });
 
 export const FUND_MODE = Object.freeze({
@@ -77,10 +86,18 @@ export const TEN_BE_STATUS = Object.freeze({
   OVERDUE: 'Overdue',
 });
 
+export const GIK_VALUATION_BASIS = Object.freeze({
+  MARKET_QUOTATION: 'Market quotation',
+  SUPPLIER_INVOICE: 'Supplier invoice',
+  REGISTERED_VALUER_CERTIFICATE: 'Registered valuer certificate',
+  DONOR_DECLARATION: 'Donor declaration',
+});
+
 export const GIK_INTENDED_USE = Object.freeze({
-  DISTRIBUTE: 'Distribute — programme expense',
-  SELL: 'Sell — held for sale, liquidation deadline applies',
-  USE_INTERNALLY: 'Use internally — expense on consumption',
+  DISTRIBUTE_FREE: 'Distribute free to beneficiaries',
+  USE_INTERNALLY: 'Use internally / consume in operations',
+  RETAIN_FIXED_ASSET: 'Retain and use as a fixed asset',
+  SELL_CONVERT_CASH: 'Sell / convert to cash',
 });
 
 export const GIK_REALISATION_STATUS = Object.freeze({
@@ -111,6 +128,12 @@ export const MANDATE_STATUS = Object.freeze({
   PAUSED: 'Paused',
   FAILED: 'Failed',
   CANCELLED: 'Cancelled',
+});
+
+export const SPONSORSHIP_TIE = Object.freeze({
+  NONE: '— none —',
+  CHILD_SPONSORSHIP: 'Child sponsorship',
+  PROGRAMME_SPONSORSHIP: 'Programme sponsorship',
 });
 
 export const BEQUEST_STATUS = Object.freeze({

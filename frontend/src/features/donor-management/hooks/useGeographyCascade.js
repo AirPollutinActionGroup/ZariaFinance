@@ -9,7 +9,7 @@ function isCountryIndia(country) {
   );
 }
 
-export function useGeographyCascade(setValue) {
+export function useGeographyCascade(setValue, isDomestic = false) {
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
@@ -21,13 +21,31 @@ export function useGeographyCascade(setValue) {
   const [loadingStates, setLoadingStates] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
 
-  // 1. Fetch Countries on Mount
+  // 1. Fetch Countries on Mount & handle isDomestic
   useEffect(() => {
     geographyService
       .listCountries()
-      .then(setCountries)
+      .then((data) => {
+        setCountries(data || []);
+        if (isDomestic) {
+          const india = (data || []).find((c) => isCountryIndia(c)) || { value: 1, label: 'India' };
+          setSelectedCountry(india);
+          if (setValue) {
+            const countryVal = typeof india === 'string' ? india : india?.value || '';
+            setValue('countryId', countryVal);
+          }
+          setStates([]);
+          const countryId = india?.value || india;
+          setLoadingStates(true);
+          geographyService
+            .listStates(countryId)
+            .then((statesData) => setStates(statesData || []))
+            .catch(() => setStates([]))
+            .finally(() => setLoadingStates(false));
+        }
+      })
       .catch((err) => console.error('Error loading countries:', err));
-  }, []);
+  }, [isDomestic, setValue]);
 
   // Fetch states for a given country, replacing whatever was loaded before.
   const loadStatesFor = (country) => {

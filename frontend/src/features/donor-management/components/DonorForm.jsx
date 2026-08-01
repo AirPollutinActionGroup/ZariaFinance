@@ -156,6 +156,7 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                       name="idType"
                       control={control}
                       label="ID type"
+                      required
                       options={[
                         { value: '', label: 'Select your preference' },
                         ...toOptions(INDIVIDUAL_ID_TYPE),
@@ -166,7 +167,8 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                     <RhfTextField
                       name="idNumber"
                       control={control}
-                      label={getIdNumberLabel(idType)}
+                      label={getIdNumberLabel(idType) || 'ID number'}
+                      required
                       placeholder={getIdNumberPlaceholder(idType)}
                       slotProps={getIdNumberSlotProps(idType)}
                       onChange={(e) => {
@@ -344,10 +346,11 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                 control={control}
                 setValue={setValue}
                 errors={submitError?.fieldErrors}
+                isDomestic={!isForeign}
               />
 
               <Grid size={{ xs: 6, sm: 3 }}>
-                <RhfTextField name="postalCode" control={control} label="Postal code" />
+                <RhfTextField name="postalCode" control={control} label="PIN / Postal code" placeholder="PIN / Postal code" />
               </Grid>
             </Grid>
           </section>
