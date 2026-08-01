@@ -185,20 +185,19 @@ export function GrantForm({
               Agreement
             </Typography>
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <RhfTextField
-                  name="grantCode"
-                  control={control}
-                  label="Grant code"
-                  disabled
-                  placeholder="ZRY/GA/YYYY/NNN"
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  helperText={
-                    hasGrantCode ? 'Grant code cannot be changed' : 'Auto-generated on save (ZRY/GA/YYYY/NNN)'
-                  }
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 8 }}>
+              {hasGrantCode ? (
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <RhfTextField
+                    name="grantCode"
+                    control={control}
+                    label="Grant code"
+                    disabled
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    helperText="Grant code cannot be changed"
+                  />
+                </Grid>
+              ) : null}
+              <Grid size={{ xs: 12, sm: hasGrantCode ? 8 : 12 }}>
                 <RhfTextField name="agreementName" control={control} label="Agreement name" required />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
