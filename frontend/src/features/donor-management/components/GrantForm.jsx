@@ -132,6 +132,11 @@ export function GrantForm({
   }));
 
   // Total is inherited from the profile's tranche plan, never entered here.
+  const selectedDonor = donors.find((d) => String(d.id) === String(donorId));
+  const bookValue = selectedDonor
+    ? (selectedDonor.fundSourceDomicile === 'FOREIGN' ? 'FC · Foreign contribution' : 'LC · Local contribution')
+    : '—';
+
   const selectedProfile = profiles.find((p) => String(p.id) === String(fundProfileId));
   const totalGrantAmount = selectedProfile?.plannedTotalAmount ?? null;
   const reportingAmountInr =
@@ -204,6 +209,15 @@ export function GrantForm({
                   required
                   options={donorOptions}
                   placeholder="Search donors…"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Book"
+                  value={bookValue}
+                  disabled
+                  fullWidth
+                  helperText="Derived from donor fund source domicile"
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
