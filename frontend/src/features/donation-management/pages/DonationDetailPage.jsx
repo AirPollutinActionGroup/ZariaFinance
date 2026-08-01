@@ -195,6 +195,8 @@ export function DonationDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const donationQuery = useDonation(id);
+  const donation = donationQuery.data;
+  const donorQuery = useDonor(donation?.donorId);
   const issueEightyG = useIssueEightyGReceipt(id);
   const markTenBd = useMarkTenBdFiling(id);
   const [editingGikItem, setEditingGikItem] = useState(null);
@@ -202,8 +204,6 @@ export function DonationDetailPage() {
   if (donationQuery.isPending) return <LoadingState label="Loading donation…" />;
   if (donationQuery.isError) return <ErrorState error={donationQuery.error} onRetry={donationQuery.refetch} />;
 
-  const donation = donationQuery.data;
-  const donorQuery = useDonor(donation?.donorId);
   const donor = donorQuery.data;
 
   const foreign = donation.currency && donation.currency !== 'INR';
