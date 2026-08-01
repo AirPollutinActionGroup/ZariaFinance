@@ -466,6 +466,9 @@ export function GrantDetailPage() {
                 grant.donorName || '—'
               )}
             </TermRow>
+            <TermRow label="Book">
+              {donor ? (donor.fundSourceDomicile === 'FOREIGN' ? 'FC · Foreign contribution' : 'LC · Local contribution') : '—'}
+            </TermRow>
             <TermRow label="Fund profile">
               {profile
                 ? [profile.fundClassLabel, profile.fundModeLabel, profile.purpose]
