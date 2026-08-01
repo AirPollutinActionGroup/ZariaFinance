@@ -61,6 +61,7 @@ const columns = [
 
 const APPROVAL_STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
+  { value: 'approved', label: 'Approved' },
   { value: 'pending', label: 'Pending' },
   { value: 'onhold', label: 'On hold' },
   { value: 'completed', label: 'Completed' },
@@ -75,6 +76,7 @@ export function GrantsListPage() {
 
   const rows = useMemo(() => {
     const grants = grantsQuery.data || [];
+    if (approvalFilter === 'approved') return grants.filter((grant) => grant.isApproved === 1);
     if (approvalFilter === 'pending') return grants.filter((grant) => grant.isApproved === 2);
     if (approvalFilter === 'onhold') return grants.filter((grant) => grant.isApproved === 3);
     if (approvalFilter === 'completed') return grants.filter((grant) => grant.isApproved === 4);
