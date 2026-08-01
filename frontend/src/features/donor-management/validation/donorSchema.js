@@ -42,7 +42,23 @@ export const donorSchema = z.object({
   postalCode: z.string().trim().optional().or(z.literal('')),
   registrationNumber: z.string().trim().optional().or(z.literal('')),
 }).superRefine((data, ctx) => {
-  if (data.fundSourceDomicile === 'FOREIGN' && (!data.passportNumber || data.passportNumber.trim() === '')) {
+  if (data.fundSourceDomicile === 'DOMESTIC' || data.fundSourceDomicile === 'Domestic') {
+    if (!data.idType || !data.idType.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'ID type is required for domestic donors',
+        path: ['idType'],
+      });
+    }
+    if (!data.idNumber || !data.idNumber.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'ID number is required for domestic donors',
+        path: ['idNumber'],
+      });
+    }
+  }
+  if ((data.fundSourceDomicile === 'FOREIGN' || data.fundSourceDomicile === 'Foreign') && (!data.passportNumber || data.passportNumber.trim() === '')) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'Passport ID is required',

@@ -8,7 +8,8 @@ package com.ngo.finance.donation.enums;
 public enum GikIntendedUse {
     DISTRIBUTE("Distribute — programme expense"),
     SELL("Sell — held for sale, liquidation deadline applies"),
-    USE_INTERNALLY("Use internally — expense on consumption");
+    USE_INTERNALLY("Use internally — expense on consumption"),
+    RETAIN_FIXED_ASSET("Retain as fixed asset — capitalise");
 
     private final String label;
 

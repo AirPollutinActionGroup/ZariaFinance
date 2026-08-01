@@ -212,6 +212,7 @@ public class DonationServiceImpl implements DonationService {
                     .orElseThrow(() -> new ResourceNotFoundException("Programme", request.getProgrammeId()));
         }
         donation.setProgramme(programme);
+        donation.setOtherProgramme(request.getOtherProgramme());
 
         donation.getLocations().clear();
         List<StateMaster> states = stateRepository.findAllById(request.getStateIds());
@@ -261,14 +262,29 @@ public class DonationServiceImpl implements DonationService {
             LocalDate liquidationDueDate = item.getIntendedUse() == com.ngo.finance.donation.enums.GikIntendedUse.SELL
                     ? FinancialYearUtil.secondFyEndAfter(request.getReceiptDate())
                     : null;
+            Programme itemProgramme = null;
+            if (item.getProgrammeId() != null) {
+                itemProgramme = programmeRepository.findById(item.getProgrammeId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Programme", item.getProgrammeId()));
+            }
             donation.getGikItems().add(DonationGikItem.builder()
                     .donation(donation)
                     .itemDescription(item.getItemDescription())
+                    .quantity(item.getQuantity())
                     .fairValue(item.getFairValue())
+                    .valuationBasis(item.getValuationBasis())
+                    .valuationSource(item.getValuationSource())
                     .intendedUse(item.getIntendedUse())
+                    .treatment(item.getTreatment())
+                    .programme(itemProgramme)
+                    .otherProgramme(item.getOtherProgramme())
                     .expiryDate(item.getExpiryDate())
                     .liquidationDueDate(liquidationDueDate)
-                    .realisationStatus(GikRealisationStatus.PENDING)
+                    .realisationStatus(item.getRealisationStatus() != null
+                            ? item.getRealisationStatus() : GikRealisationStatus.PENDING)
+                    .actualSaleDate(item.getActualSaleDate())
+                    .actualProceeds(item.getActualProceeds())
+                    .matchingLeg(item.getMatchingLeg())
                     .build());
         }
     }
@@ -324,6 +340,9 @@ public class DonationServiceImpl implements DonationService {
                 .employerMatchRouting(request.getPayrollBatch().getEmployerMatchRouting() != null
                         ? request.getPayrollBatch().getEmployerMatchRouting()
                         : com.ngo.finance.donation.enums.EmployerMatchRouting.PAYROLL_GIVING_TAGGED)
+                .matchAmount(request.getPayrollBatch().getMatchAmount())
+                .csrFinancialYear(request.getPayrollBatch().getCsrFinancialYear())
+                .csrProjectRef(request.getPayrollBatch().getCsrProjectRef())
                 .build();
 
         BigDecimal sum = BigDecimal.ZERO;

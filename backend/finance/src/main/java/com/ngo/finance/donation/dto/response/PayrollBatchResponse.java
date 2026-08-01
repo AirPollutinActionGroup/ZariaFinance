@@ -17,6 +17,9 @@ import lombok.NoArgsConstructor;
 public class PayrollBatchResponse {
     private String employer;
     private EmployerMatchRouting employerMatchRouting;
+    private BigDecimal matchAmount;
+    private String csrFinancialYear;
+    private String csrProjectRef;
     private List<PayrollEmployeeResponse> employees;
     private BigDecimal indianTotal;
     private BigDecimal foreignTotal;

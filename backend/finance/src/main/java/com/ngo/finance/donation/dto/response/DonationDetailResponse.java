@@ -48,6 +48,7 @@ public class DonationDetailResponse {
     private String fundClassCode;
     private Long programmeId;
     private String programmeName;
+    private String otherProgramme;
     private List<String> stateNames;
     private UtilisationPeriodType utilisationPeriodType;
     private LocalDate utilisationStartDate;

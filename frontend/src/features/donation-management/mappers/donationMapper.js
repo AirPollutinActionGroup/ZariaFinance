@@ -101,6 +101,24 @@ const nullIfBlank = (value) => {
 
 const numberOrNull = (value) => (value === '' || value === null || value === undefined ? null : Number(value));
 
+// The "Treatment" field in the GIK item form is a disabled display, not an
+// editable input — this mirrors that same derivation so the value actually
+// reaches the backend instead of always submitting blank.
+const deriveGikTreatment = (intendedUse) => {
+  switch (intendedUse) {
+    case 'DISTRIBUTE':
+      return 'Consumed — expense on distribution';
+    case 'USE_INTERNALLY':
+      return 'Consumed — expense on consumption';
+    case 'RETAIN_FIXED_ASSET':
+      return 'Kept — capitalise';
+    case 'SELL':
+      return 'Held for sale — neither kept nor consumed';
+    default:
+      return null;
+  }
+};
+
 /** Form values → CreateDonationRequest. Only the block matching donationType is sent. */
 export function toCreateDonationRequest(values) {
   const base = {
@@ -115,20 +133,16 @@ export function toCreateDonationRequest(values) {
       values.identification === 'ANONYMOUS' ? nullIfBlank(values.anonymousSourceReference) : null,
     fundMode: values.fundMode,
     fundClassCode: nullIfBlank(values.fundClassCode),
-    programmeId: values.programmeId ? Number(values.programmeId) : null,
-    // 'ALL' is GeographyMultiSelect's client-only sentinel for "spendable
-    // anywhere" — it isn't a real state id, so it must not reach the backend.
-    stateIds: (values.stateIds || [])
-      .filter((id) => id !== 'ALL')
-      .map(Number)
-      .filter((n) => Number.isFinite(n)),
+    programmeId: values.programmeId && values.programmeId !== 'OTHER' ? Number(values.programmeId) : null,
+    otherProgramme: values.programmeId === 'OTHER' ? nullIfBlank(values.otherProgramme) : null,
+    stateIds: (values.stateIds || []).map(Number).filter((n) => !isNaN(n)),
     utilisationPeriodType: values.utilisationPeriodType,
     utilisationStartDate: nullIfBlank(values.utilisationStartDate),
     utilisationEndDate: nullIfBlank(values.utilisationEndDate),
     isConditionalGift: values.isConditionalGift === 'true' || values.isConditionalGift === true,
     conditionDescription: nullIfBlank(values.conditionDescription),
     currency: (values.currency || 'INR').trim().toUpperCase(),
-    amount: Number(values.amount),
+    amount: Number(values.amount) || 0,
     fxRate: numberOrNull(values.fxRate) ?? 1,
     bankAccountType: values.bankAccountType,
     transactionRef: nullIfBlank(values.transactionRef),
@@ -144,9 +158,19 @@ export function toCreateDonationRequest(values) {
     case 'GIK':
       base.gikItems = (values.gikItems || []).map((item) => ({
         itemDescription: item.itemDescription.trim(),
-        fairValue: Number(item.fairValue),
+        quantity: numberOrNull(item.quantity),
+        fairValue: Number(item.fairValue) || 0,
+        valuationBasis: nullIfBlank(item.valuationBasis),
+        valuationSource: nullIfBlank(item.valuationSource),
         intendedUse: item.intendedUse,
+        treatment: deriveGikTreatment(item.intendedUse),
+        programmeId: item.programmeId && item.programmeId !== 'OTHER' ? Number(item.programmeId) : null,
+        otherProgramme: item.programmeId === 'OTHER' ? nullIfBlank(item.otherProgramme) : null,
         expiryDate: nullIfBlank(item.expiryDate),
+        realisationStatus: item.intendedUse === 'SELL' ? item.realisationStatus || 'PENDING' : null,
+        actualSaleDate: item.intendedUse === 'SELL' ? nullIfBlank(item.actualSaleDate) : null,
+        actualProceeds: item.intendedUse === 'SELL' ? numberOrNull(item.actualProceeds) : null,
+        matchingLeg: nullIfBlank(item.matchingLeg),
       }));
       break;
     case 'CORPUS':
@@ -164,13 +188,33 @@ export function toCreateDonationRequest(values) {
         startDate: values.recurringMandate.startDate,
         mandateStatus: values.recurringMandate.mandateStatus || 'ACTIVE',
         nextExpectedDebitDate: nullIfBlank(values.recurringMandate.nextExpectedDebitDate),
-        sponsorshipTie: nullIfBlank(values.recurringMandate.sponsorshipTie),
+        // sponsorshipTie is a free-text column on the backend — when the user
+        // picks "Other" and types a custom tie, send that text itself rather
+        // than the literal string "OTHER" (which would discard what they typed).
+        sponsorshipTie: values.recurringMandate.sponsorshipTie === 'OTHER'
+          ? nullIfBlank(values.recurringMandate.otherSponsorshipTie)
+          : nullIfBlank(values.recurringMandate.sponsorshipTie),
       };
       break;
     case 'PAYROLL_GIVING':
       base.payrollBatch = {
         employer: values.payrollBatch.employer.trim(),
-        employerMatchRouting: values.payrollBatch.employerMatchRouting || 'PAYROLL_GIVING_TAGGED',
+        // "Does the employer match?" (employerMatchRouting: NO/FULL_MATCH/PARTIAL_MATCH)
+        // only gates whether there's a match at all; the backend's
+        // employerMatchRouting field is the *routing* of that match money
+        // (PAYROLL_GIVING_TAGGED/CSR_ROUTED), i.e. the form's employerMoneyRouting.
+        employerMatchRouting: values.payrollBatch.employerMatchRouting !== 'NO'
+          ? values.payrollBatch.employerMoneyRouting
+          : null,
+        matchAmount: values.payrollBatch.employerMatchRouting !== 'NO'
+          ? numberOrNull(values.payrollBatch.matchAmount)
+          : null,
+        csrFinancialYear: values.payrollBatch.employerMoneyRouting === 'CSR_ROUTED'
+          ? nullIfBlank(values.payrollBatch.csrFinancialYear)
+          : null,
+        csrProjectRef: values.payrollBatch.employerMoneyRouting === 'CSR_ROUTED'
+          ? nullIfBlank(values.payrollBatch.csrProjectRef)
+          : null,
         employees: (values.payrollBatch.employees || []).map((e) => ({
           name: e.name.trim(),
           idType: nullIfBlank(e.idType),

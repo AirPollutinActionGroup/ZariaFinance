@@ -62,6 +62,8 @@ public class CreateDonationRequest {
 
     private Long programmeId;
 
+    private String otherProgramme;
+
     @NotEmpty(message = "At least one location/state is required")
     private List<Long> stateIds;
 
