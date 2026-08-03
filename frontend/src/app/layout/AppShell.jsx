@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { layout } from '../../theme/tokens.js';
 import { SideNav } from './SideNav.jsx';
 import { TopBar } from './TopBar.jsx';
+import { OnboardingTour } from '../../features/onboarding/index.js';
 
 /** Authenticated application frame: sidebar + top bar + routed content. */
 export function AppShell() {
@@ -25,6 +26,7 @@ export function AppShell() {
           <Outlet />
         </Box>
       </Box>
+      <OnboardingTour />
     </Box>
   );
 }

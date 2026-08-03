@@ -22,6 +22,7 @@ export function SideNav() {
 
   return (
     <Drawer
+      id="tour-sidenav"
       variant="permanent"
       sx={{
         width: layout.sidebarWidth,

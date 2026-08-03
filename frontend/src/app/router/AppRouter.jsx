@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { RequireAuth } from '../../core/auth/index.js';
 import { getModuleRoutes } from '../../core/modules/index.js';
 import { AppShell } from '../layout/AppShell.jsx';
@@ -17,30 +17,28 @@ export function AppRouter() {
   const moduleRoutes = getModuleRoutes();
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/pending-approval" element={<PendingApprovalPage />} />
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/pending-approval" element={<PendingApprovalPage />} />
 
-        <Route element={<RequireAuth />}>
-          <Route element={<AppShell />}>
-            <Route index element={<HomeRedirect />} />
-            {moduleRoutes.map((route) => (
-              <Route
-                key={route.path}
-                path={route.path}
-                element={
-                  <RequireModuleAccess moduleId={route.moduleId}>
-                    {route.element}
-                  </RequireModuleAccess>
-                }
-              />
-            ))}
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
+      <Route element={<RequireAuth />}>
+        <Route element={<AppShell />}>
+          <Route index element={<HomeRedirect />} />
+          {moduleRoutes.map((route) => (
+            <Route
+              key={route.path}
+              path={route.path}
+              element={
+                <RequireModuleAccess moduleId={route.moduleId}>
+                  {route.element}
+                </RequireModuleAccess>
+              }
+            />
+          ))}
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
-      </Routes>
-    </BrowserRouter>
+      </Route>
+    </Routes>
   );
 }

@@ -76,6 +76,7 @@ export function DonorsListPage() {
         actions={
           <PermissionGate action={ACTIONS.EDIT} moduleId={MODULE_ID}>
             <Button
+              id="tour-new-donor"
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => navigate('/donors/new')}
@@ -85,7 +86,7 @@ export function DonorsListPage() {
           </PermissionGate>
         }
       />
-      <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+      <Stack id="tour-donors-filters" direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
         <Box sx={{ maxWidth: 420, flex: 1, minWidth: 240 }}>
           <SearchField value={search} onChange={setSearch} placeholder="Search donors…" />
         </Box>

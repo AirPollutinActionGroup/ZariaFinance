@@ -91,6 +91,7 @@ export function GrantsListPage() {
         actions={
           <PermissionGate action={ACTIONS.EDIT} moduleId={MODULE_ID}>
             <Button
+              id="tour-new-grant"
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => navigate('/grants/new')}

@@ -185,7 +185,7 @@ export function DashboardPage() {
           </Alert>
         ) : null}
 
-        <Grid container spacing={2.5}>
+        <Grid container id="tour-kpis" spacing={2.5}>
           {/*
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <StatCard
@@ -245,17 +245,21 @@ export function DashboardPage() {
           </Grid>
         </Grid>
 
-        <FundingChainCard totals={funding} />
+        <Box id="tour-funding-chain">
+          <FundingChainCard totals={funding} />
+        </Box>
 
-        <DataTable
-          title="Recent grant agreements"
-          columns={recentColumns}
-          rows={recentGrants(grants, 6)}
-          getRowKey={(row) => row.id}
-          emptyTitle="No grant agreements yet"
-          emptyDescription="Once grants are recorded they will appear here."
-          onRowClick={(row) => navigate(`/grants/${row.id}`)}
-        />
+        <Box id="tour-recent-grants">
+          <DataTable
+            title="Recent grant agreements"
+            columns={recentColumns}
+            rows={recentGrants(grants, 6)}
+            getRowKey={(row) => row.id}
+            emptyTitle="No grant agreements yet"
+            emptyDescription="Once grants are recorded they will appear here."
+            onRowClick={(row) => navigate(`/grants/${row.id}`)}
+          />
+        </Box>
       </Stack>
 
       <RecordsDialog

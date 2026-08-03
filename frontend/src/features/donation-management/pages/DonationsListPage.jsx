@@ -87,7 +87,7 @@ export function DonationsListPage() {
         subtitle="Gifts received across the organisation"
         actions={
           <PermissionGate action={ACTIONS.EDIT} moduleId={MODULE_ID}>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/donations/new')}>
+            <Button id="tour-new-donation" variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/donations/new')}>
               New donation
             </Button>
           </PermissionGate>
