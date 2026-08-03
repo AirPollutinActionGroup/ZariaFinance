@@ -30,13 +30,17 @@ public class DonorResponse {
 
     private Boolean fcraApplicable;
 
+    private String book;
+
     private String foreignFundSourceType;
 
     private String foreignCountryId;
 
-    private String panCardNumber;
+    private String passportId;
 
-    private String foreignTaxIdentifier;
+    private String documentType;
+
+    private String documentNumber;
 
     private String email;
 

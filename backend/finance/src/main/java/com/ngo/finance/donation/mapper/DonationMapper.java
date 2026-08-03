@@ -44,7 +44,7 @@ public interface DonationMapper {
     @Mapping(target = "donorName",
             expression = "java(entity.getDonor() != null ? entity.getDonor().getDonorName() : \"Anonymous\")")
     @Mapping(target = "donorPanCardNumber",
-            expression = "java(entity.getDonor() != null ? entity.getDonor().getPanCardNumber() : null)")
+            expression = "java(entity.getDonor() != null ? entity.getDonor().getDocumentNumber() : null)")
     @Mapping(target = "donorAddress",
             expression = "java(entity.getDonor() != null ? entity.getDonor().getAddress() : null)")
     @Mapping(source = "programme.id", target = "programmeId")
@@ -84,12 +84,22 @@ public interface DonationMapper {
         return GikItemResponse.builder()
                 .id(item.getId())
                 .itemDescription(item.getItemDescription())
+                .quantity(item.getQuantity())
                 .fairValue(item.getFairValue())
+                .valuationBasis(item.getValuationBasis())
+                .valuationSource(item.getValuationSource())
                 .intendedUse(item.getIntendedUse())
+                .treatment(item.getTreatment())
+                .programmeId(item.getProgramme() != null ? item.getProgramme().getId() : null)
+                .programmeName(item.getProgramme() != null ? item.getProgramme().getProgrammeName() : null)
+                .otherProgramme(item.getOtherProgramme())
                 .expiryDate(item.getExpiryDate())
                 .liquidationDueDate(item.getLiquidationDueDate())
                 .realisationStatus(item.getRealisationStatus())
                 .liquidationOverdue(overdue)
+                .actualSaleDate(item.getActualSaleDate())
+                .actualProceeds(item.getActualProceeds())
+                .matchingLeg(item.getMatchingLeg())
                 .build();
     }
 
@@ -161,6 +171,9 @@ public interface DonationMapper {
         return PayrollBatchResponse.builder()
                 .employer(batch.getEmployer())
                 .employerMatchRouting(batch.getEmployerMatchRouting())
+                .matchAmount(batch.getMatchAmount())
+                .csrFinancialYear(batch.getCsrFinancialYear())
+                .csrProjectRef(batch.getCsrProjectRef())
                 .employees(employees.stream().map(this::toPayrollEmployeeResponse).toList())
                 .indianTotal(indianTotal)
                 .foreignTotal(foreignTotal)

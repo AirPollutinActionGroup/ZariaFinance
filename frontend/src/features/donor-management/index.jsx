@@ -17,18 +17,17 @@ import { ReportsPage } from './pages/ReportsPage.jsx';
 import { MODULE_ID } from './constants.js';
 
 /**
- * Donor Management module definition — the only file the platform needs
- * to know about this feature (registered in app/modules.js).
+ * Donor Management module definition — registered in app/modules.js.
  */
 export const donorManagementModule = {
   id: MODULE_ID,
   title: 'Donor Management',
   navSection: 'CORE LAYERS',
   navItems: [
-    { label: 'Donors', path: '/donors', icon: VolunteerActivismOutlinedIcon },
-    { label: 'Grants', path: '/grants', icon: HandshakeOutlinedIcon },
-    { label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
-    { label: 'Role directory', path: '/role-directory', icon: GroupsOutlinedIcon },
+    { label: 'Donors Registry', path: '/donors', icon: VolunteerActivismOutlinedIcon },
+    { label: 'Grants Agreements', path: '/grants', icon: HandshakeOutlinedIcon },
+    //{ label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
+    //{ label: 'Role directory', path: '/role-directory', icon: GroupsOutlinedIcon },
   ],
   routes: [
     { path: '/donors', element: <DonorsListPage /> },

@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -48,6 +49,17 @@ public class DonationPayrollBatch extends AuditEntity {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private EmployerMatchRouting employerMatchRouting = EmployerMatchRouting.PAYROLL_GIVING_TAGGED;
+
+    /** The employer's own contribution, matching the employees' giving — separate from their money. */
+    @Column(name = "match_amount", precision = 19, scale = 2)
+    private BigDecimal matchAmount;
+
+    /** Only meaningful when employerMatchRouting is CSR_ROUTED. */
+    @Column(name = "csr_financial_year", length = 20)
+    private String csrFinancialYear;
+
+    @Column(name = "csr_project_ref", length = 255)
+    private String csrProjectRef;
 
     @OneToMany(mappedBy = "batch", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

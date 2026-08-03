@@ -2,6 +2,7 @@ package com.ngo.finance.notification;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.ngo.finance.donation.enums.FundMode;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.GrantAgreement;
@@ -10,6 +11,7 @@ import com.ngo.finance.donor.entity.GrantTranche;
 import com.ngo.finance.donor.entity.GrantTrancheCriterion;
 import com.ngo.finance.donor.enums.CriterionType;
 import com.ngo.finance.donor.enums.DonorType;
+import com.ngo.finance.donor.enums.FundClass;
 import com.ngo.finance.donor.enums.GrantStatus;
 import com.ngo.finance.donor.enums.RepeatReminder;
 import com.ngo.finance.donor.enums.ResponsibleRole;
@@ -128,8 +130,8 @@ public class ReminderSweepIntegrationTest {
 
         DonorFundProfile profile = fundProfileRepository.save(DonorFundProfile.builder()
                 .donor(donor)
-                .fundMode("Restricted")
-                .fundClassCode("A")
+                .fundMode(FundMode.RESTRICTED)
+                .fundClass(FundClass.CLASS_A_RESTRICTED)
                 .purpose("Reminder test")
                 .build());
         seededProfileIds.add(profile.getId());

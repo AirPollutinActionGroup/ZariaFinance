@@ -16,10 +16,18 @@ export const donorSchema = z.object({
     message: 'Fund source domicile is required',
   }),
   fcraApplicable: z.boolean().optional(),
+  book: z.string().optional(),
+  idType: z.string().trim().optional().or(z.literal('')),
+  idNumber: z.string().trim().optional().or(z.literal('')),
   foreignFundSourceType: z.string().trim().optional().or(z.literal('')),
   foreignCountryId: z.string().trim().optional().or(z.literal('')),
-  panCardNumber: z.string().trim().optional().or(z.literal('')),
-  foreignTaxIdentifier: z.string().trim().optional().or(z.literal('')),
+  passportNumber: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .max(9, 'Passport ID must be at most 9 characters')
+    .optional()
+    .or(z.literal('')),
   email: z.string().trim().min(1, 'Email is required').email('Email must be valid'),
   phoneNumber: z.string().trim().optional().or(z.literal('')),
   website: z.string().trim().optional().or(z.literal('')),
@@ -33,6 +41,30 @@ export const donorSchema = z.object({
   countryId: z.union([z.number(), z.string()]).optional().or(z.literal('')).nullable(),
   postalCode: z.string().trim().optional().or(z.literal('')),
   registrationNumber: z.string().trim().optional().or(z.literal('')),
+}).superRefine((data, ctx) => {
+  if (data.fundSourceDomicile === 'DOMESTIC' || data.fundSourceDomicile === 'Domestic') {
+    if (!data.idType || !data.idType.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'ID type is required for domestic donors',
+        path: ['idType'],
+      });
+    }
+    if (!data.idNumber || !data.idNumber.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'ID number is required for domestic donors',
+        path: ['idNumber'],
+      });
+    }
+  }
+  if ((data.fundSourceDomicile === 'FOREIGN' || data.fundSourceDomicile === 'Foreign') && (!data.passportNumber || data.passportNumber.trim() === '')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Passport ID is required',
+      path: ['passportNumber'],
+    });
+  }
 });
 
 export const donorFormDefaults = {
@@ -41,10 +73,12 @@ export const donorFormDefaults = {
   donorType: '',
   fundSourceDomicile: '',
   fcraApplicable: false,
+  book: 'LC',
+  idType: '',
+  idNumber: '',
   foreignFundSourceType: '',
   foreignCountryId: '',
-  panCardNumber: '',
-  foreignTaxIdentifier: '',
+  passportNumber: '',
   email: '',
   phoneNumber: '',
   website: '',

@@ -24,23 +24,20 @@ public class FundProfileResponse {
     private Long donorId;
     private String donorName;
     private String fundMode;
-    private String fundClassCode;
+    private String fundClass;
+    private String fundClassLabel;
     private String purpose;
     private Boolean programmeTied;
     private Long programmeId;
     private String programmeName;
     private String reportingFrequency;
-    private Boolean adminAllowed;
-    private BigDecimal overheadLimitPercent;
+    private String reportingFrequencyLabel;
     private Boolean movementAllowed;
     private Boolean explanationRequired;
     private Boolean onboardingComplete;
     private List<GeographyItem> geographies;
     private List<UtilisationRuleItem> utilisationRules;
     private List<DisbursementRuleItem> disbursementRules;
-    private List<TrancheItem> tranches;
-    // Σ tranche amounts — the Total Grant Amount inherited by grants on this profile.
-    private BigDecimal plannedTotalAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -50,7 +47,9 @@ public class FundProfileResponse {
     @AllArgsConstructor
     public static class GeographyItem {
         private Long id;
-        private String geographyName;
+        private Long stateId;
+        private String stateName;
+        private String stateCode;
     }
 
     @Data
@@ -60,6 +59,8 @@ public class FundProfileResponse {
     public static class UtilisationRuleItem {
         private Long id;
         private String ruleType;
+        private String ruleTypeLabel;
+        private String otherRuleType;
         private BigDecimal limitPercentage;
         private String description;
     }
@@ -70,22 +71,56 @@ public class FundProfileResponse {
     @AllArgsConstructor
     public static class DisbursementRuleItem {
         private Long id;
-        private String ruleType;
-        private String releaseTrigger;
-        private BigDecimal minPriorUtilisationRequired;
-        private Boolean milestoneRequired;
-        private String ruleDescription;
+        private BigDecimal totalAmount;
+        private String disbursementType;
+        private String disbursementTypeLabel;
+        private List<TrancheCriterionItem> trancheCriteria;
+        /** Sigma of trancheCriteria.amountCriteria. */
+        private BigDecimal allocatedAmount;
+        /** totalAmount minus allocatedAmount. */
+        private BigDecimal unallocatedAmount;
+        private Boolean balanced;
     }
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class TrancheItem {
+    public static class TrancheCriterionItem {
         private Long id;
-        private Integer trancheNumber;
-        private String trancheName;
-        private BigDecimal trancheAmount;
-        private LocalDate plannedReleaseDate;
+        private BigDecimal amountCriteria;
+        private LocalDate expectedReleaseDate;
+        private String frequency;
+        private String frequencyLabel;
+        private Boolean isFinalTranche;
+        private List<ReleaseCriterionItem> criteria;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReleaseCriterionItem {
+        private Long id;
+        private String releaseCriteria;
+        private String releaseCriteriaLabel;
+        private LocalDate releaseDate;
+        private String milestoneName;
+        private String verificationSignOffRole;
+        private String verificationSignOffRoleLabel;
+        private String otherVerificationSignOffRole;
+        private LocalDate targetDate;
+        private Double utilisationPercentage;
+        private String triggerBasis;
+        private String triggerBasisLabel;
+        private String description;
+        private Boolean remindSomeone;
+        private String responsibleRole;
+        private String responsibleRoleLabel;
+        private String otherResponsibleRole;
+        private Integer reminderLeadTime;
+        private String repeatReminder;
+        private String repeatReminderLabel;
+        private Boolean escalateToDeputy;
     }
 }

@@ -128,30 +128,33 @@ public class DonorServiceImpl implements DonorService {
                     .orElseThrow(() -> new ResourceNotFoundException("City", request.getCityId())));
         }
 
-        donorMapper.updateEntity(new CreateDonorRequest(
-                donor.getDonorCode(),
-                request.getDonorName(),
-                request.getDonorType(),
-                request.getFundSourceDomicile(),
-                request.getFcraApplicable(),
-                request.getForeignFundSourceType(),
-                request.getForeignCountryId(),
-                request.getPanCardNumber(),
-                request.getForeignTaxIdentifier(),
-                request.getEmail(),
-                request.getPhoneNumber(),
-                request.getWebsite(),
-                request.getSpocNameOfThePerson(),
-                request.getSpocPhoneNumber(),
-                request.getSpocEmail(),
-                request.getAddress(),
-                request.getAddress2(),
-                request.getCityId(),
-                request.getStateId(),
-                request.getCountryId(),
-                request.getPostalCode(),
-                request.getRegistrationNumber(),
-                request.getIsActive()), donor);
+        donorMapper.updateEntity(CreateDonorRequest.builder()
+                .donorCode(donor.getDonorCode())
+                .donorName(request.getDonorName())
+                .donorType(request.getDonorType())
+                .fundSourceDomicile(request.getFundSourceDomicile())
+                .fcraApplicable(request.getFcraApplicable())
+                .book(request.getBook())
+                .foreignFundSourceType(request.getForeignFundSourceType())
+                .foreignCountryId(request.getForeignCountryId())
+                .passportId(request.getPassportId())
+                .documentType(request.getDocumentType())
+                .documentNumber(request.getDocumentNumber())
+                .email(request.getEmail())
+                .phoneNumber(request.getPhoneNumber())
+                .website(request.getWebsite())
+                .spocNameOfThePerson(request.getSpocNameOfThePerson())
+                .spocPhoneNumber(request.getSpocPhoneNumber())
+                .spocEmail(request.getSpocEmail())
+                .address(request.getAddress())
+                .address2(request.getAddress2())
+                .cityId(request.getCityId())
+                .stateId(request.getStateId())
+                .countryId(request.getCountryId())
+                .postalCode(request.getPostalCode())
+                .registrationNumber(request.getRegistrationNumber())
+                .isActive(request.getIsActive())
+                .build(), donor);
 
         DonorMaster updated = donorRepository.save(donor);
         log.info("Donor updated successfully");

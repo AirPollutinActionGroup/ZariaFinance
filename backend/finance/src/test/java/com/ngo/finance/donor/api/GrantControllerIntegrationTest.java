@@ -11,14 +11,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ngo.finance.donation.enums.FundMode;
 import com.ngo.finance.donor.dto.request.ApproveGrantRequest;
 import com.ngo.finance.donor.dto.request.CreateGrantRequest;
 import com.ngo.finance.donor.dto.request.GrantRemarksRequest;
+import com.ngo.finance.donor.entity.DonorDisbursementRule;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
-import com.ngo.finance.donor.entity.FundProfileTranche;
+import com.ngo.finance.donor.entity.DonorReleaseCriteria;
+import com.ngo.finance.donor.entity.DonorTrancheCriterion;
 import com.ngo.finance.donor.entity.Programme;
+import com.ngo.finance.donor.enums.CriterionType;
+import com.ngo.finance.donor.enums.DisbursementType;
 import com.ngo.finance.donor.enums.DonorType;
+import com.ngo.finance.donor.enums.FundClass;
 import com.ngo.finance.donor.enums.GrantStatus;
 import com.ngo.finance.donor.repository.DonorFundProfileRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
@@ -88,25 +94,38 @@ public class GrantControllerIntegrationTest {
         DonorFundProfile profile = DonorFundProfile.builder()
                 .donor(donor)
                 .programme(programme)
-                .fundMode("Restricted")
-                .fundClassCode("A")
+                .fundMode(FundMode.RESTRICTED)
+                .fundClass(FundClass.CLASS_A_RESTRICTED)
                 .purpose("Test profile")
                 .build();
 
-        // A grant's total is Σ of the profile's tranche plan, so every profile a
-        // grant is created from needs one. These two sum to 250,000.
-        profile.getTranches().add(FundProfileTranche.builder()
+        // A grant's total is its active disbursement rule's committed amount, so
+        // every profile a grant is created from needs one. 250,000 here.
+        DonorDisbursementRule rule = DonorDisbursementRule.builder()
                 .fundProfile(profile)
-                .trancheNumber(1)
-                .trancheName("On signing")
-                .trancheAmount(new BigDecimal("150000.00"))
-                .build());
-        profile.getTranches().add(FundProfileTranche.builder()
-                .fundProfile(profile)
-                .trancheNumber(2)
-                .trancheName("On UC")
-                .trancheAmount(new BigDecimal("100000.00"))
-                .build());
+                .totalAmount(new BigDecimal("250000.00"))
+                .disbursementType(DisbursementType.TRANCHES)
+                .build();
+
+        DonorTrancheCriterion first = new DonorTrancheCriterion();
+        first.setDonorDisbursementRule(rule);
+        first.setAmountCriteria(new BigDecimal("150000.00"));
+        DonorReleaseCriteria firstCriterion = new DonorReleaseCriteria();
+        firstCriterion.setDonorTrancheCriterion(first);
+        firstCriterion.setReleaseCriteria(CriterionType.ON_SIGNING);
+        first.getDonorReleaseCriteria().add(firstCriterion);
+        rule.getDonorTrancheCriteria().add(first);
+
+        DonorTrancheCriterion second = new DonorTrancheCriterion();
+        second.setDonorDisbursementRule(rule);
+        second.setAmountCriteria(new BigDecimal("100000.00"));
+        DonorReleaseCriteria secondCriterion = new DonorReleaseCriteria();
+        secondCriterion.setDonorTrancheCriterion(second);
+        secondCriterion.setReleaseCriteria(CriterionType.UTILISATION_CERTIFICATE);
+        second.getDonorReleaseCriteria().add(secondCriterion);
+        rule.getDonorTrancheCriteria().add(second);
+
+        profile.getDisbursementRules().add(rule);
 
         return fundProfileRepository.save(profile);
     }
@@ -151,7 +170,7 @@ public class GrantControllerIntegrationTest {
                 .andExpect(jsonPath("$.grantCode").value("GR-TEST-C1"))
                 .andExpect(jsonPath("$.donorId").value(profile.getDonor().getId()))
                 .andExpect(jsonPath("$.fundProfileId").value(profile.getId()))
-                .andExpect(jsonPath("$.fundClassCode").value("A"))
+                .andExpect(jsonPath("$.fundClassCode").value("CLASS_A_RESTRICTED"))
                 // Total is inherited: Σ of the profile's tranche plan (150k + 100k).
                 .andExpect(jsonPath("$.totalGrantAmount").value(250000.00))
                 .andExpect(jsonPath("$.reportingAmountInr").value(250000.00))

@@ -3,6 +3,8 @@ package com.ngo.finance.donation.entity;
 import com.ngo.finance.common.entity.AuditEntity;
 import com.ngo.finance.donation.enums.GikIntendedUse;
 import com.ngo.finance.donation.enums.GikRealisationStatus;
+import com.ngo.finance.donation.enums.GikValuationBasis;
+import com.ngo.finance.donor.entity.Programme;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -46,12 +48,35 @@ public class DonationGikItem extends AuditEntity {
     @Column(name = "item_description", nullable = false, length = 255)
     private String itemDescription;
 
+    private BigDecimal quantity;
+
     @Column(name = "fair_value", nullable = false, precision = 18, scale = 2)
     private BigDecimal fairValue;
+
+    @Column(name = "valuation_basis", length = 30)
+    @Enumerated(EnumType.STRING)
+    private GikValuationBasis valuationBasis;
+
+    @Column(name = "valuation_source", length = 255)
+    private String valuationSource;
 
     @Column(name = "intended_use", nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
     private GikIntendedUse intendedUse;
+
+    // Auto-derived from intendedUse at creation; stored rather than recomputed
+    // so a later intendedUse change (logged separately) doesn't retroactively
+    // rewrite the accounting treatment of an already-posted line.
+    @Column(length = 255)
+    private String treatment;
+
+    // Overrides the donation-level programme for this line item; null = inherit.
+    @ManyToOne
+    @JoinColumn(name = "programme_id", foreignKey = @ForeignKey(name = "fk_gik_item_programme"))
+    private Programme programme;
+
+    @Column(name = "other_programme", length = 255)
+    private String otherProgramme;
 
     // Set for DISTRIBUTE / USE_INTERNALLY.
     @Column(name = "expiry_date")
@@ -66,6 +91,16 @@ public class DonationGikItem extends AuditEntity {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private GikRealisationStatus realisationStatus = GikRealisationStatus.PENDING;
+
+    // Set once the SELL line is actually realised.
+    @Column(name = "actual_sale_date")
+    private LocalDate actualSaleDate;
+
+    @Column(name = "actual_proceeds", precision = 18, scale = 2)
+    private BigDecimal actualProceeds;
+
+    @Column(name = "matching_leg", length = 255)
+    private String matchingLeg;
 
     @OneToMany(mappedBy = "gikItem", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

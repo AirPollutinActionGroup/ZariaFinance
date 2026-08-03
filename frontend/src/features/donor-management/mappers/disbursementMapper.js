@@ -67,7 +67,7 @@ export function criterionTypeLabel(criterionType) {
 export function emptyCriterion() {
   return {
     id: null,
-    criterionType: 'ON_SIGNING',
+    criterionType: '',
     releaseDate: '',
     milestoneName: '',
     verificationRole: '',

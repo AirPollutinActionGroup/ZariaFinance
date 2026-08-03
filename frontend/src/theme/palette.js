@@ -52,7 +52,9 @@ export const dark = {
 
 export const palettes = { light, dark };
 
-export const SERIF =
-  '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif';
+// Change from old serif (Georgia) to Apple / Google clean SF Pro & Inter font stack:
 export const SANS =
-  '"Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter Variable", "Inter", system-ui, Roboto, "Segoe UI", sans-serif';
+
+export const SERIF = SANS; // Sets headings to clean Apple/Google font instead of newspaper serif
+

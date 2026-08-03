@@ -9,19 +9,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ngo.finance.donation.enums.FundMode;
 import com.ngo.finance.donor.dto.request.CreateGrantRequest;
 import com.ngo.finance.donor.dto.request.DisbursementScheduleRequest;
 import com.ngo.finance.donor.dto.request.DisbursementScheduleRequest.CriterionItem;
 import com.ngo.finance.donor.dto.request.DisbursementScheduleRequest.ReminderItem;
 import com.ngo.finance.donor.dto.request.DisbursementScheduleRequest.TrancheItem;
 import com.ngo.finance.donor.dto.request.ReceiveTrancheRequest;
+import com.ngo.finance.donor.entity.DonorDisbursementRule;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
-import com.ngo.finance.donor.entity.FundProfileTranche;
+import com.ngo.finance.donor.entity.DonorReleaseCriteria;
+import com.ngo.finance.donor.entity.DonorTrancheCriterion;
 import com.ngo.finance.donor.entity.Programme;
 import com.ngo.finance.donor.enums.CriterionType;
 import com.ngo.finance.donor.enums.DisbursementType;
 import com.ngo.finance.donor.enums.DonorType;
+import com.ngo.finance.donor.enums.FundClass;
 import com.ngo.finance.donor.enums.GrantStatus;
 import com.ngo.finance.donor.enums.RepeatReminder;
 import com.ngo.finance.donor.enums.ResponsibleRole;
@@ -88,23 +92,42 @@ public class DisbursementControllerIntegrationTest {
         DonorFundProfile profile = DonorFundProfile.builder()
                 .donor(donor)
                 .programme(programme)
-                .fundMode("Restricted")
-                .fundClassCode("A")
+                .fundMode(FundMode.RESTRICTED)
+                .fundClass(FundClass.CLASS_A_RESTRICTED)
                 .purpose("Disbursement test profile")
                 .build();
-        profile.getTranches().add(FundProfileTranche.builder()
+
+        DonorDisbursementRule rule = DonorDisbursementRule.builder()
                 .fundProfile(profile)
-                .trancheNumber(1)
-                .trancheName("Plan 1")
-                .trancheAmount(new BigDecimal("150000.00"))
-                .plannedReleaseDate(LocalDate.of(2026, 4, 1))
-                .build());
-        profile.getTranches().add(FundProfileTranche.builder()
-                .fundProfile(profile)
-                .trancheNumber(2)
-                .trancheName("Plan 2")
-                .trancheAmount(new BigDecimal("100000.00"))
-                .build());
+                .totalAmount(new BigDecimal("250000.00"))
+                .disbursementType(DisbursementType.TRANCHES)
+                .build();
+
+        // Seeded as MILESTONE_BASED (rather than a bare amount/date) to prove the
+        // prefill copy carries the release gate over, not just amount and date.
+        DonorTrancheCriterion first = new DonorTrancheCriterion();
+        first.setDonorDisbursementRule(rule);
+        first.setAmountCriteria(new BigDecimal("150000.00"));
+        first.setExpectedReleaseDate(LocalDate.of(2026, 4, 1));
+        DonorReleaseCriteria firstCriterion = new DonorReleaseCriteria();
+        firstCriterion.setDonorTrancheCriterion(first);
+        firstCriterion.setReleaseCriteria(CriterionType.MILESTONE_BASED);
+        firstCriterion.setMilestoneName("Kickoff milestone");
+        firstCriterion.setVerificationSignOffRole(VerificationRole.CFO);
+        first.getDonorReleaseCriteria().add(firstCriterion);
+        rule.getDonorTrancheCriteria().add(first);
+
+        DonorTrancheCriterion second = new DonorTrancheCriterion();
+        second.setDonorDisbursementRule(rule);
+        second.setAmountCriteria(new BigDecimal("100000.00"));
+        second.setIsFinalTranche(true);
+        DonorReleaseCriteria secondCriterion = new DonorReleaseCriteria();
+        secondCriterion.setDonorTrancheCriterion(second);
+        secondCriterion.setReleaseCriteria(CriterionType.ON_SIGNING);
+        second.getDonorReleaseCriteria().add(secondCriterion);
+        rule.getDonorTrancheCriteria().add(second);
+
+        profile.getDisbursementRules().add(rule);
         return fundProfileRepository.save(profile);
     }
 
@@ -565,16 +588,18 @@ public class DisbursementControllerIntegrationTest {
                 .tranches(List.of())
                 .build());
 
-        // The profile's two planned tranches are copied with their amounts and dates,
-        // each starting on the neutral On Signing gate for the user to refine.
+        // The profile's two planned tranche criteria are copied with their amounts,
+        // dates AND release gates — not always the neutral On Signing placeholder.
         mockMvc.perform(post("/api/v1/grants/{id}/disbursement/prefill", grantId).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tranches.length()").value(2))
-                .andExpect(jsonPath("$.tranches[0].trancheName").value("Plan 1"))
                 .andExpect(jsonPath("$.tranches[0].amount").value(150000.00))
                 .andExpect(jsonPath("$.tranches[0].expectedReleaseDate").value("2026-04-01"))
-                .andExpect(jsonPath("$.tranches[0].criteria[0].criterionType").value("ON_SIGNING"))
+                .andExpect(jsonPath("$.tranches[0].criteria[0].criterionType").value("MILESTONE_BASED"))
+                .andExpect(jsonPath("$.tranches[0].criteria[0].milestoneName").value("Kickoff milestone"))
+                .andExpect(jsonPath("$.tranches[0].criteria[0].verificationRole").value("CFO"))
                 .andExpect(jsonPath("$.tranches[1].amount").value(100000.00))
+                .andExpect(jsonPath("$.tranches[1].criteria[0].criterionType").value("ON_SIGNING"))
                 .andExpect(jsonPath("$.allocatedAmount").value(250000.00))
                 .andExpect(jsonPath("$.balanced").value(true));
 

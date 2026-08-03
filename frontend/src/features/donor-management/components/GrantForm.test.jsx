@@ -72,11 +72,17 @@ describe('GrantForm', () => {
     expect(screen.queryByLabelText(/agreement document path/i)).not.toBeInTheDocument();
   });
 
-  it('offers the grant code read-only and auto-generated', () => {
+  it('hides the grant code field until one has been minted', () => {
     renderForm();
+    expect(screen.queryByLabelText(/grant code/i)).not.toBeInTheDocument();
+  });
+
+  it('offers an existing grant code read-only', () => {
+    renderForm({ defaultValues: { ...defaults(), grantCode: 'ZRY/GA/2026/001' } });
     const grantCode = screen.getByLabelText(/grant code/i);
     expect(grantCode).toBeDisabled();
-    expect(screen.getByText(/auto-generated on save/i)).toBeInTheDocument();
+    expect(grantCode).toHaveValue('ZRY/GA/2026/001');
+    expect(screen.getByText(/grant code cannot be changed/i)).toBeInTheDocument();
   });
 
   it('searches donors and inherits the total from the chosen fund profile', async () => {

@@ -6,6 +6,7 @@ import com.ngo.finance.donor.dto.request.CreateGrantRequest;
 import com.ngo.finance.donor.dto.request.GrantRemarksRequest;
 import com.ngo.finance.donor.dto.response.GrantDetailsResponse;
 import com.ngo.finance.donor.dto.response.GrantListResponse;
+import com.ngo.finance.donor.entity.DonorDisbursementRule;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.GrantAgreement;
 import com.ngo.finance.donor.entity.Programme;
@@ -105,8 +106,12 @@ public class GrantServiceImpl implements GrantService {
                 .orElseThrow(() -> new ResourceNotFoundException("Fund profile", fundProfileId));
         grant.setFundProfile(profile);
         grant.setDonor(profile.getDonor());
-        // Read-only on the form: the total is Σ of the profile's tranche plan.
-        grant.setTotalGrantAmount(profile.plannedTotalAmount());
+        // Read-only on the form: the total is the profile's active disbursement
+        // rule's committed amount (a profile has at most one meaningful rule).
+        grant.setTotalGrantAmount(profile.getDisbursementRules().stream()
+                .findFirst()
+                .map(DonorDisbursementRule::getTotalAmount)
+                .orElse(null));
 
         if (programmeId != null) {
             Programme programme = programmeRepository.findById(programmeId)

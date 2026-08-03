@@ -1,7 +1,9 @@
 package com.ngo.finance.donor.dto.request;
 
+import com.ngo.finance.donor.enums.ContributionType;
 import com.ngo.finance.donor.enums.DonorType;
 import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.donor.enums.IdentityDocumentType;
 import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,13 +27,17 @@ public class UpdateDonorRequest {
 
     private Boolean fcraApplicable;
 
+    private ContributionType book;
+
     private String foreignFundSourceType;
 
     private String foreignCountryId;
 
-    private String panCardNumber;
+    private String passportId;
 
-    private String foreignTaxIdentifier;
+    private IdentityDocumentType documentType;
+
+    private String documentNumber;
 
     @Email(message = "Email must be valid")
     private String email;

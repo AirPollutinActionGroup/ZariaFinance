@@ -105,6 +105,9 @@ public class Donation extends AuditEntity {
     @JoinColumn(name = "programme_id", foreignKey = @ForeignKey(name = "fk_donation_programme"))
     private Programme programme;
 
+    @Column(name = "other_programme", length = 255)
+    private String otherProgramme;
+
     @Column(name = "utilisation_period_type", nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
     private UtilisationPeriodType utilisationPeriodType;

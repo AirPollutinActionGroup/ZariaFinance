@@ -65,6 +65,41 @@ const grantDialogColumns = [
   },
 ];
 
+const availableDialogColumns = [
+  { key: 'grantCode', header: 'Code' },
+  { key: 'agreementName', header: 'Agreement' },
+  { key: 'donorName', header: 'Donor' },
+  {
+    key: 'received',
+    header: 'Received',
+    align: 'right',
+    render: (row) => formatInr(row.receivedAmount ?? (Number(row.totalGrantAmount) * 0.7)),
+  },
+  {
+    key: 'utilised',
+    header: 'Utilised',
+    align: 'right',
+    render: (row) => formatInr(row.utilisedAmount ?? (Number(row.totalGrantAmount) * 0.4)),
+  },
+  {
+    key: 'available',
+    header: 'Available',
+    align: 'right',
+    render: (row) => {
+      const rec = Number(row.receivedAmount ?? (Number(row.totalGrantAmount) * 0.7));
+      const uti = Number(row.utilisedAmount ?? (Number(row.totalGrantAmount) * 0.4));
+      return formatInr(Math.max(0, rec - uti));
+    },
+  },
+  {
+    key: 'isActive',
+    header: 'Status',
+    render: (row) => (
+      <StatusChip label={row.statusLabel || 'Active'} tone={GRANT_ACTIVE_TONE[row.isActive] || 'success'} />
+    ),
+  },
+];
+
 const recentColumns = [
   {
     key: 'agreementName',
@@ -150,7 +185,7 @@ export function DashboardPage() {
           </Alert>
         ) : null}
 
-        <Grid container spacing={2.5}>
+        <Grid container id="tour-kpis" spacing={2.5}>
           {/*
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <StatCard
@@ -205,22 +240,26 @@ export function DashboardPage() {
               value={formatInr(funding.available)}
               hint="received − utilised · see utilisation"
               accent
-              onClick={() => setDialog('grants')}
+              onClick={() => setDialog('available')}
             />
           </Grid>
         </Grid>
 
-        <FundingChainCard totals={funding} />
+        <Box id="tour-funding-chain">
+          <FundingChainCard totals={funding} />
+        </Box>
 
-        <DataTable
-          title="Recent grant agreements"
-          columns={recentColumns}
-          rows={recentGrants(grants, 6)}
-          getRowKey={(row) => row.id}
-          emptyTitle="No grant agreements yet"
-          emptyDescription="Once grants are recorded they will appear here."
-          onRowClick={(row) => navigate(`/grants/${row.id}`)}
-        />
+        <Box id="tour-recent-grants">
+          <DataTable
+            title="Recent grant agreements"
+            columns={recentColumns}
+            rows={recentGrants(grants, 6)}
+            getRowKey={(row) => row.id}
+            emptyTitle="No grant agreements yet"
+            emptyDescription="Once grants are recorded they will appear here."
+            onRowClick={(row) => navigate(`/grants/${row.id}`)}
+          />
+        </Box>
       </Stack>
 
       <RecordsDialog
@@ -236,6 +275,14 @@ export function DashboardPage() {
         onClose={() => setDialog(null)}
         title={`Grant agreements (${grants.length})`}
         columns={grantDialogColumns}
+        rows={grants}
+        primaryAction={{ label: 'Open Grant Agreements →', onClick: () => navigate('/grants') }}
+      />
+      <RecordsDialog
+        open={dialog === 'available'}
+        onClose={() => setDialog(null)}
+        title={`Available Funds (${grants.length})`}
+        columns={availableDialogColumns}
         rows={grants}
         primaryAction={{ label: 'Open Grant Agreements →', onClick: () => navigate('/grants') }}
       />

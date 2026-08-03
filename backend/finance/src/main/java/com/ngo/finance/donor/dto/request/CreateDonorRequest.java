@@ -1,7 +1,9 @@
 package com.ngo.finance.donor.dto.request;
 
+import com.ngo.finance.donor.enums.ContributionType;
 import com.ngo.finance.donor.enums.DonorType;
 import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.donor.enums.IdentityDocumentType;
 import com.ngo.finance.donor.validator.annotation.UniqueDonorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.EnumType;
@@ -41,11 +43,19 @@ public class CreateDonorRequest {
     @Builder.Default
     private Boolean fcraApplicable = false;
 
+    @Enumerated(EnumType.STRING)
+    private ContributionType book;
+
     private String foreignFundSourceType;
 
     private String foreignCountryId;
-    private String panCardNumber;
-    private String foreignTaxIdentifier;
+
+    private String passportId;
+
+    @Enumerated(EnumType.STRING)
+    private IdentityDocumentType documentType;
+
+    private String documentNumber;
 
     @NotBlank(message = "Email is required")
     @Email(message = "Email must be valid")

@@ -27,6 +27,7 @@ import {
   DONOR_ACTIVE_TONE,
   FUND_SOURCE_DOMICILE_TONE,
   GRANT_ACTIVE_TONE,
+  INDIVIDUAL_ID_TYPE,
   MODULE_ID,
 } from '../constants.js';
 
@@ -126,15 +127,21 @@ export function DonorDetailPage() {
             </Stack>
             <Grid container spacing={2.5}>
               <Field label="Donor type" value={donor.donorTypeLabel} />
+              <Field label="Book" value={donor.fundSourceDomicile === 'FOREIGN' ? 'FC · Foreign contribution' : 'LC · Local contribution'} />
               <Field label="Email" value={donor.email} />
               <Field label="Phone" value={donor.phoneNumber} />
               <Field label="Website" value={donor.website} />
               <Field label="Registration no." value={donor.registrationNumber} />
-              <Field label="PAN card number" value={donor.panCardNumber} />
+              {donor.idType ? (
+                <Field
+                  label={INDIVIDUAL_ID_TYPE[donor.idType] || 'Identity Document'}
+                  value={donor.idNumber}
+                />
+              ) : null}
               {donor.fundSourceDomicile === 'FOREIGN' ? (
                 <>
                   <Field label="Foreign fund source type" value={donor.foreignFundSourceType} />
-                  <Field label="Foreign tax identifier" value={donor.foreignTaxIdentifier} />
+                  <Field label="Passport ID" value={donor.passportNumber} />
                 </>
               ) : null}
               <Field label="POC name" value={donor.spocNameOfThePerson} />
@@ -145,7 +152,7 @@ export function DonorDetailPage() {
               <Field label="City" value={donor.cityName} />
               <Field label="State" value={donor.stateName} />
               <Field label="Country" value={donor.countryName} />
-              <Field label="Postal code" value={donor.postalCode} />
+              <Field label="PIN / Postal code" value={donor.postalCode} />
               <Field label="Created" value={formatDateTime(donor.createdAt)} />
               <Field label="Last updated" value={formatDateTime(donor.updatedAt)} />
             </Grid>

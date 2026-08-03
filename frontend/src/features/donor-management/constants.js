@@ -18,6 +18,15 @@ export const FUND_SOURCE_DOMICILE = Object.freeze({
   FOREIGN: 'Foreign',
 });
 
+export const INDIVIDUAL_ID_TYPE = Object.freeze({
+  PAN: 'PAN Card',
+  AADHAR: 'Aadhaar Card',
+  VOTER_ID: 'Voter ID',
+  DRIVING_LICENSE: 'Driving License',
+  PASSPORT: 'Passport ID',
+  FOREIGN_TAX_ID: 'Foreign Tax Identification Number',
+});
+
 /** Donor lifecycle is a plain isActive boolean now (no multi-step status). */
 export const DONOR_ACTIVE_TONE = Object.freeze({
   true: 'success',
@@ -88,3 +97,9 @@ export const FUND_SOURCE_DOMICILE_TONE = Object.freeze({
   DOMESTIC: 'neutral',
   FOREIGN: 'graphite',
 });
+
+export const UTILISATION_RULE_TYPES = [
+  { value: 'ADMIN_OVERHEAD_COST', label: 'Admin / Overhead Cost', requiresLimit: true },
+  { value: 'NOT_APPLICABLE', label: 'Not applicable', requiresLimit: false },
+  { value: 'OTHER_CUSTOM', label: 'Other (Custom rule)', requiresLimit: true },
+];

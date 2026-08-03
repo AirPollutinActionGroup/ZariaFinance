@@ -9,17 +9,22 @@ import { MODULE_ID } from '../constants.js';
 
 const CLASS_TONE = { A: 'error', B: 'warning', C: 'success' };
 
+/** DonorFundProfile.fundClass enum name -> the short A/B/C code shown in the chip. */
+const FUND_CLASS_SHORT = {
+  CLASS_A_RESTRICTED: 'A',
+  CLASS_B_UNRESTRICTED: 'B',
+  CLASS_C_UNRESTRICTED: 'C',
+};
+
 const columns = [
   {
-    key: 'fundClassCode',
+    key: 'fundClass',
     header: 'Fund Class',
     width: 90,
-    render: (row) =>
-      row.fundClassCode ? (
-        <StatusChip label={row.fundClassCode} tone={CLASS_TONE[row.fundClassCode] || 'neutral'} />
-      ) : (
-        '—'
-      ),
+    render: (row) => {
+      const short = FUND_CLASS_SHORT[row.fundClass];
+      return short ? <StatusChip label={short} tone={CLASS_TONE[short] || 'neutral'} /> : '—';
+    },
   },
   { key: 'fundMode', header: 'Mode', render: (row) => row.fundModeLabel },
   {
@@ -44,13 +49,7 @@ const columns = [
         </Tooltip>
       </Box>
     ),
-    render: (row) => row.reportingFrequency || '—',
-  },
-  {
-    key: 'overheadLimitPercent',
-    header: 'Overhead cap',
-    align: 'right',
-    render: (row) => (row.overheadLimitPercent != null ? `${row.overheadLimitPercent}%` : '—'),
+    render: (row) => row.reportingFrequencyLabel || row.reportingFrequency || '—',
   },
   {
     key: 'rules',

@@ -13,7 +13,12 @@ import {
 
 const columns = [
   { key: 'serialNo', header: 'S.No', width: 60, render: (row) => row.serialNo },
-  { key: 'donorCode', header: 'Donor Code', width: 110 },
+  {
+    key: 'donorCode',
+    header: 'Donor Code',
+    width: 160, // Increased from 110 to 160
+    render: (row) => <span style={{ whiteSpace: 'nowrap' }}>{row.donorCode}</span>
+  },
   { key: 'donorName', header: 'Donor Name' },
   { key: 'donorType', header: 'Donor Type', render: (row) => row.donorTypeLabel },
   {
@@ -71,6 +76,7 @@ export function DonorsListPage() {
         actions={
           <PermissionGate action={ACTIONS.EDIT} moduleId={MODULE_ID}>
             <Button
+              id="tour-new-donor"
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => navigate('/donors/new')}
@@ -80,7 +86,7 @@ export function DonorsListPage() {
           </PermissionGate>
         }
       />
-      <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+      <Stack id="tour-donors-filters" direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
         <Box sx={{ maxWidth: 420, flex: 1, minWidth: 240 }}>
           <SearchField value={search} onChange={setSearch} placeholder="Search donors…" />
         </Box>

@@ -1,8 +1,11 @@
 package com.ngo.finance.donor.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
+import com.ngo.finance.donor.enums.ContributionType;
 import com.ngo.finance.donor.enums.DonorType;
 import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.donor.enums.IdentityDocumentType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -25,9 +28,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-// @EqualsAndHashCode(exclude = { "contacts", "grants", "mapping" }, callSuper =
-// true)
-// @ToString(exclude = { "contacts", "grants", "mapping" })
 public class DonorMaster extends AuditEntity {
 
     @Column(nullable = false, unique = true, length = 20)
@@ -42,11 +42,15 @@ public class DonorMaster extends AuditEntity {
 
     @Column(name = "fund_source_domicile", length = 20)
     @Enumerated(EnumType.STRING)
-    private FundSourceDomicile fundSourceDomicile; // 'Domestic' | 'Foreign'
+    private FundSourceDomicile fundSourceDomicile;
 
     @Column(name = "fcra_applicable")
     @Builder.Default
     private Boolean fcraApplicable = false;
+
+    @Column(name = "book", length = 255)
+    @Enumerated(EnumType.STRING)
+    private ContributionType book;
 
     @Column(name = "foreign_fund_source_type", length = 50)
     private String foreignFundSourceType;
@@ -54,11 +58,15 @@ public class DonorMaster extends AuditEntity {
     @Column(name = "foreign_country_id", length = 100)
     private String foreignCountryId;
 
-    @Column(name = "pan_card_number", length = 20)
-    private String panCardNumber;
+    @Column(name = "passport_id", length = 20)
+    private String passportId;
 
-    @Column(length = 100)
-    private String foreignTaxIdentifier;
+    @Column(name = "document_type", length = 50)
+    @Enumerated(EnumType.STRING)
+    private IdentityDocumentType documentType;
+
+    @Column(name = "document_number", length = 50)
+    private String documentNumber;
 
     @Column(nullable = false, length = 255)
     private String email;
