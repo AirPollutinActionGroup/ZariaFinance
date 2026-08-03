@@ -4,6 +4,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ColorModeProvider } from '../../theme/ColorMode.jsx';
 import { createQueryClient } from '../../lib/query/queryClient.js';
 import { AuthProvider } from '../../core/auth/index.js';
+import { OnboardingProvider } from '../../features/onboarding/index.js';
 import { env } from '../../lib/config/env.js';
 
 /** Composition of all cross-cutting providers, outermost first. */
@@ -13,7 +14,9 @@ export function AppProviders({ children }) {
   return (
     <ColorModeProvider>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <OnboardingProvider>{children}</OnboardingProvider>
+        </AuthProvider>
         {env.isDev ? <ReactQueryDevtools initialIsOpen={false} /> : null}
       </QueryClientProvider>
     </ColorModeProvider>

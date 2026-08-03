@@ -7,6 +7,7 @@ import { useAuth } from '../../core/auth/index.js';
 import { ROLES } from '../../core/permissions/index.js';
 import { useColorMode } from '../../theme/ColorMode.jsx';
 import { NotificationBell } from '../../features/notifications/components/NotificationBell.jsx';
+import { HelpButton } from '../../features/onboarding/index.js';
 
 const ROLE_LABELS = {
   [ROLES.CEO]: 'CEO',
@@ -45,6 +46,7 @@ export function TopBar() {
   return (
     <Box
       component="header"
+      id="tour-topbar"
       sx={{
         height: 56,
         px: { xs: 2, md: 3.25 },
@@ -86,6 +88,8 @@ export function TopBar() {
           )}
         </IconButton>
       </Tooltip>
+
+      <HelpButton />
 
       <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
         <Avatar
