@@ -8,6 +8,15 @@ vi.mock('../../core/auth/index.js', () => ({
   useAuth: vi.fn(),
 }));
 
+// Mock react-router-dom hooks
+const mockNavigate = vi.fn();
+const mockLocation = { pathname: '/dashboard' };
+
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+  useLocation: () => mockLocation,
+}));
+
 function TestComponent() {
   const {
     isTourActive,
@@ -39,6 +48,7 @@ describe('OnboardingContext', () => {
     localStorage.clear();
     vi.clearAllMocks();
     vi.useFakeTimers();
+    mockLocation.pathname = '/dashboard';
   });
 
   afterEach(() => {
@@ -181,5 +191,37 @@ describe('OnboardingContext', () => {
     expect(screen.getByTestId('is-active').textContent).toBe('true');
     expect(screen.getByTestId('step-index').textContent).toBe('0');
     expect(localStorage.getItem('zariya_tour_completed_john_doe')).toBeNull();
+  });
+
+  it('calls navigate when transitioning to steps with different routes', () => {
+    useAuth.mockReturnValue({ user: { name: 'John Doe' } });
+    mockLocation.pathname = '/dashboard';
+    mockNavigate.mockClear();
+
+    render(
+      <OnboardingProvider>
+        <TestComponent />
+      </OnboardingProvider>
+    );
+
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    // Walk through steps 0 -> 1 -> 2 -> 3 -> 4. They should all be on '/dashboard' (no navigation)
+    for (let i = 0; i < 4; i++) {
+      act(() => {
+        screen.getByTestId('btn-next').click();
+      });
+    }
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    // Advancing to Step 5 (route: '/donors') should call navigate
+    act(() => {
+      screen.getByTestId('btn-next').click();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/donors');
   });
 });

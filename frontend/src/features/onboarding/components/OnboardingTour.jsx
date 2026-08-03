@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Box, Button, Card, CardContent, MobileStepper, Typography, useTheme } from '@mui/material';
+import { useLocation } from 'react-router-dom';
 import { useOnboarding } from '../OnboardingContext.jsx';
 
 export function OnboardingTour() {
   const theme = useTheme();
+  const location = useLocation();
   const {
     isTourActive,
     currentStepIndex,
@@ -72,7 +74,7 @@ export function OnboardingTour() {
       observer.disconnect();
       clearInterval(interval);
     };
-  }, [isTourActive, updateCoordinates]);
+  }, [isTourActive, updateCoordinates, location.pathname]);
 
   // Monitor card dimensions to ensure accurate placement calculations
   useEffect(() => {

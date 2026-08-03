@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../core/auth/index.js';
 import { onboardingSteps } from './onboardingSteps.js';
 
@@ -6,6 +7,8 @@ const OnboardingContext = createContext(null);
 
 export function OnboardingProvider({ children }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isTourActive, setIsTourActive] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
@@ -37,18 +40,26 @@ export function OnboardingProvider({ children }) {
     }
   }, [user, getStorageKey]);
 
+  const handleStepChange = useCallback((index) => {
+    const targetStep = onboardingSteps[index];
+    if (targetStep && targetStep.route && location.pathname !== targetStep.route) {
+      navigate(targetStep.route);
+    }
+    setCurrentStepIndex(index);
+  }, [navigate, location.pathname]);
+
   const startTour = useCallback(() => {
-    setCurrentStepIndex(0);
+    handleStepChange(0);
     setIsTourActive(true);
-  }, []);
+  }, [handleStepChange]);
 
   const nextStep = useCallback(() => {
-    setCurrentStepIndex((prev) => Math.min(prev + 1, onboardingSteps.length - 1));
-  }, []);
+    handleStepChange(Math.min(currentStepIndex + 1, onboardingSteps.length - 1));
+  }, [currentStepIndex, handleStepChange]);
 
   const prevStep = useCallback(() => {
-    setCurrentStepIndex((prev) => Math.max(prev - 1, 0));
-  }, []);
+    handleStepChange(Math.max(currentStepIndex - 1, 0));
+  }, [currentStepIndex, handleStepChange]);
 
   const skipTour = useCallback(() => {
     setIsTourActive(false);
@@ -71,9 +82,9 @@ export function OnboardingProvider({ children }) {
     if (key) {
       localStorage.removeItem(key);
     }
-    setCurrentStepIndex(0);
+    handleStepChange(0);
     setIsTourActive(true);
-  }, [getStorageKey]);
+  }, [getStorageKey, handleStepChange]);
 
   return (
     <OnboardingContext.Provider
