@@ -1,7 +1,6 @@
 import { registerModule } from '../core/modules/index.js';
 import { dashboardModule } from '../features/dashboard/index.jsx';
 import { donorManagementModule } from '../features/donor-management/index.jsx';
-import { donationManagementModule } from '../features/donation-management/index.jsx';
 
 /**
  * THE single integration point for business modules (Open/Closed).
@@ -21,5 +20,4 @@ export function registerAppModules() {
   registered = true;
   registerModule(dashboardModule);
   registerModule(donorManagementModule);
-  registerModule(donationManagementModule);
 }

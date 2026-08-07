@@ -17,6 +17,7 @@ export const queryKeys = {
   },
   programmes: {
     all: () => ['programmes'],
+    detail: (id) => ['programmes', 'detail', String(id)],
   },
   fundProfiles: {
     all: () => ['fundProfiles'],
