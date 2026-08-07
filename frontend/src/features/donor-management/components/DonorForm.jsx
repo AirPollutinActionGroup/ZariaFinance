@@ -52,8 +52,16 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
   const idType = watch('idType');
   const fundSourceDomicile = watch('fundSourceDomicile');
   const isIndividual = donorType === 'INDIVIDUAL';
+  const isCorporate = donorType === 'CORPORATE';
   const isForeign = fundSourceDomicile === 'FOREIGN';
   const [foreignCountries, setForeignCountries] = useState([]);
+
+  // Corporate CSR donations are always domestic — lock the field once it's set.
+  useEffect(() => {
+    if (isCorporate) {
+      setValue('fundSourceDomicile', 'DOMESTIC');
+    }
+  }, [isCorporate, setValue]);
 
   useEffect(() => {
     if (isForeign) {
@@ -127,6 +135,8 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                   control={control}
                   label="Fund source domicile"
                   required
+                  disabled={isCorporate}
+                  helperText={isCorporate ? 'Corporate CSR is always domestic' : ' '}
                   options={toOptions(FUND_SOURCE_DOMICILE)}
                 />
               </Grid>
@@ -216,62 +226,59 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                     label="Registration/Incorporation Number"
                   />
                 </Grid>
+                {isIndividual ? (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <RhfTextField
+                      name="passportNumber"
+                      control={control}
+                      label="Passport ID"
+                      required
+                      placeholder="e.g. A12345678"
+                      slotProps={{ htmlInput: { maxLength: 9, style: { textTransform: 'uppercase' } } }}
+                      onChange={(e) => {
+                        const clean = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                        setValue('passportNumber', clean, { shouldValidate: true });
+                      }}
+                    />
+                  </Grid>
+                ) : null}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <RhfSelect
+                    name="idType"
+                    control={control}
+                    label="ID type"
+                    options={[
+                      { value: '', label: 'Select your preference' },
+                      ...toOptions(
+                        Object.fromEntries(
+                          Object.entries(INDIVIDUAL_ID_TYPE).filter(([key]) => key !== 'PASSPORT')
+                        )
+                      ),
+                    ]}
+                  />
+                </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <RhfTextField
-                    name="passportNumber"
+                    name="idNumber"
                     control={control}
-                    label="Passport ID"
-                    required
-                    placeholder="e.g. A12345678"
-                    slotProps={{ htmlInput: { maxLength: 9, style: { textTransform: 'uppercase' } } }}
+                    label={getIdNumberLabel(idType)}
+                    placeholder={getIdNumberPlaceholder(idType)}
+                    slotProps={getIdNumberSlotProps(idType)}
                     onChange={(e) => {
-                      const clean = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                      setValue('passportNumber', clean, { shouldValidate: true });
+                      const val = e.target.value;
+                      const formatted = idType === 'AADHAR'
+                        ? val.replace(/\D/g, '')
+                        : val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                      setValue('idNumber', formatted, { shouldValidate: true });
+                      if (idType === 'PAN') {
+                        setValue('panCardNumber', formatted);
+                      }
+                      if (idType === 'PASSPORT') {
+                        setValue('passportNumber', formatted);
+                      }
                     }}
                   />
                 </Grid>
-
-                {isIndividual ? (
-                  <>
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                      <RhfSelect
-                        name="idType"
-                        control={control}
-                        label="ID type"
-                        options={[
-                          { value: '', label: 'Select your preference' },
-                          ...toOptions(
-                            Object.fromEntries(
-                              Object.entries(INDIVIDUAL_ID_TYPE).filter(([key]) => key !== 'PASSPORT')
-                            )
-                          ),
-                        ]}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                      <RhfTextField
-                        name="idNumber"
-                        control={control}
-                        label={getIdNumberLabel(idType)}
-                        placeholder={getIdNumberPlaceholder(idType)}
-                        slotProps={getIdNumberSlotProps(idType)}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const formatted = idType === 'AADHAR'
-                            ? val.replace(/\D/g, '')
-                            : val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                          setValue('idNumber', formatted, { shouldValidate: true });
-                          if (idType === 'PAN') {
-                            setValue('panCardNumber', formatted);
-                          }
-                          if (idType === 'PASSPORT') {
-                            setValue('passportNumber', formatted);
-                          }
-                        }}
-                      />
-                    </Grid>
-                  </>
-                ) : null}
               </Grid>
             </section>
           ) : null}
@@ -339,6 +346,7 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
               </Grid>
 
               {/* DYNAMIC GEOGRAPHY FIELDS */}
+              {/* Domestic locks Country to India (disabled); Foreign re-enables it. */}
               <GeographyFields
                 control={control}
                 setValue={setValue}

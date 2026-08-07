@@ -58,7 +58,11 @@ export const donorSchema = z.object({
       });
     }
   }
-  if ((data.fundSourceDomicile === 'FOREIGN' || data.fundSourceDomicile === 'Foreign') && (!data.passportNumber || data.passportNumber.trim() === '')) {
+  if (
+    data.donorType === 'INDIVIDUAL' &&
+    (data.fundSourceDomicile === 'FOREIGN' || data.fundSourceDomicile === 'Foreign') &&
+    (!data.passportNumber || data.passportNumber.trim() === '')
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'Passport ID is required',
