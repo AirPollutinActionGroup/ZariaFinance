@@ -2,6 +2,7 @@ import VolunteerActivismOutlinedIcon from '@mui/icons-material/VolunteerActivism
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import { DonorsListPage } from './pages/DonorsListPage.jsx';
 import { DonorCreatePage } from './pages/DonorCreatePage.jsx';
 import { DonorDetailPage } from './pages/DonorDetailPage.jsx';
@@ -14,6 +15,12 @@ import { GrantDisbursementPage } from './pages/GrantDisbursementPage.jsx';
 import { FundProfileFormPage } from './pages/FundProfileFormPage.jsx';
 import { RoleDirectoryPage } from './pages/RoleDirectoryPage.jsx';
 import { ReportsPage } from './pages/ReportsPage.jsx';
+import { ProgrammesListPage } from './pages/ProgrammesListPage.jsx';
+import { ProgrammeCreatePage } from './pages/ProgrammeCreatePage.jsx';
+import { ProgrammeDetailPage } from './pages/ProgrammeDetailPage.jsx';
+import { DonationsListPage } from '../donation-management/pages/DonationsListPage.jsx';
+import { DonationCreatePage } from '../donation-management/pages/DonationCreatePage.jsx';
+import { DonationDetailPage } from '../donation-management/pages/DonationDetailPage.jsx';
 import { MODULE_ID } from './constants.js';
 
 /**
@@ -26,6 +33,8 @@ export const donorManagementModule = {
   navItems: [
     { label: 'Donors Registry', path: '/donors', icon: VolunteerActivismOutlinedIcon },
     { label: 'Grants Agreements', path: '/grants', icon: HandshakeOutlinedIcon },
+    { label: 'Donations', path: '/donations', icon: VolunteerActivismOutlinedIcon },
+    { label: 'Programmes', path: '/programmes', icon: CategoryOutlinedIcon },
     //{ label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
     //{ label: 'Role directory', path: '/role-directory', icon: GroupsOutlinedIcon },
   ],
@@ -41,6 +50,12 @@ export const donorManagementModule = {
     { path: '/grants/:id', element: <GrantDetailPage /> },
     { path: '/grants/:id/edit', element: <GrantEditPage /> },
     { path: '/grants/:id/disbursement', element: <GrantDisbursementPage /> },
+    { path: '/donations', element: <DonationsListPage /> },
+    { path: '/donations/new', element: <DonationCreatePage /> },
+    { path: '/donations/:id', element: <DonationDetailPage /> },
+    { path: '/programmes', element: <ProgrammesListPage /> },
+    { path: '/programmes/new', element: <ProgrammeCreatePage /> },
+    { path: '/programmes/:id', element: <ProgrammeDetailPage /> },
     { path: '/role-directory', element: <RoleDirectoryPage /> },
     { path: '/reports', element: <ReportsPage /> },
   ],
