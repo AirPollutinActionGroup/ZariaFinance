@@ -4,6 +4,8 @@ import com.ngo.finance.donor.entity.Programme;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -15,4 +17,8 @@ public interface ProgrammeRepository extends JpaRepository<Programme, Long> {
 
     @org.springframework.data.jpa.repository.Query("SELECT p FROM Programme p WHERE p.programmeName LIKE %:searchTerm%")
     List<Programme> searchByName(String searchTerm);
+
+    /** Programme codes sharing a prefix (e.g. "PROG-") — used to derive the next sequence. */
+    @Query("SELECT p.programmeCode FROM Programme p WHERE p.programmeCode LIKE CONCAT(:prefix, '%')")
+    List<String> findProgrammeCodesByPrefix(@Param("prefix") String prefix);
 }
