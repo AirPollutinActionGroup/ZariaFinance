@@ -20,8 +20,8 @@ import { EmptyState } from './EmptyState.jsx';
  * every list page behaves identically.
  */
 export function DataTable({
-  columns,
-  rows,
+  columns = [],
+  rows = [],
   getRowKey,
   isLoading = false,
   error = null,
