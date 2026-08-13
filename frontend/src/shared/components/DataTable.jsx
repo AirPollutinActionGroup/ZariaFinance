@@ -49,7 +49,7 @@ export function DataTable({
             <TableHead>
               <TableRow>
                 {columns.map((col) => (
-                  <TableCell key={col.key} align={col.align || 'left'} width={col.width}>
+                  <TableCell key={col.key} align={col.align || 'left'} width={col.width} sx={col.sx}>
                     {col.header}
                   </TableCell>
                 ))}
@@ -64,7 +64,7 @@ export function DataTable({
                   sx={onRowClick ? { cursor: 'pointer' } : undefined}
                 >
                   {columns.map((col) => (
-                    <TableCell key={col.key} align={col.align || 'left'}>
+                    <TableCell key={col.key} align={col.align || 'left'} sx={col.sx}>
                       {col.render ? col.render(row) : row[col.key]}
                     </TableCell>
                   ))}
