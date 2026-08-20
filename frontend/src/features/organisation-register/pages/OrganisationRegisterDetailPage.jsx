@@ -1,9 +1,9 @@
+import { useState } from 'react';
 import {
   Box,
   Button,
   Card,
   CardContent,
-  Chip,
   Divider,
   Grid,
   Link,
@@ -14,8 +14,16 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BusinessIcon from '@mui/icons-material/Business';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import { PageHeader } from '../../../shared/components/index.js';
-import { MOCK_ORGANISATIONS } from '../data/mockOrganisations.js';
+import {
+  ConfirmDialog,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  StatusChip,
+} from '../../../shared/components/index.js';
+import { formatDateTime } from '../../../lib/format/date.js';
+import { useOrganisation, useOrganisationLifecycle } from '../hooks/useOrganisations.js';
+import { ORGANISATION_STATUS_TONE } from '../constants.js';
 
 function DetailField({ label, value, isLink = false }) {
   return (
@@ -39,27 +47,46 @@ function DetailField({ label, value, isLink = false }) {
 export function OrganisationRegisterDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const organisationQuery = useOrganisation(id);
+  const lifecycle = useOrganisationLifecycle(id);
+  const [pendingAction, setPendingAction] = useState(null);
 
-  const org = MOCK_ORGANISATIONS.find((o) => o.id === id) || MOCK_ORGANISATIONS[0];
+  if (organisationQuery.isPending) return <LoadingState label="Loading organisation…" />;
+  if (organisationQuery.isError) {
+    return <ErrorState error={organisationQuery.error} onRetry={organisationQuery.refetch} />;
+  }
 
-  let statusColor = 'default';
-  if (org.status === 'Active') statusColor = 'success';
-  else if (org.status === 'Pending') statusColor = 'warning';
-  else if (org.status === 'Inactive') statusColor = 'error';
+  const org = organisationQuery.data;
+
+  const runLifecycle = async () => {
+    await lifecycle.mutateAsync(pendingAction);
+    setPendingAction(null);
+  };
 
   return (
     <Box>
       <PageHeader
         title={org.name}
-        subtitle={`${org.shortName} · ${org.city}, ${org.state}`}
+        subtitle={`${org.shortName} · ${org.cityName}, ${org.stateName}`}
         actions={
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/organisation-register')}
-          >
-            Back to List
-          </Button>
+          <Stack direction="row" spacing={1.5}>
+            {org.status === 'ACTIVE' ? (
+              <Button color="inherit" onClick={() => setPendingAction('deactivate')}>
+                Deactivate
+              </Button>
+            ) : (
+              <Button color="inherit" onClick={() => setPendingAction('activate')}>
+                Activate
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate('/organisation-register')}
+            >
+              Back to List
+            </Button>
+          </Stack>
         }
       />
 
@@ -83,12 +110,9 @@ export function OrganisationRegisterDetailPage() {
               <Typography variant="caption" component="p" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
                 STATUS
               </Typography>
-              <Chip
-                label={org.status}
-                color={statusColor}
-                size="small"
-                variant="outlined"
-                sx={{ fontWeight: 600, minWidth: 80 }}
+              <StatusChip
+                label={org.statusLabel}
+                tone={ORGANISATION_STATUS_TONE[org.status] || 'neutral'}
               />
             </Grid>
           </Grid>
@@ -103,15 +127,37 @@ export function OrganisationRegisterDetailPage() {
             </Typography>
           </Stack>
 
-          <Grid container spacing={3}>
+          <Grid container spacing={3} sx={{ mb: 3 }}>
             <DetailField label="ADDRESS 1" value={org.address1} />
             <DetailField label="ADDRESS 2" value={org.address2} />
-            <DetailField label="CITY" value={org.city} />
-            <DetailField label="STATE" value={org.state} />
+            <DetailField label="CITY" value={org.cityName} />
+            <DetailField label="STATE" value={org.stateName} />
             <DetailField label="ZIP CODE" value={org.zipCode} />
+          </Grid>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Grid container spacing={3}>
+            <DetailField label="REGISTERED ON" value={formatDateTime(org.createdAt)} />
+            <DetailField label="LAST UPDATED" value={formatDateTime(org.updatedAt)} />
           </Grid>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(pendingAction)}
+        title={pendingAction === 'activate' ? 'Activate organisation' : 'Deactivate organisation'}
+        description={
+          pendingAction === 'activate'
+            ? `Activate ${org.name}? It becomes available across the platform.`
+            : `Deactivate ${org.name}? It will be excluded from new activity until reactivated.`
+        }
+        confirmLabel={pendingAction === 'activate' ? 'Activate' : 'Deactivate'}
+        confirmColor={pendingAction === 'activate' ? 'primary' : 'error'}
+        busy={lifecycle.isPending}
+        onConfirm={runLifecycle}
+        onClose={() => setPendingAction(null)}
+      />
     </Box>
   );
 }

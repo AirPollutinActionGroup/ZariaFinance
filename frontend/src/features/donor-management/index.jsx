@@ -21,6 +21,13 @@ import { ProgrammeDetailPage } from './pages/ProgrammeDetailPage.jsx';
 import { DonationsListPage } from '../donation-management/pages/DonationsListPage.jsx';
 import { DonationCreatePage } from '../donation-management/pages/DonationCreatePage.jsx';
 import { DonationDetailPage } from '../donation-management/pages/DonationDetailPage.jsx';
+import { UserRequestsListPage } from '../user-requests/pages/UserRequestsListPage.jsx';
+import { UserRequestDetailPage } from '../user-requests/pages/UserRequestDetailPage.jsx';
+import { OrganisationRegisterListPage } from '../organisation-register/pages/OrganisationRegisterListPage.jsx';
+import { OrganisationRegistrationCreatePage } from '../organisation-register/pages/OrganisationRegistrationCreatePage.jsx';
+import { OrganisationRegisterDetailPage } from '../organisation-register/pages/OrganisationRegisterDetailPage.jsx';
+import BusinessIcon from '@mui/icons-material/Business';
+import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import { MODULE_ID } from './constants.js';
 
 /**
@@ -35,6 +42,8 @@ export const donorManagementModule = {
     { label: 'Grants Agreements', path: '/grants', icon: HandshakeOutlinedIcon },
     { label: 'Donations', path: '/donations', icon: VolunteerActivismOutlinedIcon },
     { label: 'Programmes', path: '/programmes', icon: CategoryOutlinedIcon },
+    { label: 'User Requests', path: '/user-requests', icon: PersonAddOutlinedIcon },
+    { label: 'organization Register', path: '/organisation-register', icon: BusinessIcon },
     //{ label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
     //{ label: 'Role directory', path: '/role-directory', icon: GroupsOutlinedIcon },
   ],
@@ -58,5 +67,10 @@ export const donorManagementModule = {
     { path: '/programmes/:id', element: <ProgrammeDetailPage /> },
     { path: '/role-directory', element: <RoleDirectoryPage /> },
     { path: '/reports', element: <ReportsPage /> },
+    { path: '/user-requests', element: <UserRequestsListPage /> },
+    { path: '/user-requests/:id', element: <UserRequestDetailPage /> },
+    { path: '/organisation-register', element: <OrganisationRegisterListPage /> },
+    { path: '/organisation-register/new', element: <OrganisationRegistrationCreatePage /> },
+    { path: '/organisation-register/:id', element: <OrganisationRegisterDetailPage /> },
   ],
 };

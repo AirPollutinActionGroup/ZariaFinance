@@ -49,4 +49,9 @@ export const queryKeys = {
   users: {
     all: () => ['users'],
   },
+  organisations: {
+    all: () => ['organisations'],
+    list: (search) => ['organisations', 'list', { search: search || '' }],
+    detail: (id) => ['organisations', 'detail', String(id)],
+  },
 };

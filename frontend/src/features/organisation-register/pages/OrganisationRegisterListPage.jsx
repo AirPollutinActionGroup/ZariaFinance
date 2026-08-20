@@ -1,89 +1,75 @@
-import { useState } from 'react';
-import {
-  Box,
-  Button,
-  Chip,
-  MenuItem,
-  Select,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { useMemo, useState } from 'react';
+import { Box, Button, MenuItem, Select, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
-import { DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
-import { MOCK_ORGANISATIONS } from '../data/mockOrganisations.js';
+import { DataTable, PageHeader, SearchField, StatusChip } from '../../../shared/components/index.js';
+import { useOrganisations } from '../hooks/useOrganisations.js';
+import { ORGANISATION_STATUS_TONE } from '../constants.js';
+
+const STATUS_FILTERS = [
+  { value: 'All', label: 'All Statuses' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'INACTIVE', label: 'Inactive' },
+];
 
 export function OrganisationRegisterListPage() {
   const navigate = useNavigate();
-  const [organisations] = useState(MOCK_ORGANISATIONS);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const organisationsQuery = useOrganisations(search);
 
-  const filteredOrganisations = organisations.filter((org) => {
-    const matchesSearch =
-      org.name.toLowerCase().includes(search.toLowerCase()) ||
-      org.shortName.toLowerCase().includes(search.toLowerCase()) ||
-      org.state.toLowerCase().includes(search.toLowerCase()) ||
-      org.city.toLowerCase().includes(search.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === 'All' || org.status.toLowerCase() === statusFilter.toLowerCase();
-
-    return matchesSearch && matchesStatus;
-  });
+  const rows = useMemo(() => {
+    const organisations = organisationsQuery.data || [];
+    const filtered =
+      statusFilter === 'All'
+        ? organisations
+        : organisations.filter((org) => org.status === statusFilter);
+    return filtered.map((org, index) => ({ ...org, serialNo: index + 1 }));
+  }, [organisationsQuery.data, statusFilter]);
 
   const columns = [
     {
-      key: 'srNo',
+      key: 'serialNo',
       header: 'S.NO',
       width: 70,
-      render: (r, idx) => (
+      render: (row) => (
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {r.srNo || idx + 1}
+          {row.serialNo}
         </Typography>
       ),
     },
     {
       key: 'name',
       header: 'ORGANISATION NAME',
-      render: (r) => <b>{r.name}</b>,
+      render: (row) => <b>{row.name}</b>,
     },
     {
       key: 'shortName',
       header: 'ORGANISATION SHORT NAME',
-      render: (r) => r.shortName,
+      render: (row) => row.shortName,
     },
     {
-      key: 'state',
+      key: 'stateName',
       header: 'STATE',
-      render: (r) => r.state,
+      render: (row) => row.stateName,
     },
     {
-      key: 'city',
+      key: 'cityName',
       header: 'CITY',
-      render: (r) => r.city,
+      render: (row) => row.cityName,
     },
     {
       key: 'status',
       header: 'STATUS',
       width: 130,
       align: 'center',
-      render: (r) => {
-        let color = 'default';
-        if (r.status === 'Active') color = 'success';
-        else if (r.status === 'Pending') color = 'warning';
-        else if (r.status === 'Inactive') color = 'error';
-
-        return (
-          <Chip
-            label={r.status}
-            color={color}
-            size="small"
-            variant="outlined"
-            sx={{ fontWeight: 600, minWidth: 80 }}
-          />
-        );
-      },
+      render: (row) => (
+        <StatusChip
+          label={row.statusLabel}
+          tone={ORGANISATION_STATUS_TONE[row.status] || 'neutral'}
+        />
+      ),
     },
   ];
 
@@ -108,7 +94,7 @@ export function OrganisationRegisterListPage() {
           <SearchField
             value={search}
             onChange={setSearch}
-            placeholder="Search by name, short name, state, or city…"
+            placeholder="Search by name or short name…"
           />
         </Box>
 
@@ -118,19 +104,24 @@ export function OrganisationRegisterListPage() {
           onChange={(e) => setStatusFilter(e.target.value)}
           sx={{ minWidth: 140, borderRadius: 2 }}
         >
-          <MenuItem value="All">All Statuses</MenuItem>
-          <MenuItem value="Active">Active</MenuItem>
-          <MenuItem value="Pending">Pending</MenuItem>
-          <MenuItem value="Inactive">Inactive</MenuItem>
+          {STATUS_FILTERS.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
         </Select>
       </Stack>
 
       <DataTable
         columns={columns}
-        rows={filteredOrganisations}
-        getRowKey={(r) => r.id}
-        onRowClick={(r) => navigate(`/organisation-register/${r.id}`)}
+        rows={rows}
+        getRowKey={(row) => row.id}
+        isLoading={organisationsQuery.isPending}
+        error={organisationsQuery.isError ? organisationsQuery.error : null}
+        onRetry={organisationsQuery.refetch}
+        onRowClick={(row) => navigate(`/organisation-register/${row.id}`)}
         emptyTitle="No organisations found"
+        emptyDescription="Register the first partner organisation to see it here."
       />
     </>
   );
