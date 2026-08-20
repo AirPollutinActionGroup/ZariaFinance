@@ -103,3 +103,5 @@ export const UTILISATION_RULE_TYPES = [
   { value: 'NOT_APPLICABLE', label: 'Not applicable', requiresLimit: false },
   { value: 'OTHER_CUSTOM', label: 'Other (Custom rule)', requiresLimit: true },
 ];
+
+export const ROLE_STATUSES = ['Active', 'Inactive'];

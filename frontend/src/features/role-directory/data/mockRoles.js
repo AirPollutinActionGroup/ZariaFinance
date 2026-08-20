@@ -1,0 +1,51 @@
+export const MOCK_ROLES = [
+  {
+    id: 'role-1',
+    srNo: 1,
+    roleName: 'Chief Financial Officer',
+    shortName: 'CFO',
+    status: 'Active',
+  },
+  {
+    id: 'role-2',
+    srNo: 2,
+    roleName: 'Accounts / Finance Officer',
+    shortName: 'AFO',
+    status: 'Active',
+  },
+  {
+    id: 'role-3',
+    srNo: 3,
+    roleName: 'Programme Manager',
+    shortName: 'PM',
+    status: 'Active',
+  },
+  {
+    id: 'role-4',
+    srNo: 4,
+    roleName: 'Head of Organisation / CEO',
+    shortName: 'CEO',
+    status: 'Active',
+  },
+  {
+    id: 'role-5',
+    srNo: 5,
+    roleName: 'Fundraising & Partnerships Lead',
+    shortName: 'FPL',
+    status: 'Active',
+  },
+  {
+    id: 'role-6',
+    srNo: 6,
+    roleName: 'Grant Administrator',
+    shortName: 'GA',
+    status: 'Active',
+  },
+  {
+    id: 'role-7',
+    srNo: 7,
+    roleName: 'Internal Auditor',
+    shortName: 'IA',
+    status: 'Inactive',
+  },
+];

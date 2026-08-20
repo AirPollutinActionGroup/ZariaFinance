@@ -54,6 +54,7 @@ const POLICY = Object.freeze({
     'donation-management': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
     'user-requests': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
     'organisation-register': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
+    'role-directory': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
   },
 });
 
