@@ -1,4 +1,4 @@
-import { Box, Drawer, List, ListItemButton, ListItemText, Typography } from '@mui/material';
+import { Box, Drawer, List, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../core/auth/index.js';
 import { canViewModule } from '../../core/permissions/index.js';
@@ -16,6 +16,7 @@ export function SideNav() {
   const { user } = useAuth();
   const location = useLocation();
   const sections = getNavSections(user, canViewModule);
+  const brandName = user?.organisationName || 'Zariya';
 
   // Running index across every visible item → the 00 / 01 / 02 rail numbering.
   let itemIndex = 0;
@@ -38,13 +39,24 @@ export function SideNav() {
       }}
     >
       <Box sx={{ px: 2.25, pt: 2.5, pb: 1.25 }}>
-        <Typography
-          variant="h5"
-          component="p"
-          sx={{ letterSpacing: '.01em', color: 'text.primary', fontSize: 22 }}
-        >
-          Zariya
-        </Typography>
+        <Tooltip title={brandName}>
+          <Typography
+            component="p"
+            sx={{
+              letterSpacing: '.01em',
+              color: 'text.primary',
+              fontSize: 16,
+              fontWeight: 700,
+              lineHeight: 1.25,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {brandName}
+          </Typography>
+        </Tooltip>
         <Typography
           sx={{
             color: 'text.secondary',

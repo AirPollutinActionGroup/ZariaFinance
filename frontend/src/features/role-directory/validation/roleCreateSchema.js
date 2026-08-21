@@ -1,17 +1,17 @@
 import { z } from 'zod';
 
-export const ROLE_STATUSES = ['Active', 'Inactive'];
-
 export const roleCreateSchema = z.object({
   roleName: z.string().min(2, 'Role name is required'),
   shortName: z.string().min(1, 'Short name is required'),
-  status: z.enum(ROLE_STATUSES, {
-    errorMap: () => ({ message: 'Status is required' }),
+  userLimit: z.string().min(1, 'User limit is required'),
+  permissionRole: z.enum(['CEO', 'FINANCE_OFFICER', 'FUNDRAISING_LEAD'], {
+    errorMap: () => ({ message: 'Permission role is required' }),
   }),
 });
 
 export const roleCreateDefaults = {
   roleName: '',
   shortName: '',
-  status: 'Active',
+  userLimit: '',
+  permissionRole: '',
 };

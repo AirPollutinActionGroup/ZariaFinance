@@ -61,7 +61,11 @@ public class SecurityConfig {
                                                 "/api/v1/notifications/**",
                                                 "/api/v1/role-directory",
                                                 "/api/v1/organisations",
-                                                "/api/v1/organisations/**"))
+                                                "/api/v1/organisations/**",
+                                                "/api/v1/roles",
+                                                "/api/v1/roles/**",
+                                                "/api/v1/user-registrations",
+                                                "/api/v1/user-registrations/**"))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                                 .requestMatchers(
@@ -101,6 +105,10 @@ public class SecurityConfig {
                                                                 "/api/v1/role-directory",
                                                                 "/api/v1/organisations",
                                                                 "/api/v1/organisations/**",
+                                                                "/api/v1/roles",
+                                                                "/api/v1/roles/**",
+                                                                "/api/v1/user-registrations",
+                                                                "/api/v1/user-registrations/**",
                                                                 "/swagger-ui.html",
                                                                 "/swagger-ui/**",
                                                                 "/api-docs/**",

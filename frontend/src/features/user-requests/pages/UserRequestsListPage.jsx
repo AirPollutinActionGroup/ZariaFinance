@@ -1,41 +1,52 @@
-import { useState } from 'react';
-import {
-  Box,
-  Chip,
-  MenuItem,
-  Select,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { useMemo, useState } from 'react';
+import { Box, MenuItem, Select, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
-import { MOCK_USER_REQUESTS } from '../data/mockRequests.js';
+import { DataTable, PageHeader, SearchField, StatusChip } from '../../../shared/components/index.js';
+import { useUserRequests } from '../hooks/useUserRequests.js';
+import { USER_REQUEST_STATUS_TONE } from '../constants.js';
+
+const STATUS_FILTERS = [
+  { value: 'All', label: 'All Statuses' },
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' },
+];
 
 export function UserRequestsListPage() {
   const navigate = useNavigate();
-  const [requests] = useState(MOCK_USER_REQUESTS);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [organisationFilter, setOrganisationFilter] = useState('All');
+  const requestsQuery = useUserRequests();
 
-  const filteredRequests = requests.filter((r) => {
-    const matchesSearch =
-      r.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.email.toLowerCase().includes(search.toLowerCase()) ||
-      r.role.toLowerCase().includes(search.toLowerCase()) ||
-      r.organisation.toLowerCase().includes(search.toLowerCase());
+  const organisationOptions = useMemo(() => {
+    const names = new Set((requestsQuery.data || []).map((r) => r.organisation).filter(Boolean));
+    return ['All', ...Array.from(names).sort((a, b) => a.localeCompare(b))];
+  }, [requestsQuery.data]);
 
-    const matchesStatus =
-      statusFilter === 'All' || r.status.toLowerCase() === statusFilter.toLowerCase();
-
-    return matchesSearch && matchesStatus;
-  });
+  const rows = useMemo(() => {
+    const requests = requestsQuery.data || [];
+    const term = search.trim().toLowerCase();
+    const filtered = requests.filter((r) => {
+      const matchesSearch =
+        !term ||
+        r.name.toLowerCase().includes(term) ||
+        r.email.toLowerCase().includes(term) ||
+        r.role.toLowerCase().includes(term) ||
+        r.organisation.toLowerCase().includes(term);
+      const matchesStatus = statusFilter === 'All' || r.approvalStatus === statusFilter;
+      const matchesOrganisation = organisationFilter === 'All' || r.organisation === organisationFilter;
+      return matchesSearch && matchesStatus && matchesOrganisation;
+    });
+    return filtered.map((request, index) => ({ ...request, serialNo: index + 1 }));
+  }, [requestsQuery.data, search, statusFilter, organisationFilter]);
 
   const columns = [
     {
-      key: 'srNo',
+      key: 'serialNo',
       header: 'SR NO',
       width: 70,
-      render: (r) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.srNo}</Typography>,
+      render: (r) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.serialNo}</Typography>,
     },
     {
       key: 'name',
@@ -60,9 +71,7 @@ export function UserRequestsListPage() {
     {
       key: 'role',
       header: 'ROLE',
-      render: (r) => (
-        <Chip label={r.role} size="small" variant="outlined" sx={{ fontSize: 11.5 }} />
-      ),
+      render: (r) => r.role,
     },
     {
       key: 'organisation',
@@ -74,22 +83,9 @@ export function UserRequestsListPage() {
       header: 'STATUS',
       width: 130,
       align: 'center',
-      render: (r) => {
-        let color = 'default';
-        if (r.status === 'Approved') color = 'success';
-        else if (r.status === 'Rejected') color = 'error';
-        else if (r.status === 'Pending') color = 'warning';
-
-        return (
-          <Chip
-            label={r.status}
-            size="small"
-            color={color}
-            variant="outlined"
-            sx={{ fontWeight: 700, fontSize: 11 }}
-          />
-        );
-      },
+      render: (r) => (
+        <StatusChip label={r.statusLabel} tone={USER_REQUEST_STATUS_TONE[r.approvalStatus] || 'neutral'} />
+      ),
     },
   ];
 
@@ -100,7 +96,6 @@ export function UserRequestsListPage() {
         subtitle="Review, approve, and manage public account requests across the organisation."
       />
 
-      {/* Filter Bar */}
       <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ mb: 2, alignItems: 'center' }}>
         <Box sx={{ flex: '1 1 240px' }}>
           <SearchField
@@ -116,18 +111,36 @@ export function UserRequestsListPage() {
           onChange={(e) => setStatusFilter(e.target.value)}
           sx={{ minWidth: 150 }}
         >
-          <MenuItem value="All">All Statuses</MenuItem>
-          <MenuItem value="Pending">Pending</MenuItem>
-          <MenuItem value="Approved">Approved</MenuItem>
-          <MenuItem value="Rejected">Rejected</MenuItem>
+          {STATUS_FILTERS.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </Select>
+
+        <Select
+          size="small"
+          value={organisationFilter}
+          onChange={(e) => setOrganisationFilter(e.target.value)}
+          sx={{ minWidth: 180 }}
+        >
+          {organisationOptions.map((name) => (
+            <MenuItem key={name} value={name}>
+              {name === 'All' ? 'All Organisations' : name}
+            </MenuItem>
+          ))}
         </Select>
       </Stack>
 
-      {/* Data Table */}
       <DataTable
         columns={columns}
-        rows={filteredRequests}
+        rows={rows}
         getRowKey={(row) => row.id}
+        isLoading={requestsQuery.isPending}
+        error={requestsQuery.isError ? requestsQuery.error : null}
+        onRetry={requestsQuery.refetch}
+        emptyTitle="No user requests found"
+        emptyDescription="Public account requests will appear here once submitted."
         onRowClick={(row) => navigate(`/user-requests/${row.id}`)}
       />
     </>

@@ -7,7 +7,7 @@ import { readStoredSession, writeStoredSession } from './sessionStorage.js';
 /**
  * Session state for the application.
  *
- * user shape: { name, role, status, mode: 'session' | 'review' } | null
+ * user shape: { name, role, roleName, organisationName, status, mode: 'session' | 'review' } | null
  *
  * 'review' mode is an explicit, visibly-labelled stopgap while the backend
  * login endpoint is missing (docs/BACKEND_GAPS.md #1). It grants the role

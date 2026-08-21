@@ -54,4 +54,14 @@ export const queryKeys = {
     list: (search) => ['organisations', 'list', { search: search || '' }],
     detail: (id) => ['organisations', 'detail', String(id)],
   },
+  roles: {
+    all: () => ['roles'],
+    list: (search) => ['roles', 'list', { search: search || '' }],
+    detail: (id) => ['roles', 'detail', String(id)],
+    assignedUsers: (id) => ['roles', 'assignedUsers', String(id)],
+  },
+  userRequests: {
+    all: () => ['userRequests'],
+    detail: (id) => ['userRequests', 'detail', String(id)],
+  },
 };

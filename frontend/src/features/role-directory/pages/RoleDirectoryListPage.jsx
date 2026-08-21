@@ -1,102 +1,110 @@
-import { useState } from 'react';
-import {
-  Box,
-  Button,
-  Chip,
-  MenuItem,
-  Select,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { useMemo, useState } from 'react';
+import { Box, Button, MenuItem, Select, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
-import { ConfirmDialog, DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
-import { MOCK_ROLES } from '../data/mockRoles.js';
+import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
+import { ConfirmDialog, DataTable, PageHeader, SearchField, StatusChip } from '../../../shared/components/index.js';
+import { ManageRoleUsersDialog } from '../components/ManageRoleUsersDialog.jsx';
+import { useRoles, useRoleLifecycle } from '../hooks/useRoles.js';
+import { PERMISSION_ROLE_LABEL, ROLE_STATUS_TONE } from '../constants.js';
+
+const STATUS_FILTERS = [
+  { value: 'All', label: 'All Statuses' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+];
 
 export function RoleDirectoryListPage() {
   const navigate = useNavigate();
-  const [roles, setRoles] = useState(MOCK_ROLES);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [roleToToggle, setRoleToToggle] = useState(null);
+  const [roleToManage, setRoleToManage] = useState(null);
+  const rolesQuery = useRoles(search);
+  const roleLifecycle = useRoleLifecycle();
 
-  const filteredRoles = roles.filter((role) => {
-    const matchesSearch =
-      role.roleName.toLowerCase().includes(search.toLowerCase()) ||
-      role.shortName.toLowerCase().includes(search.toLowerCase());
+  const rows = useMemo(() => {
+    const roles = rolesQuery.data || [];
+    const filtered = statusFilter === 'All' ? roles : roles.filter((r) => r.status === statusFilter);
+    return filtered.map((role, index) => ({ ...role, serialNo: index + 1 }));
+  }, [rolesQuery.data, statusFilter]);
 
-    const matchesStatus =
-      statusFilter === 'All' || role.status.toLowerCase() === statusFilter.toLowerCase();
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const handleConfirmStatusChange = () => {
+  const handleConfirmStatusChange = async () => {
     if (!roleToToggle) return;
-    const nextStatus = roleToToggle.status === 'Active' ? 'Inactive' : 'Active';
-    setRoles((prev) =>
-      prev.map((r) => (r.id === roleToToggle.id ? { ...r, status: nextStatus } : r))
-    );
+    const action = roleToToggle.status === 'ACTIVE' ? 'deactivate' : 'activate';
+    await roleLifecycle.mutateAsync({ id: roleToToggle.id, action });
     setRoleToToggle(null);
   };
 
   const columns = [
     {
-      key: 'srNo',
+      key: 'serialNo',
       header: 'S.NO',
-      width: '10%',
+      width: '6%',
       align: 'center',
-      render: (r, idx) => (
+      render: (r) => (
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {r.srNo || idx + 1}
+          {r.serialNo}
         </Typography>
       ),
     },
     {
       key: 'roleName',
       header: 'ROLE NAME',
-      width: '30%',
+      width: '20%',
       align: 'center',
       render: (r) => <b>{r.roleName}</b>,
     },
     {
       key: 'shortName',
       header: 'ROLE SHORT NAME',
-      width: '20%',
+      width: '13%',
       align: 'center',
       render: (r) => r.shortName,
     },
     {
+      key: 'userLimit',
+      header: 'USER LIMIT',
+      width: '12%',
+      align: 'center',
+      render: (r) => (
+        <Button
+          size="small"
+          variant="text"
+          startIcon={<GroupOutlinedIcon fontSize="small" />}
+          onClick={() => setRoleToManage(r)}
+          sx={{ textTransform: 'none', fontWeight: 600 }}
+        >
+          {r.userLimitLabel}
+        </Button>
+      ),
+    },
+    {
+      key: 'permissionRole',
+      header: 'PERMISSION ROLE',
+      width: '15%',
+      align: 'center',
+      render: (r) => PERMISSION_ROLE_LABEL[r.permissionRole] || r.permissionRole || '—',
+    },
+    {
       key: 'status',
       header: 'STATUS',
-      width: '20%',
+      width: '16%',
       align: 'center',
-      render: (r) => {
-        let color = 'default';
-        if (r.status === 'Active') color = 'success';
-        else if (r.status === 'Inactive') color = 'error';
-
-        return (
-          <Chip
-            label={r.status}
-            color={color}
-            size="small"
-            variant="outlined"
-            sx={{ fontWeight: 600, minWidth: 80 }}
-          />
-        );
-      },
+      render: (r) => (
+        <StatusChip label={r.statusLabel} tone={ROLE_STATUS_TONE[r.status] || 'neutral'} />
+      ),
     },
     {
       key: 'action',
       header: 'ACTION',
-      width: '20%',
+      width: '18%',
       align: 'center',
       render: (r) => (
         <Button
           size="small"
           variant="outlined"
-          color={r.status === 'Active' ? 'warning' : 'success'}
+          color={r.status === 'ACTIVE' ? 'warning' : 'success'}
           onClick={() => setRoleToToggle(r)}
           sx={{ textTransform: 'none', fontWeight: 600 }}
         >
@@ -107,9 +115,9 @@ export function RoleDirectoryListPage() {
   ];
 
   const dialogDescription = roleToToggle
-    ? roleToToggle.status === 'Active'
-      ? 'Are you sure you want to change the status of the user from active to inactive?'
-      : 'Are you sure you want to change the status of the user from inactive to active?'
+    ? roleToToggle.status === 'ACTIVE'
+      ? 'Are you sure you want to change the status of the role from active to inactive?'
+      : 'Are you sure you want to change the status of the role from inactive to active?'
     : '';
 
   return (
@@ -143,17 +151,23 @@ export function RoleDirectoryListPage() {
           onChange={(e) => setStatusFilter(e.target.value)}
           sx={{ minWidth: 140, borderRadius: 2 }}
         >
-          <MenuItem value="All">All Statuses</MenuItem>
-          <MenuItem value="Active">Active</MenuItem>
-          <MenuItem value="Inactive">Inactive</MenuItem>
+          {STATUS_FILTERS.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
         </Select>
       </Stack>
 
       <DataTable
         columns={columns}
-        rows={filteredRoles}
+        rows={rows}
         getRowKey={(r) => r.id}
+        isLoading={rolesQuery.isPending}
+        error={rolesQuery.isError ? rolesQuery.error : null}
+        onRetry={rolesQuery.refetch}
         emptyTitle="No roles found"
+        emptyDescription="Create the first organisational role to see it here."
       />
 
       <ConfirmDialog
@@ -161,9 +175,15 @@ export function RoleDirectoryListPage() {
         title="Change Status"
         description={dialogDescription}
         confirmLabel="Confirm"
-        confirmColor={roleToToggle?.status === 'Active' ? 'warning' : 'primary'}
+        confirmColor={roleToToggle?.status === 'ACTIVE' ? 'warning' : 'primary'}
         onConfirm={handleConfirmStatusChange}
         onClose={() => setRoleToToggle(null)}
+      />
+
+      <ManageRoleUsersDialog
+        open={Boolean(roleToManage)}
+        role={roleToManage}
+        onClose={() => setRoleToManage(null)}
       />
     </>
   );

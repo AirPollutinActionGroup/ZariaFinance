@@ -22,8 +22,12 @@ export const registerExtendedSchema = z
       .trim()
       .min(4, 'Username must be between 4 and 20 characters')
       .max(20, 'Username must be between 4 and 20 characters'),
-    role: z.string().min(1, 'Please select a role'),
-    organisation: z.string().min(1, 'Please select an organisation'),
+    role: z
+      .union([z.string(), z.number()])
+      .refine((value) => value !== '' && value != null, 'Please select a role'),
+    organisation: z
+      .union([z.string(), z.number()])
+      .refine((value) => value !== '' && value != null, 'Please select an organisation'),
     password: z
       .string()
       .min(8, 'Password must be between 8 and 100 characters')

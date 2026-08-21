@@ -10,13 +10,11 @@ export const authRepository = {
    */
   async login(credentials) {
     const userDto = await http.post('/userLogin', credentials);
-    
-    // Map backend role to a valid frontend permission role.
-    let mappedRole = userDto.role;
-    if (mappedRole === 'USER' || !mappedRole) {
-      mappedRole = 'FINANCE_OFFICER';
-    }
-    
+
+    // permissionRole is resolved server-side from the account's role_master
+    // entry; fall back to the least-privileged tier if it's ever missing.
+    const mappedRole = userDto.permissionRole || 'FUNDRAISING_LEAD';
+
     // Map status: status in backend is Boolean (true = approved/active, false = disabled)
     const mappedStatus = userDto.status === false ? USER_STATUS.DISABLED : USER_STATUS.APPROVED;
 
@@ -24,6 +22,8 @@ export const authRepository = {
       id: userDto.id,
       name: `${userDto.firstName} ${userDto.lastName || ''}`.trim(),
       role: mappedRole,
+      roleName: userDto.roleName || null,
+      organisationName: userDto.organisationName || null,
       status: mappedStatus,
       mode: 'session',
     };
