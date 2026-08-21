@@ -6,6 +6,7 @@ import { LoginPage } from '../../features/auth-pages/LoginPage.jsx';
 import { PendingApprovalPage } from '../../features/auth-pages/PendingApprovalPage.jsx';
 import { NotFoundPage } from '../../features/auth-pages/NotFoundPage.jsx';
 import { RegisterPage } from '../../features/registration/pages/RegisterPage.jsx';
+import { RegisterExtendedPage } from '../../features/registration/pages/RegisterExtendedPage.jsx';
 import { HomeRedirect } from './HomeRedirect.jsx';
 import { RequireModuleAccess } from './RequireModuleAccess.jsx';
 
@@ -20,6 +21,7 @@ export function AppRouter() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/register-extended" element={<RegisterExtendedPage />} />
       <Route path="/pending-approval" element={<PendingApprovalPage />} />
 
       <Route element={<RequireAuth />}>

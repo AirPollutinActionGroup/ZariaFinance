@@ -19,11 +19,10 @@ import { env } from '../../lib/config/env.js';
  * On the login screen, pass `onPick` to make a row click prefill the form.
  */
 const SAMPLE_USERS = [
-  { username: 'ceoadmin', password: 'Ceo@12345', role: 'CEO', state: 'approved' },
-  { username: 'financeofc', password: 'Finance@123', role: 'Finance Officer', state: 'approved' },
-  { username: 'fundlead', password: 'Fund@12345', role: 'Fundraising Lead', state: 'approved' },
-  { username: 'pendingfo', password: 'Pending@123', role: 'Finance Officer', state: 'pending' },
-  { username: 'rejectedfl', password: 'Rejected@12', role: 'Fundraising Lead', state: 'rejected' },
+  { username: 'ceo@apag', password: 'ashu@12345', role: 'CEO', state: 'approved' },
+  { username: 'ceo@zto', password: 'ceo@sandeep', role: 'CEO', state: 'approved' },
+  { username: 'cfo@apag', password: '9123456780', role: 'CFO', state: 'pending' },
+  { username: 'cfo@zto', password: 'shubhasheesh', role: 'CFO', state: 'rejected' },
 ];
 
 const STATE_TONE = { approved: 'success', pending: 'warning', rejected: 'error' };
