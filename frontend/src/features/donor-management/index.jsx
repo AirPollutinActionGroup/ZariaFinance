@@ -43,9 +43,9 @@ export const donorManagementModule = {
     { label: 'Grants Agreements', path: '/grants', icon: HandshakeOutlinedIcon },
     { label: 'Donations', path: '/donations', icon: VolunteerActivismOutlinedIcon },
     { label: 'Programmes', path: '/programmes', icon: CategoryOutlinedIcon },
-    { label: 'User Requests', path: '/user-requests', icon: PersonAddOutlinedIcon },
-    { label: 'organization Register', path: '/organisation-register', icon: BusinessIcon },
-    { label: 'Role Directory', path: '/role-directory', icon: GroupsOutlinedIcon },
+    //{ label: 'User Requests', path: '/user-requests', icon: PersonAddOutlinedIcon },
+    //{ label: 'organization Register', path: '/organisation-register', icon: BusinessIcon },
+    //{ label: 'Role Directory', path: '/role-directory', icon: GroupsOutlinedIcon },
   ],
   routes: [
     { path: '/donors', element: <DonorsListPage /> },

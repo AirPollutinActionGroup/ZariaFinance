@@ -1,0 +1,671 @@
+@startuml ZariaFinance-ER
+skinparam linetype ortho
+hide circle
+hide empty methods
+hide empty fields
+
+' ============================================================
+' ZariaFinance database schema — reverse engineered from
+' JPA @Entity classes (src/main/java/**/entity/*.java) cross
+' checked against Flyway migrations V1..V66. All entities
+' extend AuditEntity (id BIGINT PK identity, created_at,
+' updated_at, created_by, updated_by) unless noted; those
+' columns are collapsed into a "-- audit --" comment below.
+' spring.jpa.hibernate.ddl-auto=validate, so entities are
+' guaranteed to match the live schema exactly.
+' ============================================================
+
+package "Reference Data (Geography)" {
+
+  entity "country_master" as country_master {
+    * id : BIGINT <<PK>>
+    --
+    country_code : VARCHAR(10) <<unique>>
+    country_name : VARCHAR(255)
+    is_active : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "state_master" as state_master {
+    * id : BIGINT <<PK>>
+    --
+    * country_id : BIGINT <<FK>>
+    state_code : VARCHAR(10) <<unique>>
+    state_name : VARCHAR(255)
+    is_active : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "district_master" as district_master {
+    * id : BIGINT <<PK>>
+    --
+    * state_id : BIGINT <<FK>>
+    district_code : VARCHAR(10)
+    district_name : VARCHAR(255)
+    is_active : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "city_master" as city_master {
+    * id : BIGINT <<PK>>
+    --
+    * district_id : BIGINT <<FK>>
+    city_code : VARCHAR(10)
+    city_name : VARCHAR(255)
+    is_active : BOOLEAN
+    ' -- audit --
+  }
+}
+
+package "User & Access" {
+
+  entity "roles" as roles {
+    * id : BIGINT <<PK>>
+    --
+    name : VARCHAR <<unique>>
+  }
+
+  entity "users" as users {
+    * id : BIGINT <<PK>>
+    --
+    email_id : VARCHAR <<unique>>
+    mobile_no : VARCHAR(10) <<unique>>
+    username : VARCHAR <<unique>>
+    password : VARCHAR(255)
+    role : VARCHAR (plain string, default 'USER')
+    approved_by : BIGINT
+    is_approved : INTEGER (1=approved,2=pending,3=rejected)
+    status : BOOLEAN
+    created_at / updated_at : TIMESTAMP
+  }
+
+  entity "user_register_new" as user_register_new {
+    * id : BIGINT <<PK>>
+    --
+    * role_id : BIGINT <<FK>>
+    * organization_id : BIGINT <<FK>>
+    email_id : VARCHAR <<unique>>
+    mobile_no : VARCHAR(10) <<unique>>
+    username : VARCHAR(20) <<unique>>
+    password : VARCHAR(255)
+    approved_by : BIGINT
+    is_approved : INTEGER (1=approved,2=pending,3=rejected)
+    status : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "role_master" as role_master {
+    * id : BIGINT <<PK>>
+    --
+    role_name : VARCHAR(255) <<unique>>
+    short_name : VARCHAR(50) <<unique>>
+    user_limit : VARCHAR(50)
+    permission_role : VARCHAR(30) (CEO/FINANCE_OFFICER/FUNDRAISING_LEAD)
+    status : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "role_master_user" as role_master_user {
+    * id : BIGINT <<PK>>
+    --
+    * role_master_id : BIGINT <<FK>>
+    * user_id : BIGINT <<FK>>
+    ' unique (role_master_id, user_id)
+    ' -- audit --
+  }
+
+  entity "role_directory" as role_directory {
+    * id : BIGINT <<PK>>
+    --
+    role : VARCHAR(30) <<unique>> (PROGRAMME_MANAGER/CFO/HEAD_OF_ORGANISATION/ACCOUNTS)
+    primary_user_id : BIGINT <<FK>>
+    deputy_user_id : BIGINT <<FK>>
+    ' -- audit --
+  }
+}
+
+package "Organization" {
+
+  entity "organization_register" as organization_register {
+    * id : BIGINT <<PK>>
+    --
+    * city_id : BIGINT <<FK>>
+    * state_id : BIGINT <<FK>>
+    short_name : VARCHAR(50) <<unique>>
+    email : VARCHAR(255) <<unique>>
+    name : VARCHAR(255)
+    phone : VARCHAR(20)
+    zip_code : VARCHAR(20)
+    status : VARCHAR(20) (OrganizationStatus, default PENDING)
+    ' -- audit --
+  }
+}
+
+package "Donor & Grant Management" {
+
+  entity "donor_master" as donor_master {
+    * id : BIGINT <<PK>>
+    --
+    donor_code : VARCHAR(20) <<unique>>
+    donor_name : VARCHAR(255)
+    donor_type : VARCHAR(50) <<enum>>
+    fund_source_domicile : VARCHAR(20) <<enum>>
+    fcra_applicable : BOOLEAN
+    book : VARCHAR(255) <<enum>>
+    document_type : VARCHAR(50) <<enum>>
+    document_number : VARCHAR(50)
+    email : VARCHAR(255)
+    city_id : BIGINT <<FK>>
+    state_id : BIGINT <<FK>>
+    country_id : BIGINT <<FK>>
+    registration_number : VARCHAR(100)
+    is_active : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "donor_contact" as donor_contact {
+    * id : BIGINT <<PK>>
+    --
+    * donor_id : BIGINT <<FK>>
+    city_id : BIGINT <<FK>>
+    state_id : BIGINT <<FK>>
+    contact_name : VARCHAR(255)
+    email : VARCHAR(255)
+    contact_type : VARCHAR(50)
+    is_primary : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "donor_mapping" as donor_mapping {
+    * id : BIGINT <<PK>>
+    --
+    * donor_id : BIGINT <<FK, unique>>
+    external_donor_id : VARCHAR(100)
+    mapping_metadata : TEXT
+    ' -- audit --
+  }
+
+  entity "programme" as programme {
+    * id : BIGINT <<PK>>
+    --
+    programme_code : VARCHAR(20) <<unique>>
+    programme_name : VARCHAR(255)
+    is_active : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "donor_fund_profile" as donor_fund_profile {
+    * id : BIGINT <<PK>>
+    --
+    * donor_id : BIGINT <<FK>>
+    programme_id : BIGINT <<FK>>
+    fund_mode : VARCHAR(30) <<enum>>
+    fund_class : VARCHAR(30) <<enum>> (A/B/C restriction class)
+    reporting_frequency : VARCHAR(30) <<enum>>
+    programme_tied / movement_allowed / explanation_required / onboarding_complete : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "spendable_geography" as spendable_geography {
+    * id : BIGINT <<PK>>
+    --
+    * fund_profile_id : BIGINT <<FK>>
+    * state_id : BIGINT <<FK>>
+    ' -- audit --
+  }
+
+  entity "donor_utilisation_rule" as donor_utilisation_rule {
+    * id : BIGINT <<PK>>
+    --
+    * fund_profile_id : BIGINT <<FK>>
+    rule_type : VARCHAR(50) <<enum>>
+    limit_percentage : DECIMAL(5,2)
+    ' -- audit --
+  }
+
+  entity "donor_disbursement_rule" as donor_disbursement_rule {
+    * id : BIGINT <<PK>>
+    --
+    * fund_profile_id : BIGINT <<FK>>
+    total_amount : DECIMAL(19,2)
+    disbursement_type : VARCHAR(50) <<enum>>
+    ' -- audit --
+  }
+
+  entity "donor_tranche_criterion" as donor_tranche_criterion {
+    * id : BIGINT <<PK>>
+    --
+    * disbursement_rule_id : BIGINT <<FK>>
+    amount_criteria : DECIMAL(19,2)
+    expected_release_date : DATE
+    frequency : VARCHAR(50) <<enum>>
+    is_final_tranche : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "donor_release_criteria" as donor_release_criteria {
+    * id : BIGINT <<PK>>
+    --
+    * tranche_criterion_id : BIGINT <<FK>>
+    release_criteria : TEXT <<enum CriterionType>>
+    release_date / trigger_date : DATE
+    utilisation_percentage : DOUBLE
+    responsible_role : VARCHAR(50) <<enum>>
+    repeat_reminder : VARCHAR(50) <<enum>>
+    escalate_to_deputy : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "reporting_schedule_master" as reporting_schedule_master {
+    * id : BIGINT <<PK>>
+    --
+    schedule_name : VARCHAR(255)
+    schedule_frequency : VARCHAR(50)
+    is_active : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "grant_agreement" as grant_agreement {
+    * id : BIGINT <<PK>>
+    --
+    * donor_id : BIGINT <<FK>>
+    programme_id : BIGINT <<FK>>
+    fund_profile_id : BIGINT <<FK>>
+    grant_code : VARCHAR(20) <<unique>>
+    agreement_date / start_date / end_date : DATE
+    total_grant_amount : DECIMAL(15,2)
+    grant_currency : VARCHAR(10)
+    fx_locked_rate : DECIMAL(12,4)
+    reporting_amount_inr / utilised_amount : DECIMAL(18,2)
+    grant_status : VARCHAR(20) <<enum>>
+    is_active : BOOLEAN
+    approved_by : BIGINT
+    is_approved : INTEGER (1=approved,2=pending,3=on hold,4=completed)
+    approval_date : TIMESTAMP
+    ' -- audit --
+  }
+
+  entity "grant_rule" as grant_rule {
+    * id : BIGINT <<PK>>
+    --
+    * grant_id : BIGINT <<FK>>
+    rule_code : VARCHAR(50)
+    rule_type : VARCHAR(100)
+    is_mandatory : BOOLEAN
+    rule_status : VARCHAR(50)
+    ' -- audit --
+  }
+
+  entity "grant_reporting" as grant_reporting {
+    * id : BIGINT <<PK>>
+    --
+    * grant_id : BIGINT <<FK>>
+    * reporting_schedule_id : BIGINT <<FK>>
+    reporting_frequency : VARCHAR(50)
+    report_due_days : INTEGER
+    last_report_date / next_report_date : TIMESTAMP
+    reporting_status : VARCHAR(50) (default PENDING)
+    ' -- audit --
+  }
+
+  entity "grant_tranche" as grant_tranche {
+    * id : BIGINT <<PK>>
+    --
+    * grant_id : BIGINT <<FK>>
+    tranche_number : INTEGER
+    tranche_amount : DECIMAL(15,2)
+    planned_release_date / actual_release_date : DATE
+    tranche_status : VARCHAR(50) (default PENDING)
+    actual_amount / utilised_amount : DECIMAL(18,2)
+    prior_utilisation_required : DECIMAL(5,2)
+    condition_met : VARCHAR(20)
+    ' -- audit --
+  }
+
+  entity "grant_tranche_criteria" as grant_tranche_criteria {
+    * id : BIGINT <<PK>>
+    --
+    * tranche_id : BIGINT <<FK>>
+    sequence : INTEGER
+    criterion_type : VARCHAR(30) <<enum>>
+    release_date / target_date : DATE
+    verification_role : VARCHAR(30) <<enum>>
+    utilisation_percent : DECIMAL(5,2)
+    met : BOOLEAN
+    met_at : TIMESTAMP
+    met_by : BIGINT
+    ' -- audit --
+  }
+
+  entity "grant_criteria_reminder" as grant_criteria_reminder {
+    * id : BIGINT <<PK>>
+    --
+    * criterion_id : BIGINT <<FK, unique>>
+    responsible_role : VARCHAR(30) <<enum>>
+    reminder_lead_days : INTEGER
+    repeat_reminder : VARCHAR(20) <<enum>> (default ONCE)
+    escalate_to_deputy : BOOLEAN
+    ' -- audit --
+  }
+
+  entity "grant_disbursement_schedule" as grant_disbursement_schedule {
+    * id : BIGINT <<PK>>
+    --
+    * grant_id : BIGINT <<FK, unique>>
+    disbursement_type : VARCHAR(20) <<enum>>
+    receiving_date : DATE
+    schedule_type : VARCHAR(20) <<enum>>
+    finalised : BOOLEAN
+    finalised_at : TIMESTAMP
+    ' -- audit --
+  }
+
+  entity "grant_document" as grant_document {
+    * id : BIGINT <<PK>>
+    --
+    * grant_id : BIGINT <<FK>>
+    document_name : VARCHAR(255)
+    document_type : VARCHAR(100) <<enum>>
+    document_path : VARCHAR(500)
+    version : INTEGER
+    is_current : BOOLEAN
+    upload_date : TIMESTAMP
+    ' -- audit --
+  }
+
+  entity "grant_budget_head" as grant_budget_head {
+    * id : BIGINT <<PK>>
+    --
+    * grant_id : BIGINT <<FK>>
+    head_code : VARCHAR(50)
+    budgeted_amount / spent_amount : DECIMAL(15,2)
+    percentage_spent : DECIMAL(5,2)
+    ' -- audit --
+  }
+
+  entity "grant_kpi" as grant_kpi {
+    * id : BIGINT <<PK>>
+    --
+    * grant_id : BIGINT <<FK>>
+    kpi_code : VARCHAR(50)
+    target_value / current_value : DECIMAL(15,2)
+    performance_percentage : DECIMAL(5,2)
+    ' -- audit --
+  }
+
+  entity "grant_geography" as grant_geography {
+    * id : BIGINT <<PK>>
+    --
+    * grant_id : BIGINT <<FK>>
+    state_id : BIGINT <<FK>>
+    district_id : BIGINT <<FK>>
+    city_id : BIGINT <<FK>>
+    coverage_area_percentage : DECIMAL(5,2)
+    priority_level : INTEGER
+    ' -- audit --
+  }
+}
+
+package "Donations" {
+
+  entity "donation" as donation {
+    * id : BIGINT <<PK>>
+    --
+    donor_id : BIGINT <<FK>>
+    programme_id : BIGINT <<FK>>
+    donation_code : VARCHAR(30) <<unique>>
+    donation_type : VARCHAR(30) <<enum>>
+    receipt_date : DATE
+    channel : VARCHAR(30) <<enum>>
+    book : VARCHAR(5) <<enum>> (FC/LC)
+    identification : VARCHAR(20) <<enum>>
+    fund_mode : VARCHAR(20) <<enum>>
+    fund_class_code : VARCHAR(1)
+    currency : VARCHAR(10) (default INR)
+    amount : DECIMAL(18,2)
+    fx_rate : DECIMAL(12,4)
+    reporting_amount_inr : DECIMAL(18,2)
+    bank_account_type : VARCHAR(30) <<enum>>
+    recognition_status : VARCHAR(20) <<enum>>
+    eighty_g_status : VARCHAR(40) <<enum>>
+    eighty_g_receipt_number : VARCHAR(30)
+    ten_bd_reportable : BOOLEAN
+    ten_be_status : VARCHAR(30) <<enum>>
+    ' -- audit --
+  }
+
+  entity "donation_location" as donation_location {
+    * id : BIGINT <<PK>>
+    --
+    * donation_id : BIGINT <<FK>>
+    * state_id : BIGINT <<FK>>
+    ' -- audit --
+  }
+
+  entity "donation_gik_item" as donation_gik_item {
+    * id : BIGINT <<PK>>
+    --
+    * donation_id : BIGINT <<FK>>
+    programme_id : BIGINT <<FK>>
+    fair_value : DECIMAL(18,2)
+    valuation_basis : VARCHAR(30) <<enum>>
+    intended_use : VARCHAR(20) <<enum>>
+    expiry_date / liquidation_due_date / actual_sale_date : DATE
+    realisation_status : VARCHAR(20) <<enum>> (default PENDING)
+    actual_proceeds : DECIMAL(18,2)
+    ' -- audit --
+  }
+
+  entity "donation_gik_intended_use_change" as donation_gik_intended_use_change {
+    * id : BIGINT <<PK>>
+    --
+    * gik_item_id : BIGINT <<FK>>
+    from_intended_use / to_intended_use : VARCHAR(20) <<enum>>
+    changed_at : TIMESTAMP
+    ' -- audit --
+  }
+
+  entity "donation_corpus_detail" as donation_corpus_detail {
+    * id : BIGINT <<PK>>
+    --
+    * donation_id : BIGINT <<FK, unique>>
+    written_direction_ref : VARCHAR(255)
+    direction_date : DATE
+    investment_mode : VARCHAR(30) <<enum>>
+    ' -- audit --
+  }
+
+  entity "donation_recurring_mandate" as donation_recurring_mandate {
+    * id : BIGINT <<PK>>
+    --
+    * donation_id : BIGINT <<FK, unique>>
+    mandate_id : VARCHAR(100)
+    frequency : VARCHAR(20) <<enum>>
+    start_date : DATE
+    mandate_status : VARCHAR(20) <<enum>> (default ACTIVE)
+    next_expected_debit_date : DATE
+    ' -- audit --
+  }
+
+  entity "donation_payroll_batch" as donation_payroll_batch {
+    * id : BIGINT <<PK>>
+    --
+    * donation_id : BIGINT <<FK, unique>>
+    employer : VARCHAR(255)
+    employer_match_routing : VARCHAR(30) <<enum>>
+    match_amount : DECIMAL(19,2)
+    csr_financial_year : VARCHAR(20)
+    ' -- audit --
+  }
+
+  entity "donation_payroll_employee" as donation_payroll_employee {
+    * id : BIGINT <<PK>>
+    --
+    * batch_id : BIGINT <<FK>>
+    name : VARCHAR(255)
+    amount : DECIMAL(15,2)
+    citizenship : VARCHAR(10) <<enum>>
+    ' -- audit --
+  }
+
+  entity "donation_legacy_detail" as donation_legacy_detail {
+    * id : BIGINT <<PK>>
+    --
+    * donation_id : BIGINT <<FK, unique>>
+    bequest_status : VARCHAR(20) <<enum>>
+    expected_value : DECIMAL(18,2)
+    estate_domicile : VARCHAR(10) <<enum>>
+    ' -- audit --
+  }
+
+  entity "tenant_tax_config" as tenant_tax_config {
+    * id : BIGINT <<PK>>
+    --
+    org_80g_registration_number : VARCHAR(50)
+    org_80g_valid_from / org_80g_valid_to : DATE
+    section_35_registration_number : VARCHAR(50)
+    receipt_number_sequence : BIGINT
+    ' -- audit -- (singleton row, no FK)
+  }
+}
+
+package "FX & Tax" {
+
+  entity "fx_rate" as fx_rate {
+    * id : BIGINT <<PK>>
+    --
+    currency : VARCHAR(10)
+    rate_date : DATE
+    rate_to_inr : DECIMAL(12,4)
+    source : VARCHAR(50) (RBI/SEED/MANUAL)
+    ' -- audit -- (no FK)
+  }
+}
+
+package "Notifications" {
+
+  entity "notification" as notification {
+    * id : BIGINT <<PK>>
+    --
+    * user_id : BIGINT <<FK>>
+    title : VARCHAR(255)
+    category : VARCHAR(30) (default REMINDER)
+    escalation : BOOLEAN
+    read_at : TIMESTAMP
+    dedupe_key : VARCHAR(255) <<unique>>
+    ' -- audit --
+  }
+}
+
+package "Misc / Legacy" {
+
+  entity "messages" as messages {
+    * id : BIGINT <<PK>>
+    --
+    content : VARCHAR
+  }
+}
+
+' ============================================================
+' Relationships
+' ============================================================
+
+' -- Reference Data (Geography) --
+country_master ||--o{ state_master : "has"
+state_master ||--o{ district_master : "has"
+district_master ||--o{ city_master : "has"
+
+' -- User & Access --
+role_master ||--o{ user_register_new : "assigns role to"
+organization_register ||--o{ user_register_new : "registers"
+role_master ||--o{ role_master_user : "grants"
+user_register_new ||--o{ role_master_user : "holds"
+users |o--o{ role_directory : "is primary holder of"
+users |o--o{ role_directory : "is deputy holder of"
+users ||--o{ notification : "receives"
+
+' -- Organization --
+city_master ||--o{ organization_register : "located in"
+state_master ||--o{ organization_register : "located in"
+
+' -- Donor & Grant Management --
+city_master |o--o{ donor_master : "based in"
+state_master |o--o{ donor_master : "based in"
+country_master |o--o{ donor_master : "based in"
+donor_master ||--o{ donor_contact : "has"
+city_master |o--o{ donor_contact : "located in"
+state_master |o--o{ donor_contact : "located in"
+donor_master ||--o| donor_mapping : "maps to external id via"
+donor_master ||--o{ donor_fund_profile : "defines"
+programme |o--o{ donor_fund_profile : "ties"
+donor_fund_profile ||--o{ spendable_geography : "restricts spend to"
+state_master ||--o{ spendable_geography : "is spendable region for"
+donor_fund_profile ||--o{ donor_utilisation_rule : "caps via"
+donor_fund_profile ||--o{ donor_disbursement_rule : "releases via"
+donor_disbursement_rule ||--o{ donor_tranche_criterion : "plans"
+donor_tranche_criterion ||--o{ donor_release_criteria : "gated by"
+
+donor_master ||--o{ grant_agreement : "grants funds via"
+programme |o--o{ grant_agreement : "funds"
+donor_fund_profile |o--o{ grant_agreement : "inherits from"
+grant_agreement ||--o{ grant_rule : "governed by"
+grant_agreement ||--o{ grant_reporting : "requires"
+reporting_schedule_master ||--o{ grant_reporting : "schedules"
+grant_agreement ||--o{ grant_tranche : "disbursed in"
+grant_tranche ||--o{ grant_tranche_criteria : "released upon"
+grant_tranche_criteria ||--o| grant_criteria_reminder : "reminds via"
+grant_agreement ||--o| grant_disbursement_schedule : "planned by"
+grant_agreement ||--o{ grant_document : "attaches"
+grant_agreement ||--o{ grant_budget_head : "budgets"
+grant_agreement ||--o{ grant_kpi : "tracks"
+grant_agreement ||--o{ grant_geography : "covers"
+state_master |o--o{ grant_geography : "covers"
+district_master |o--o{ grant_geography : "covers"
+city_master |o--o{ grant_geography : "covers"
+
+' -- Donations --
+donor_master |o--o{ donation : "gives (null = anonymous)"
+programme |o--o{ donation : "funds"
+donation ||--o{ donation_location : "used in"
+state_master ||--o{ donation_location : "is location for"
+donation ||--o{ donation_gik_item : "contains"
+programme |o--o{ donation_gik_item : "overrides programme for"
+donation_gik_item ||--o{ donation_gik_intended_use_change : "logs change of"
+donation ||--o| donation_corpus_detail : "detailed by (if CORPUS)"
+donation ||--o| donation_recurring_mandate : "detailed by (if RECURRING)"
+donation ||--o| donation_payroll_batch : "detailed by (if PAYROLL)"
+donation_payroll_batch ||--o{ donation_payroll_employee : "explodes into"
+donation ||--o| donation_legacy_detail : "detailed by (if LEGACY)"
+
+note bottom of tenant_tax_config
+  Singleton config table, no FK — fetched by
+  taking the first row, not a fixed id.
+end note
+
+note bottom of fx_rate
+  Reference lookups only, no FK to grant/donation.
+  Grants lock their own rate into
+  grant_agreement.fx_locked_rate at signing.
+end note
+
+note bottom of roles
+  Legacy auth-role vocabulary (V10). No FK
+  references it anywhere in the schema; appears
+  superseded by role_master + the plain
+  users.role string column.
+end note
+
+note bottom of role_directory
+  primary_user_id / deputy_user_id FK the legacy
+  `users` table, not user_register_new — unlike
+  role_master_user, which V65 repointed to
+  user_register_new. Likely a lingering
+  inconsistency between the two user tables.
+end note
+
+note bottom of messages
+  Orphaned demo/health-check table from V1,
+  unrelated to the finance domain.
+end note
+
+@enduml
