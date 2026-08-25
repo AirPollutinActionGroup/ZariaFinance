@@ -29,7 +29,13 @@ import { RoleDirectoryListPage } from '../role-directory/pages/RoleDirectoryList
 import { RoleCreatePage } from '../role-directory/pages/RoleCreatePage.jsx';
 import BusinessIcon from '@mui/icons-material/Business';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
 import { MODULE_ID } from './constants.js';
+import { EmployeeListPage } from '../employee-list/pages/EmployeeListPage.jsx';
+import { EmployeeCreatePage } from '../employee-list/pages/EmployeeCreatePage.jsx';
+import { EmployeeDetailPage } from '../employee-list/pages/EmployeeDetailPage.jsx';
+import { MasterPage } from '../masters/pages/MasterPage.jsx';
 
 /**
  * Donor Management module definition — registered in app/modules.js.
@@ -46,6 +52,8 @@ export const donorManagementModule = {
     //{ label: 'User Requests', path: '/user-requests', icon: PersonAddOutlinedIcon },
     //{ label: 'organization Register', path: '/organisation-register', icon: BusinessIcon },
     //{ label: 'Role Directory', path: '/role-directory', icon: GroupsOutlinedIcon },
+    { label: 'Employee List', path: '/employee-list', icon: BadgeOutlinedIcon },
+    { label: 'Master', path: '/masters', icon: StorageOutlinedIcon },
   ],
   routes: [
     { path: '/donors', element: <DonorsListPage /> },
@@ -73,5 +81,11 @@ export const donorManagementModule = {
     { path: '/organisation-register/:id', element: <OrganisationRegisterDetailPage /> },
     { path: '/role-directory', element: <RoleDirectoryListPage /> },
     { path: '/role-directory/new', element: <RoleCreatePage /> },
+    { path: '/employee-list', element: <EmployeeListPage /> },
+    { path: '/employee-list/new', element: <EmployeeCreatePage /> },
+    { path: '/employee-list/:id', element: <EmployeeDetailPage /> },
+    { path: '/masters', element: <MasterPage /> },
+    { path: '/masters/departments', element: <MasterPage /> },
+    { path: '/masters/designations', element: <MasterPage /> },
   ],
 };
