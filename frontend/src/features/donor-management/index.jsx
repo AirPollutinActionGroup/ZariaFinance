@@ -31,11 +31,19 @@ import BusinessIcon from '@mui/icons-material/Business';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import PaymentOutlinedIcon from '@mui/icons-material/PaymentOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import { MODULE_ID } from './constants.js';
 import { EmployeeListPage } from '../employee-list/pages/EmployeeListPage.jsx';
 import { EmployeeCreatePage } from '../employee-list/pages/EmployeeCreatePage.jsx';
 import { EmployeeDetailPage } from '../employee-list/pages/EmployeeDetailPage.jsx';
 import { MasterPage } from '../masters/pages/MasterPage.jsx';
+import { TransactionEntryPage } from '../transaction-entry/pages/TransactionEntryPage.jsx';
+import { PaymentModesPage } from '../payment-mode/pages/PaymentModesPage.jsx';
+import { PaymentTypesPage } from '../payment-type/pages/PaymentTypesPage.jsx';
+import { BankDetailsPage } from '../bank-details/pages/BankDetailsPage.jsx';
 
 /**
  * Donor Management module definition — registered in app/modules.js.
@@ -54,6 +62,10 @@ export const donorManagementModule = {
     //{ label: 'Role Directory', path: '/role-directory', icon: GroupsOutlinedIcon },
     { label: 'Employee List', path: '/employee-list', icon: BadgeOutlinedIcon },
     { label: 'Master', path: '/masters', icon: StorageOutlinedIcon },
+    { label: 'Transaction Entry', path: '/transaction-entry', icon: ReceiptLongOutlinedIcon },
+    { label: 'Payment Mode', path: '/payment-modes', icon: PaymentOutlinedIcon },
+    { label: 'Payment Type', path: '/payment-types', icon: AccountTreeOutlinedIcon },
+    { label: 'Bank Details', path: '/bank-details', icon: AccountBalanceOutlinedIcon },
   ],
   routes: [
     { path: '/donors', element: <DonorsListPage /> },
@@ -87,5 +99,9 @@ export const donorManagementModule = {
     { path: '/masters', element: <MasterPage /> },
     { path: '/masters/departments', element: <MasterPage /> },
     { path: '/masters/designations', element: <MasterPage /> },
+    { path: '/transaction-entry', element: <TransactionEntryPage /> },
+    { path: '/payment-modes', element: <PaymentModesPage /> },
+    { path: '/payment-types', element: <PaymentTypesPage /> },
+    { path: '/bank-details', element: <BankDetailsPage /> },
   ],
 };

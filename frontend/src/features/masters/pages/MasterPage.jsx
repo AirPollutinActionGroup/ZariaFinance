@@ -40,6 +40,7 @@ export function MasterPage() {
   const [desigToToggle, setDesigToToggle] = useState(null);
   const [newDesigOpen, setNewDesigOpen] = useState(false);
   const [newDesigName, setNewDesigName] = useState('');
+  const [newDesigDeptName, setNewDesigDeptName] = useState('DEPT-LEADERSHIP');
   const [newDesigStatus, setNewDesigStatus] = useState('Active');
 
   // Department Filtered Data
@@ -102,10 +103,12 @@ export function MasterPage() {
       id: `desig-${Date.now()}`,
       srNo: designations.length + 1,
       name: newDesigName.trim(),
+      departmentName: newDesigDeptName,
       status: newDesigStatus,
     };
     setDesignations((prev) => [...prev, newDesig]);
     setNewDesigName('');
+    setNewDesigDeptName(departments[0]?.name || 'DEPT-LEADERSHIP');
     setNewDesigStatus('Active');
     setNewDesigOpen(false);
   };
@@ -173,7 +176,7 @@ export function MasterPage() {
     {
       key: 'srNo',
       header: 'S.NO',
-      width: '15%',
+      width: '10%',
       align: 'center',
       render: (r, idx) => (
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -184,14 +187,25 @@ export function MasterPage() {
     {
       key: 'name',
       header: 'DESIGNATION NAME',
-      width: '45%',
+      width: '35%',
       align: 'center',
       render: (r) => <b>{r.name}</b>,
     },
     {
+      key: 'departmentName',
+      header: 'DEPARTMENT NAME',
+      width: '25%',
+      align: 'center',
+      render: (r) => (
+        <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary', fontWeight: 600 }}>
+          {r.departmentName || '—'}
+        </Typography>
+      ),
+    },
+    {
       key: 'status',
       header: 'STATUS',
-      width: '20%',
+      width: '15%',
       align: 'center',
       render: (r) => (
         <Chip
@@ -206,7 +220,7 @@ export function MasterPage() {
     {
       key: 'action',
       header: 'ACTION',
-      width: '20%',
+      width: '15%',
       align: 'center',
       render: (r) => (
         <Button
@@ -378,20 +392,33 @@ export function MasterPage() {
           <DialogContent>
             <Stack spacing={2.5} sx={{ pt: 1 }}>
               <TextField
-                label="Designation Name"
+                label="Designation Name *"
                 placeholder="e.g. Senior Financial Analyst"
                 value={newDesigName}
                 onChange={(e) => setNewDesigName(e.target.value)}
-                required
                 fullWidth
                 size="small"
+                autoFocus
               />
               <TextField
                 select
-                label="Status"
+                label="Department Name *"
+                value={newDesigDeptName}
+                onChange={(e) => setNewDesigDeptName(e.target.value)}
+                fullWidth
+                size="small"
+              >
+                {departments.map((dept) => (
+                  <MenuItem key={dept.id} value={dept.name}>
+                    {dept.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                label="Status *"
                 value={newDesigStatus}
                 onChange={(e) => setNewDesigStatus(e.target.value)}
-                required
                 fullWidth
                 size="small"
               >
