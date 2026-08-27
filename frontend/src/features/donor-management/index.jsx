@@ -36,6 +36,10 @@ import { EmployeeListPage } from '../employee-list/pages/EmployeeListPage.jsx';
 import { EmployeeCreatePage } from '../employee-list/pages/EmployeeCreatePage.jsx';
 import { EmployeeDetailPage } from '../employee-list/pages/EmployeeDetailPage.jsx';
 import { MasterPage } from '../masters/pages/MasterPage.jsx';
+import { VendorListPage } from '../vendor-registration/pages/VendorListPage.jsx';
+import { VendorCreatePage } from '../vendor-registration/pages/VendorCreatePage.jsx';
+import { VendorDetailPage } from '../vendor-registration/pages/VendorDetailPage.jsx';
+import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
 
 /**
  * Donor Management module definition — registered in app/modules.js.
@@ -54,6 +58,8 @@ export const donorManagementModule = {
     //{ label: 'Role Directory', path: '/role-directory', icon: GroupsOutlinedIcon },
     { label: 'Employee List', path: '/employee-list', icon: BadgeOutlinedIcon },
     { label: 'Master', path: '/masters', icon: StorageOutlinedIcon },
+    { label: 'Vendor Registration', path: '/vendor-registration', icon: StorefrontOutlinedIcon },
+    
   ],
   routes: [
     { path: '/donors', element: <DonorsListPage /> },
@@ -87,5 +93,8 @@ export const donorManagementModule = {
     { path: '/masters', element: <MasterPage /> },
     { path: '/masters/departments', element: <MasterPage /> },
     { path: '/masters/designations', element: <MasterPage /> },
+    { path: '/vendor-registration', element: <VendorListPage /> },
+    { path: '/vendor-registration/new', element: <VendorCreatePage /> },
+    { path: '/vendor-registration/:id', element: <VendorDetailPage /> },
   ],
 };
