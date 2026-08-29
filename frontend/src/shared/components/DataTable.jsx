@@ -22,7 +22,7 @@ import { EmptyState } from './EmptyState.jsx';
 export function DataTable({
   columns = [],
   rows = [],
-  getRowKey,
+  getRowKey = (row) => row.id ?? row.key ?? row.code ?? row.srNo ?? String(row),
   isLoading = false,
   error = null,
   onRetry,
