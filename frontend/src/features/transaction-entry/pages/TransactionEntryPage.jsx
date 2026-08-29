@@ -6,13 +6,13 @@ import {
   Card,
   CardContent,
   Grid,
-  MenuItem,
   Snackbar,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import { PageHeader } from '../../../shared/components/index.js';
+import { SearchableSelect } from '../../../components/SearchableSelect.jsx';
 import { formatInr } from '../../../lib/format/currency.js';
 import {
   ACCOUNT_GROUPS,
@@ -119,6 +119,48 @@ export function TransactionEntryPage() {
     return PAYMENT_MODES.find((m) => m.id === paymentMode) || PAYMENT_MODES[0];
   }, [paymentMode]);
 
+  // Suggest-field (searchable) option lists, memoized so `value` lookups reuse the same array
+  const voucherOptions = useMemo(
+    () => VOUCHER_TYPES.map((v) => ({ value: v.value, label: v.label })),
+    []
+  );
+  const bookOptions = useMemo(
+    () => Object.entries(BOOK).map(([code, label]) => ({ value: code, label: `${code} · ${label}` })),
+    []
+  );
+  const partyCategoryOptions = useMemo(
+    () => PARTY_CATEGORIES.map((cat) => ({ value: cat.value, label: cat.label })),
+    []
+  );
+  const partyOptions = useMemo(
+    () => availableParties.map((p) => ({ value: p.id, label: `${p.name} (${p.id})` })),
+    [availableParties]
+  );
+  const paymentModeOptions = useMemo(
+    () => PAYMENT_MODES.map((mode) => ({ value: mode.id, label: mode.label })),
+    []
+  );
+  const accountOptions = useMemo(
+    () =>
+      filteredAccounts.map((acc) => ({
+        value: acc.id,
+        label: `${acc.accountName} — ${acc.accountNumber} (${formatInr(acc.balance)})`,
+      })),
+    [filteredAccounts]
+  );
+  const accountGroupOptions = useMemo(
+    () => ACCOUNT_GROUPS.map((grp) => ({ value: grp.value, label: grp.label })),
+    []
+  );
+  const ledgerOptions = useMemo(
+    () => filteredLedgers.map((ledger) => ({ value: ledger.id, label: `${ledger.name} (${ledger.code})` })),
+    [filteredLedgers]
+  );
+  const drCrOptions = useMemo(
+    () => DR_CR_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
+    []
+  );
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -162,9 +204,9 @@ export function TransactionEntryPage() {
   const isForeign = bookOption === 'FC';
 
   return (
-    <Box sx={{ maxWidth: 1100, pb: 4 }}>
+    <Box sx={{ maxWidth: 1000, pb: 4 }}>
       <PageHeader
-        title="New Transaction"
+        title="Payment Window(Cr/Dr)"
         subtitle="Record a financial voucher"
       />
 
@@ -179,63 +221,40 @@ export function TransactionEntryPage() {
               <Grid container rowSpacing={3.25} columnSpacing={3}>
                 {/* 1. Voucher Dropdown */}
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    select
-                    fullWidth
+                  <SearchableSelect
                     label="Voucher *"
-                    value={voucherType}
-                    onChange={(e) => setVoucherType(e.target.value)}
-                  >
-                    {VOUCHER_TYPES.map((v) => (
-                      <MenuItem key={v.value} value={v.value}>
-                        {v.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    options={voucherOptions}
+                    value={voucherOptions.find((o) => o.value === voucherType) || null}
+                    onChange={(newValue) => setVoucherType(newValue?.value || '')}
+                  />
                 </Grid>
 
                 {/* 2. FC / LC Book Option Dropdown */}
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    select
-                    fullWidth
+                  <SearchableSelect
                     label="Book *"
-                    value={bookOption}
-                    onChange={(e) => setBookOption(e.target.value)}
-                  >
-                    {Object.entries(BOOK).map(([code, label]) => (
-                      <MenuItem key={code} value={code}>
-                        {code} · {label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    options={bookOptions}
+                    value={bookOptions.find((o) => o.value === bookOption) || null}
+                    onChange={(newValue) => setBookOption(newValue?.value || '')}
+                  />
                 </Grid>
 
                 {/* 3. Party Category Dropdown */}
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    select
-                    fullWidth
+                  <SearchableSelect
                     label="Party category *"
-                    value={partyCategory}
-                    onChange={(e) => {
-                      setPartyCategory(e.target.value);
+                    options={partyCategoryOptions}
+                    value={partyCategoryOptions.find((o) => o.value === partyCategory) || null}
+                    onChange={(newValue) => {
+                      setPartyCategory(newValue?.value || '');
                       setSelectedPartyId('');
                     }}
-                  >
-                    {PARTY_CATEGORIES.map((cat) => (
-                      <MenuItem key={cat.value} value={cat.value}>
-                        {cat.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  />
                 </Grid>
 
                 {/* 4. Specific Party Name / Selector */}
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    select
-                    fullWidth
+                  <SearchableSelect
                     label={
                       partyCategory === 'EMPLOYEE'
                         ? 'Employee name *'
@@ -243,32 +262,20 @@ export function TransactionEntryPage() {
                         ? 'Vendor / Supplier name *'
                         : 'Beneficiary name *'
                     }
-                    value={currentPartyId}
-                    onChange={(e) => setSelectedPartyId(e.target.value)}
-                  >
-                    {availableParties.map((p) => (
-                      <MenuItem key={p.id} value={p.id}>
-                        {p.name} ({p.id})
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    options={partyOptions}
+                    value={partyOptions.find((o) => o.value === currentPartyId) || null}
+                    onChange={(newValue) => setSelectedPartyId(newValue?.value || '')}
+                  />
                 </Grid>
 
                 {/* 5. Payment Mode Dropdown */}
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    select
-                    fullWidth
+                  <SearchableSelect
                     label="Payment mode *"
-                    value={paymentMode}
-                    onChange={(e) => setPaymentMode(e.target.value)}
-                  >
-                    {PAYMENT_MODES.map((mode) => (
-                      <MenuItem key={mode.id} value={mode.id}>
-                        {mode.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    options={paymentModeOptions}
+                    value={paymentModeOptions.find((o) => o.value === paymentMode) || null}
+                    onChange={(newValue) => setPaymentMode(newValue?.value || '')}
+                  />
                 </Grid>
 
                 {/* 6. Date (Before Transaction ID) */}
@@ -296,57 +303,36 @@ export function TransactionEntryPage() {
 
                 {/* 8. Bank / Cash Account (AFTER Transaction ID) */}
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    select
-                    fullWidth
+                  <SearchableSelect
                     label={
                       isForeign
                         ? 'Foreign / FCRA Bank Account *'
                         : 'Domestic Bank / Cash Account *'
                     }
-                    value={selectedAccountId}
-                    onChange={(e) => setSelectedAccountId(e.target.value)}
-                  >
-                    {filteredAccounts.map((acc) => (
-                      <MenuItem key={acc.id} value={acc.id}>
-                        {acc.accountName} — {acc.accountNumber} ({formatInr(acc.balance)})
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    options={accountOptions}
+                    value={accountOptions.find((o) => o.value === selectedAccountId) || null}
+                    onChange={(newValue) => setSelectedAccountId(newValue?.value || '')}
+                  />
                 </Grid>
 
                 {/* 9. Group Dropdown */}
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    select
-                    fullWidth
+                  <SearchableSelect
                     label="Group *"
-                    value={accountGroup}
-                    onChange={(e) => setAccountGroup(e.target.value)}
-                  >
-                    {ACCOUNT_GROUPS.map((grp) => (
-                      <MenuItem key={grp.value} value={grp.value}>
-                        {grp.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    options={accountGroupOptions}
+                    value={accountGroupOptions.find((o) => o.value === accountGroup) || null}
+                    onChange={(newValue) => setAccountGroup(newValue?.value || '')}
+                  />
                 </Grid>
 
                 {/* 10. Ledger Dropdown (Cascading from Group) */}
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    select
-                    fullWidth
+                  <SearchableSelect
                     label="Ledger *"
-                    value={selectedLedgerId}
-                    onChange={(e) => setSelectedLedgerId(e.target.value)}
-                  >
-                    {filteredLedgers.map((ledger) => (
-                      <MenuItem key={ledger.id} value={ledger.id}>
-                        {ledger.name} ({ledger.code})
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    options={ledgerOptions}
+                    value={ledgerOptions.find((o) => o.value === selectedLedgerId) || null}
+                    onChange={(newValue) => setSelectedLedgerId(newValue?.value || '')}
+                  />
                 </Grid>
 
                 {/* 11. Bucket (Auto-Derived & Highlighted from Ledger) */}
@@ -399,19 +385,12 @@ export function TransactionEntryPage() {
 
                 {/* 14. Debit / Credit (AFTER Amount) */}
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <TextField
-                    select
-                    fullWidth
+                  <SearchableSelect
                     label="Debit / Credit *"
-                    value={drCrType}
-                    onChange={(e) => setDrCrType(e.target.value)}
-                  >
-                    {DR_CR_OPTIONS.map((opt) => (
-                      <MenuItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    options={drCrOptions}
+                    value={drCrOptions.find((o) => o.value === drCrType) || null}
+                    onChange={(newValue) => setDrCrType(newValue?.value || '')}
+                  />
                 </Grid>
 
                 {/* 15. Narration */}
