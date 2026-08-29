@@ -60,7 +60,6 @@ export function VendorDetailPage() {
   const handleConfirmStatusChange = () => {
     const nextStatus = status === 'Active' ? 'Inactive' : 'Active';
     setStatus(nextStatus);
-    vendorRecord.status = nextStatus;
     setDialogOpen(false);
   };
 

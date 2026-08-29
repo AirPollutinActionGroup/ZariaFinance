@@ -51,7 +51,6 @@ export function EmployeeDetailPage() {
   const handleConfirmStatusChange = () => {
     const nextStatus = status === 'Active' ? 'Inactive' : 'Active';
     setStatus(nextStatus);
-    employeeRecord.status = nextStatus;
     setDialogOpen(false);
   };
 

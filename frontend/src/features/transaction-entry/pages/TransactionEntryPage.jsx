@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Alert,
   Box,
@@ -48,9 +48,11 @@ export function TransactionEntryPage() {
   const [toastMessage, setToastMessage] = useState(null);
 
   // Sync default Dr/Cr with Voucher Type selection
-  useEffect(() => {
+  const [prevVoucherType, setPrevVoucherType] = useState(voucherType);
+  if (voucherType !== prevVoucherType) {
+    setPrevVoucherType(voucherType);
     setDrCrType(voucherType === 'DEBIT_NOTE' ? 'DEBIT' : 'CREDIT');
-  }, [voucherType]);
+  }
 
   // Filter parties by selected party category
   const availableParties = useMemo(() => {
@@ -77,16 +79,14 @@ export function TransactionEntryPage() {
   }, [bookOption, paymentMode]);
 
   // Automatically update and select the categorized bank account when LC or FC changes
-  useEffect(() => {
-    if (filteredAccounts.length > 0) {
-      const isCurrentInFiltered = filteredAccounts.some((a) => a.id === selectedAccountId);
-      if (!isCurrentInFiltered) {
-        setSelectedAccountId(filteredAccounts[0].id);
-      }
-    } else {
-      setSelectedAccountId('');
+  const [prevFilteredAccounts, setPrevFilteredAccounts] = useState(filteredAccounts);
+  if (filteredAccounts !== prevFilteredAccounts) {
+    setPrevFilteredAccounts(filteredAccounts);
+    const isCurrentInFiltered = filteredAccounts.some((a) => a.id === selectedAccountId);
+    if (!isCurrentInFiltered) {
+      setSelectedAccountId(filteredAccounts.length > 0 ? filteredAccounts[0].id : '');
     }
-  }, [bookOption, filteredAccounts, selectedAccountId]);
+  }
 
   // Filter Ledgers cascading from the selected Group
   const filteredLedgers = useMemo(() => {
@@ -94,16 +94,14 @@ export function TransactionEntryPage() {
   }, [accountGroup]);
 
   // Keep selectedLedgerId valid when Group changes
-  useEffect(() => {
-    if (filteredLedgers.length > 0) {
-      const isCurrentInFiltered = filteredLedgers.some((l) => l.id === selectedLedgerId);
-      if (!isCurrentInFiltered) {
-        setSelectedLedgerId(filteredLedgers[0].id);
-      }
-    } else {
-      setSelectedLedgerId('');
+  const [prevFilteredLedgers, setPrevFilteredLedgers] = useState(filteredLedgers);
+  if (filteredLedgers !== prevFilteredLedgers) {
+    setPrevFilteredLedgers(filteredLedgers);
+    const isCurrentInFiltered = filteredLedgers.some((l) => l.id === selectedLedgerId);
+    if (!isCurrentInFiltered) {
+      setSelectedLedgerId(filteredLedgers.length > 0 ? filteredLedgers[0].id : '');
     }
-  }, [accountGroup, filteredLedgers, selectedLedgerId]);
+  }
 
   // Get currently selected Ledger object
   const currentLedger = useMemo(() => {
@@ -187,8 +185,6 @@ export function TransactionEntryPage() {
       });
       return;
     }
-
-    const selectedAcc = MOCK_ACCOUNTS.find((a) => a.id === selectedAccountId);
 
     setToastMessage({
       type: 'success',

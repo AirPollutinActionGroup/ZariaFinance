@@ -247,7 +247,7 @@ export function BankDetailsPage() {
               sx={{ borderRadius: 2 }}
             >
               <MenuItem value="All">All Books</MenuItem>
-              {Object.entries(BOOK).map(([code, label]) => (
+              {Object.keys(BOOK).map((code) => (
                 <MenuItem key={code} value={code}>
                   {code} Book
                 </MenuItem>
