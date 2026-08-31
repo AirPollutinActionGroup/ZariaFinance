@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -19,13 +19,13 @@ import AddIcon from '@mui/icons-material/Add';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import BadgeIcon from '@mui/icons-material/Badge';
 import { ConfirmDialog, DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
-import { MOCK_DEPARTMENTS, MOCK_DESIGNATIONS } from '../data/mockMasters.js';
+import { useCreateDepartment, useDepartmentLifecycle, useDepartments } from '../hooks/useDepartments.js';
+import { useCreateDesignation, useDesignationLifecycle, useDesignations } from '../hooks/useDesignations.js';
 
 export function MasterPage() {
   const [activeTab, setActiveTab] = useState(0);
 
   // Departments State
-  const [departments, setDepartments] = useState(MOCK_DEPARTMENTS);
   const [deptSearch, setDeptSearch] = useState('');
   const [deptStatusFilter, setDeptStatusFilter] = useState('All');
   const [deptToToggle, setDeptToToggle] = useState(null);
@@ -34,81 +34,82 @@ export function MasterPage() {
   const [newDeptStatus, setNewDeptStatus] = useState('Active');
 
   // Designations State
-  const [designations, setDesignations] = useState(MOCK_DESIGNATIONS);
   const [desigSearch, setDesigSearch] = useState('');
   const [desigStatusFilter, setDesigStatusFilter] = useState('All');
   const [desigToToggle, setDesigToToggle] = useState(null);
   const [newDesigOpen, setNewDesigOpen] = useState(false);
   const [newDesigName, setNewDesigName] = useState('');
-  const [newDesigDeptName, setNewDesigDeptName] = useState('DEPT-LEADERSHIP');
+  const [newDesigDepartmentId, setNewDesigDepartmentId] = useState('');
   const [newDesigStatus, setNewDesigStatus] = useState('Active');
 
+  const departmentsQuery = useDepartments(deptSearch);
+  const createDepartment = useCreateDepartment();
+  const departmentLifecycle = useDepartmentLifecycle();
+
+  // Full, unfiltered department list — feeds the "Department Name" dropdown
+  // on the Add Designation dialog, independent of the Department tab's search.
+  const allDepartmentsQuery = useDepartments();
+
+  const designationsQuery = useDesignations(desigSearch);
+  const createDesignation = useCreateDesignation();
+  const designationLifecycle = useDesignationLifecycle();
+
+  // Defaults the Add Designation dialog's department to the first one loaded,
+  // until the user picks a different one — computed, not stored, to avoid a
+  // setState-in-effect render cascade.
+  const selectedDesigDepartmentId = newDesigDepartmentId || allDepartmentsQuery.data?.[0]?.id || '';
+
   // Department Filtered Data
-  const filteredDepartments = departments.filter((dept) => {
-    const matchesSearch = dept.name.toLowerCase().includes(deptSearch.toLowerCase());
-    const matchesStatus =
-      deptStatusFilter === 'All' || dept.status.toLowerCase() === deptStatusFilter.toLowerCase();
-    return matchesSearch && matchesStatus;
-  });
+  const filteredDepartments = useMemo(() => {
+    const rows = departmentsQuery.data || [];
+    const filtered = deptStatusFilter === 'All' ? rows : rows.filter((d) => d.status === deptStatusFilter);
+    return filtered.map((d, index) => ({ ...d, srNo: index + 1 }));
+  }, [departmentsQuery.data, deptStatusFilter]);
 
   // Designation Filtered Data
-  const filteredDesignations = designations.filter((desig) => {
-    const matchesSearch = desig.name.toLowerCase().includes(desigSearch.toLowerCase());
-    const matchesStatus =
-      desigStatusFilter === 'All' || desig.status.toLowerCase() === desigStatusFilter.toLowerCase();
-    return matchesSearch && matchesStatus;
-  });
+  const filteredDesignations = useMemo(() => {
+    const rows = designationsQuery.data || [];
+    const filtered = desigStatusFilter === 'All' ? rows : rows.filter((d) => d.status === desigStatusFilter);
+    return filtered.map((d, index) => ({ ...d, srNo: index + 1 }));
+  }, [designationsQuery.data, desigStatusFilter]);
 
   // Department Status Toggle
-  const handleConfirmDeptStatusChange = () => {
+  const handleConfirmDeptStatusChange = async () => {
     if (!deptToToggle) return;
-    const nextStatus = deptToToggle.status === 'Active' ? 'Inactive' : 'Active';
-    setDepartments((prev) =>
-      prev.map((d) => (d.id === deptToToggle.id ? { ...d, status: nextStatus } : d))
-    );
+    const action = deptToToggle.status === 'ACTIVE' ? 'deactivate' : 'activate';
+    await departmentLifecycle.mutateAsync({ id: deptToToggle.id, action });
     setDeptToToggle(null);
   };
 
   // Designation Status Toggle
-  const handleConfirmDesigStatusChange = () => {
+  const handleConfirmDesigStatusChange = async () => {
     if (!desigToToggle) return;
-    const nextStatus = desigToToggle.status === 'Active' ? 'Inactive' : 'Active';
-    setDesignations((prev) =>
-      prev.map((d) => (d.id === desigToToggle.id ? { ...d, status: nextStatus } : d))
-    );
+    const action = desigToToggle.status === 'ACTIVE' ? 'deactivate' : 'activate';
+    await designationLifecycle.mutateAsync({ id: desigToToggle.id, action });
     setDesigToToggle(null);
   };
 
   // Add Department
-  const handleAddDepartment = (e) => {
+  const handleAddDepartment = async (e) => {
     e.preventDefault();
     if (!newDeptName.trim()) return;
-    const newDept = {
-      id: `dept-${Date.now()}`,
-      srNo: departments.length + 1,
-      name: newDeptName.trim(),
-      status: newDeptStatus,
-    };
-    setDepartments((prev) => [...prev, newDept]);
+    await createDepartment.mutateAsync({ name: newDeptName, status: newDeptStatus });
     setNewDeptName('');
     setNewDeptStatus('Active');
     setNewDeptOpen(false);
   };
 
   // Add Designation
-  const handleAddDesignation = (e) => {
+  const handleAddDesignation = async (e) => {
     e.preventDefault();
-    if (!newDesigName.trim()) return;
-    const newDesig = {
-      id: `desig-${Date.now()}`,
-      srNo: designations.length + 1,
-      name: newDesigName.trim(),
-      departmentName: newDesigDeptName,
+    if (!newDesigName.trim() || !selectedDesigDepartmentId) return;
+    await createDesignation.mutateAsync({
+      name: newDesigName,
+      departmentId: selectedDesigDepartmentId,
       status: newDesigStatus,
-    };
-    setDesignations((prev) => [...prev, newDesig]);
+    });
     setNewDesigName('');
-    setNewDesigDeptName(departments[0]?.name || 'DEPT-LEADERSHIP');
+    setNewDesigDepartmentId('');
     setNewDesigStatus('Active');
     setNewDesigOpen(false);
   };
@@ -120,9 +121,9 @@ export function MasterPage() {
       header: 'S.NO',
       width: '15%',
       align: 'center',
-      render: (r, idx) => (
+      render: (r) => (
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {r.srNo || idx + 1}
+          {r.srNo}
         </Typography>
       ),
     },
@@ -144,8 +145,8 @@ export function MasterPage() {
       align: 'center',
       render: (r) => (
         <Chip
-          label={r.status}
-          color={r.status === 'Active' ? 'success' : 'error'}
+          label={r.statusLabel}
+          color={r.status === 'ACTIVE' ? 'success' : 'error'}
           size="small"
           variant="outlined"
           sx={{ fontWeight: 600, minWidth: 80 }}
@@ -161,7 +162,7 @@ export function MasterPage() {
         <Button
           size="small"
           variant="outlined"
-          color={r.status === 'Active' ? 'warning' : 'success'}
+          color={r.status === 'ACTIVE' ? 'warning' : 'success'}
           onClick={() => setDeptToToggle(r)}
           sx={{ textTransform: 'none', fontWeight: 600 }}
         >
@@ -178,9 +179,9 @@ export function MasterPage() {
       header: 'S.NO',
       width: '10%',
       align: 'center',
-      render: (r, idx) => (
+      render: (r) => (
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {r.srNo || idx + 1}
+          {r.srNo}
         </Typography>
       ),
     },
@@ -209,8 +210,8 @@ export function MasterPage() {
       align: 'center',
       render: (r) => (
         <Chip
-          label={r.status}
-          color={r.status === 'Active' ? 'success' : 'error'}
+          label={r.statusLabel}
+          color={r.status === 'ACTIVE' ? 'success' : 'error'}
           size="small"
           variant="outlined"
           sx={{ fontWeight: 600, minWidth: 80 }}
@@ -226,7 +227,7 @@ export function MasterPage() {
         <Button
           size="small"
           variant="outlined"
-          color={r.status === 'Active' ? 'warning' : 'success'}
+          color={r.status === 'ACTIVE' ? 'warning' : 'success'}
           onClick={() => setDesigToToggle(r)}
           sx={{ textTransform: 'none', fontWeight: 600 }}
         >
@@ -300,8 +301,8 @@ export function MasterPage() {
               sx={{ minWidth: 140, borderRadius: 2 }}
             >
               <MenuItem value="All">All Statuses</MenuItem>
-              <MenuItem value="Active">Active</MenuItem>
-              <MenuItem value="Inactive">Inactive</MenuItem>
+              <MenuItem value="ACTIVE">Active</MenuItem>
+              <MenuItem value="INACTIVE">Inactive</MenuItem>
             </Select>
           </Stack>
 
@@ -309,6 +310,9 @@ export function MasterPage() {
             columns={departmentColumns}
             rows={filteredDepartments}
             getRowKey={(r) => r.id}
+            isLoading={departmentsQuery.isPending}
+            error={departmentsQuery.isError ? departmentsQuery.error : null}
+            onRetry={departmentsQuery.refetch}
             emptyTitle="No departments found"
           />
         </Box>
@@ -333,8 +337,8 @@ export function MasterPage() {
               sx={{ minWidth: 140, borderRadius: 2 }}
             >
               <MenuItem value="All">All Statuses</MenuItem>
-              <MenuItem value="Active">Active</MenuItem>
-              <MenuItem value="Inactive">Inactive</MenuItem>
+              <MenuItem value="ACTIVE">Active</MenuItem>
+              <MenuItem value="INACTIVE">Inactive</MenuItem>
             </Select>
           </Stack>
 
@@ -342,6 +346,9 @@ export function MasterPage() {
             columns={designationColumns}
             rows={filteredDesignations}
             getRowKey={(r) => r.id}
+            isLoading={designationsQuery.isPending}
+            error={designationsQuery.isError ? designationsQuery.error : null}
+            onRetry={designationsQuery.refetch}
             emptyTitle="No designations found"
           />
         </Box>
@@ -361,6 +368,7 @@ export function MasterPage() {
                 required
                 fullWidth
                 size="small"
+                autoFocus
               />
               <TextField
                 select
@@ -378,7 +386,11 @@ export function MasterPage() {
           </DialogContent>
           <DialogActions sx={{ p: 2.5, pt: 1 }}>
             <Button onClick={() => setNewDeptOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained">
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={!newDeptName.trim() || createDepartment.isPending}
+            >
               Save Department
             </Button>
           </DialogActions>
@@ -403,13 +415,13 @@ export function MasterPage() {
               <TextField
                 select
                 label="Department Name *"
-                value={newDesigDeptName}
-                onChange={(e) => setNewDesigDeptName(e.target.value)}
+                value={selectedDesigDepartmentId}
+                onChange={(e) => setNewDesigDepartmentId(e.target.value)}
                 fullWidth
                 size="small"
               >
-                {departments.map((dept) => (
-                  <MenuItem key={dept.id} value={dept.name}>
+                {(allDepartmentsQuery.data || []).map((dept) => (
+                  <MenuItem key={dept.id} value={dept.id}>
                     {dept.name}
                   </MenuItem>
                 ))}
@@ -429,7 +441,11 @@ export function MasterPage() {
           </DialogContent>
           <DialogActions sx={{ p: 2.5, pt: 1 }}>
             <Button onClick={() => setNewDesigOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained">
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={!newDesigName.trim() || !selectedDesigDepartmentId || createDesignation.isPending}
+            >
               Save Designation
             </Button>
           </DialogActions>
@@ -442,13 +458,14 @@ export function MasterPage() {
         title="Change Department Status"
         description={
           deptToToggle
-            ? `Are you sure you want to change the status of "${deptToToggle.name}" from ${deptToToggle.status.toLowerCase()} to ${
-                deptToToggle.status === 'Active' ? 'inactive' : 'active'
+            ? `Are you sure you want to change the status of "${deptToToggle.name}" from ${deptToToggle.statusLabel.toLowerCase()} to ${
+                deptToToggle.status === 'ACTIVE' ? 'inactive' : 'active'
               }?`
             : ''
         }
         confirmLabel="Confirm"
-        confirmColor={deptToToggle?.status === 'Active' ? 'warning' : 'primary'}
+        confirmColor={deptToToggle?.status === 'ACTIVE' ? 'warning' : 'primary'}
+        busy={departmentLifecycle.isPending}
         onConfirm={handleConfirmDeptStatusChange}
         onClose={() => setDeptToToggle(null)}
       />
@@ -459,13 +476,14 @@ export function MasterPage() {
         title="Change Designation Status"
         description={
           desigToToggle
-            ? `Are you sure you want to change the status of "${desigToToggle.name}" from ${desigToToggle.status.toLowerCase()} to ${
-                desigToToggle.status === 'Active' ? 'inactive' : 'active'
+            ? `Are you sure you want to change the status of "${desigToToggle.name}" from ${desigToToggle.statusLabel.toLowerCase()} to ${
+                desigToToggle.status === 'ACTIVE' ? 'inactive' : 'active'
               }?`
             : ''
         }
         confirmLabel="Confirm"
-        confirmColor={desigToToggle?.status === 'Active' ? 'warning' : 'primary'}
+        confirmColor={desigToToggle?.status === 'ACTIVE' ? 'warning' : 'primary'}
+        busy={designationLifecycle.isPending}
         onConfirm={handleConfirmDesigStatusChange}
         onClose={() => setDesigToToggle(null)}
       />

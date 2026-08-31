@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -14,64 +14,48 @@ import {
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { ConfirmDialog, DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
-import { MOCK_PAYMENT_MODES } from '../data/mockPaymentModes.js';
+import { DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
+import { usePaymentModes, useCreatePaymentMode, usePaymentModeLifecycle } from '../hooks/usePaymentModes.js';
 
 export function PaymentModesPage() {
-  const [paymentModes, setPaymentModes] = useState(MOCK_PAYMENT_MODES);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [itemToToggle, setItemToToggle] = useState(null);
 
   // Add Payment Mode Dialog State
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [newModeName, setNewModeName] = useState('');
   const [newModeStatus, setNewModeStatus] = useState('Active');
 
+  const paymentModesQuery = usePaymentModes(searchQuery);
+  const createPaymentMode = useCreatePaymentMode();
+  const paymentModeLifecycle = usePaymentModeLifecycle();
+
   // Filtered Data
   const filteredPaymentModes = useMemo(() => {
-    return paymentModes.filter((pm) => {
-      const matchesSearch = pm.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === 'All' || pm.status.toLowerCase() === statusFilter.toLowerCase();
-      return matchesSearch && matchesStatus;
-    });
-  }, [paymentModes, searchQuery, statusFilter]);
+    const modes = paymentModesQuery.data || [];
+    const filtered =
+      statusFilter === 'All' ? modes : modes.filter((pm) => pm.status === statusFilter);
+    return filtered.map((pm, index) => ({ ...pm, srNo: index + 1 }));
+  }, [paymentModesQuery.data, statusFilter]);
 
-  // Handle Direct Status Change from Select dropdown
+  // Handle Status Change from Select dropdown
   const handleStatusChange = (id, nextStatus) => {
-    setPaymentModes((prev) =>
-      prev.map((pm) => (pm.id === id ? { ...pm, status: nextStatus } : pm))
-    );
-  };
-
-  // Handle Status Toggle via Confirmation Dialog
-  const handleConfirmStatusToggle = () => {
-    if (!itemToToggle) return;
-    const nextStatus = itemToToggle.status === 'Active' ? 'Inactive' : 'Active';
-    handleStatusChange(itemToToggle.id, nextStatus);
-    setItemToToggle(null);
+    const action = nextStatus === 'ACTIVE' ? 'activate' : 'deactivate';
+    paymentModeLifecycle.mutate({ id, action });
   };
 
   // Handle Add New Payment Mode
-  const handleCreateSubmit = (e) => {
+  const handleCreateSubmit = async (e) => {
     e.preventDefault();
     if (!newModeName.trim()) return;
 
-    const newMode = {
-      id: `pm-${Date.now()}`,
-      srNo: paymentModes.length + 1,
-      name: newModeName.trim(),
-      status: newModeStatus,
-    };
-
-    setPaymentModes((prev) => [...prev, newMode]);
+    await createPaymentMode.mutateAsync({ name: newModeName, status: newModeStatus });
     setNewModeName('');
     setNewModeStatus('Active');
     setOpenCreateDialog(false);
   };
 
-  // Table Columns with Shifted Positioning
+  // Table Columns
   const columns = [
     {
       key: 'srNo',
@@ -98,7 +82,7 @@ export function PaymentModesPage() {
       header: 'STATUS',
       width: '35%',
       render: (row) => {
-        const isActive = row.status === 'Active';
+        const isActive = row.status === 'ACTIVE';
         return (
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <Select
@@ -119,10 +103,10 @@ export function PaymentModesPage() {
                 },
               }}
             >
-              <MenuItem value="Active" sx={{ fontSize: 13, fontWeight: 600, color: '#0F7B4D' }}>
+              <MenuItem value="ACTIVE" sx={{ fontSize: 13, fontWeight: 600, color: '#0F7B4D' }}>
                 Active
               </MenuItem>
-              <MenuItem value="Inactive" sx={{ fontSize: 13, fontWeight: 600, color: '#6F747D' }}>
+              <MenuItem value="INACTIVE" sx={{ fontSize: 13, fontWeight: 600, color: '#6F747D' }}>
                 Inactive
               </MenuItem>
             </Select>
@@ -179,8 +163,8 @@ export function PaymentModesPage() {
             sx={{ borderRadius: 2 }}
           >
             <MenuItem value="All">All Statuses</MenuItem>
-            <MenuItem value="Active">Active Only</MenuItem>
-            <MenuItem value="Inactive">Inactive Only</MenuItem>
+            <MenuItem value="ACTIVE">Active Only</MenuItem>
+            <MenuItem value="INACTIVE">Inactive Only</MenuItem>
           </Select>
         </FormControl>
       </Stack>
@@ -190,6 +174,9 @@ export function PaymentModesPage() {
         columns={columns}
         rows={filteredPaymentModes}
         getRowKey={(row) => row.id}
+        isLoading={paymentModesQuery.isPending}
+        error={paymentModesQuery.isError ? paymentModesQuery.error : null}
+        onRetry={paymentModesQuery.refetch}
         emptyTitle="No payment modes found"
         emptyDescription="Try adjusting your search query or filter."
       />
@@ -242,7 +229,7 @@ export function PaymentModesPage() {
             <Button
               type="submit"
               variant="contained"
-              disabled={!newModeName.trim()}
+              disabled={!newModeName.trim() || createPaymentMode.isPending}
               sx={{
                 bgcolor: '#17191C',
                 color: '#FFFFFF',
@@ -256,19 +243,6 @@ export function PaymentModesPage() {
           </DialogActions>
         </form>
       </Dialog>
-
-      {/* Status Toggle Confirmation Dialog */}
-      <ConfirmDialog
-        open={Boolean(itemToToggle)}
-        title={itemToToggle?.status === 'Active' ? 'Deactivate Payment Mode' : 'Activate Payment Mode'}
-        description={`Are you sure you want to change the status of "${itemToToggle?.name}" to ${
-          itemToToggle?.status === 'Active' ? 'Inactive' : 'Active'
-        }?`}
-        confirmLabel={itemToToggle?.status === 'Active' ? 'Deactivate' : 'Activate'}
-        confirmTone={itemToToggle?.status === 'Active' ? 'warning' : 'primary'}
-        onConfirm={handleConfirmStatusToggle}
-        onCancel={() => setItemToToggle(null)}
-      />
     </Box>
   );
 }

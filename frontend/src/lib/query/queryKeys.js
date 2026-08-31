@@ -64,4 +64,33 @@ export const queryKeys = {
     all: () => ['userRequests'],
     detail: (id) => ['userRequests', 'detail', String(id)],
   },
+  paymentModes: {
+    all: () => ['paymentModes'],
+    list: (search) => ['paymentModes', 'list', { search: search || '' }],
+  },
+  vendors: {
+    all: () => ['vendors'],
+    list: (search) => ['vendors', 'list', { search: search || '' }],
+    detail: (id) => ['vendors', 'detail', String(id)],
+  },
+  departments: {
+    all: () => ['departments'],
+    list: (search) => ['departments', 'list', { search: search || '' }],
+  },
+  designations: {
+    all: () => ['designations'],
+    list: (search) => ['designations', 'list', { search: search || '' }],
+  },
+  financialYears: {
+    all: () => ['financialYears'],
+  },
+  bankDetails: {
+    all: () => ['bankDetails'],
+    list: (search) => ['bankDetails', 'list', { search: search || '' }],
+  },
+  employees: {
+    all: () => ['employees'],
+    list: (search) => ['employees', 'list', { search: search || '' }],
+    detail: (id) => ['employees', 'detail', String(id)],
+  },
 };

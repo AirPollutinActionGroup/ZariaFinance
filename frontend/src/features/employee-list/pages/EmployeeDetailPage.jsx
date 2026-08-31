@@ -14,8 +14,8 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BadgeIcon from '@mui/icons-material/Badge';
-import { ConfirmDialog, PageHeader } from '../../../shared/components/index.js';
-import { MOCK_EMPLOYEES } from '../data/mockEmployees.js';
+import { ConfirmDialog, ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
+import { useEmployee, useEmployeeLifecycle } from '../hooks/useEmployees.js';
 
 function DetailField({ label, value, chip = null }) {
   return (
@@ -40,21 +40,23 @@ function DetailField({ label, value, chip = null }) {
 export function EmployeeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-
-  const employeeRecord =
-    MOCK_EMPLOYEES.find((e) => e.id === id || e.empId.toLowerCase() === id?.toLowerCase()) ||
-    MOCK_EMPLOYEES[0];
-
-  const [status, setStatus] = useState(employeeRecord.status || 'Active');
+  const employeeQuery = useEmployee(id);
+  const lifecycle = useEmployeeLifecycle(id);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handleConfirmStatusChange = () => {
-    const nextStatus = status === 'Active' ? 'Inactive' : 'Active';
-    setStatus(nextStatus);
+  if (employeeQuery.isPending) return <LoadingState label="Loading employee…" />;
+  if (employeeQuery.isError) {
+    return <ErrorState error={employeeQuery.error} onRetry={employeeQuery.refetch} />;
+  }
+
+  const employeeRecord = employeeQuery.data;
+  const status = employeeRecord.status || 'Active';
+  const isActive = status === 'Active';
+
+  const handleConfirmStatusChange = async () => {
+    await lifecycle.mutateAsync(isActive ? 'deactivate' : 'activate');
     setDialogOpen(false);
   };
-
-  const isActive = status === 'Active';
 
   const dialogDescription = isActive
     ? 'Are you sure you want to change the status of the employee from active to inactive?'
@@ -219,6 +221,7 @@ export function EmployeeDetailPage() {
         description={dialogDescription}
         confirmLabel="Confirm"
         confirmColor={isActive ? 'warning' : 'primary'}
+        busy={lifecycle.isPending}
         onConfirm={handleConfirmStatusChange}
         onClose={() => setDialogOpen(false)}
       />

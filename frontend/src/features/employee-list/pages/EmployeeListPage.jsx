@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -11,19 +11,26 @@ import {
 import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import { DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
-import { MOCK_EMPLOYEES } from '../data/mockEmployees.js';
+import { useEmployees } from '../hooks/useEmployees.js';
 
 export function EmployeeListPage() {
   const navigate = useNavigate();
-  const [employees] = useState(MOCK_EMPLOYEES);
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
   const [bucketFilter, setBucketFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const employeesQuery = useEmployees(search);
 
-  const departments = Array.from(new Set(employees.map((e) => e.department))).filter(Boolean);
-  const buckets = Array.from(new Set(employees.map((e) => e.bucket))).filter(Boolean);
+  const employees = employeesQuery.data || [];
+  const departments = useMemo(
+    () => Array.from(new Set(employees.map((e) => e.department))).filter(Boolean),
+    [employees],
+  );
+  const buckets = useMemo(
+    () => Array.from(new Set(employees.map((e) => e.bucket))).filter(Boolean),
+    [employees],
+  );
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
@@ -219,8 +226,12 @@ export function EmployeeListPage() {
         columns={columns}
         rows={filteredEmployees}
         getRowKey={(r) => r.id}
+        isLoading={employeesQuery.isPending}
+        error={employeesQuery.isError ? employeesQuery.error : null}
+        onRetry={employeesQuery.refetch}
         onRowClick={(r) => navigate(`/employee-list/${r.id}`)}
         emptyTitle="No employees found"
+        emptyDescription="Add the first employee to see them here."
       />
     </>
   );

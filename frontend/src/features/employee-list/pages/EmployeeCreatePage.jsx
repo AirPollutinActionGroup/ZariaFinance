@@ -17,6 +17,8 @@ import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { PageHeader, RhfTextField, RhfSelect } from '../../../shared/components/index.js';
 import { geographyService } from '../../donor-management/services/geographyService.js';
+import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
+import { useCreateEmployee } from '../hooks/useEmployees.js';
 import {
   employeeCreateSchema,
   employeeCreateDefaults,
@@ -70,21 +72,22 @@ export function EmployeeCreatePage() {
       .catch((err) => console.error('Error fetching states:', err));
   }, []);
 
-  const { control, handleSubmit } = useForm({
+  const createEmployee = useCreateEmployee();
+
+  const { control, handleSubmit, setError } = useForm({
     resolver: zodResolver(employeeCreateSchema),
     defaultValues: employeeCreateDefaults,
   });
 
   const selectedBucket = useWatch({ control, name: 'bucket' });
 
-  const onSubmit = (values) => {
-    const payload = {
-      ...values,
-      primaryProgramme: values.bucket === 'Project' ? values.primaryProgramme : '',
-    };
-    console.log('Creating Employee Master Record:', payload);
-    alert(`Employee "${values.name}" (${values.empId}) added successfully!`);
-    navigate('/employee-list');
+  const onSubmit = async (values) => {
+    try {
+      const created = await createEmployee.mutateAsync(values);
+      navigate(`/employee-list/${created.id}`);
+    } catch (error) {
+      applyServerErrors(error, setError);
+    }
   };
 
   return (
@@ -285,11 +288,17 @@ export function EmployeeCreatePage() {
             variant="contained"
             size="large"
             startIcon={<SaveIcon />}
+            disabled={createEmployee.isPending}
             sx={{ px: 4, fontWeight: 700, borderRadius: 2 }}
           >
-            Save Employee
+            {createEmployee.isPending ? 'Saving…' : 'Save Employee'}
           </Button>
         </Stack>
+        {createEmployee.isError && !createEmployee.error?.isValidationError ? (
+          <Typography color="error.main" sx={{ mt: 2, textAlign: 'right' }}>
+            {createEmployee.error?.message || 'Failed to add employee.'}
+          </Typography>
+        ) : null}
       </form>
     </Box>
   );

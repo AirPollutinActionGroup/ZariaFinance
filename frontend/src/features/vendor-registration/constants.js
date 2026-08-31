@@ -22,13 +22,6 @@ export const TDS_SECTION_OPTIONS = [
   { value: '194J', label: '194J — Professional / Technical Services' },
 ];
 
-export const PAYMENT_MODE_OPTIONS = [
-  { value: 'NEFT', label: 'NEFT' },
-  { value: 'RTGS', label: 'RTGS' },
-  { value: 'UPI', label: 'UPI' },
-  { value: 'Cheque', label: 'Cheque' },
-];
-
 export const VENDOR_CATEGORY_OPTIONS = [
   { value: 'Goods', label: 'Goods' },
   { value: 'Services', label: 'Services' },
@@ -38,9 +31,15 @@ export const VENDOR_CATEGORY_OPTIONS = [
   { value: 'Grantee-linked', label: 'Grantee-linked' },
 ];
 
-export const STATUS_OPTIONS = [
-  { value: 'Active', label: 'Active' },
-  { value: 'Inactive', label: 'Inactive' },
+export const ENTERPRISE_CLASSIFICATION_OPTIONS = [
+  { value: 'Micro', label: 'Micro' },
+  { value: 'Small', label: 'Small' },
+  { value: 'Medium', label: 'Medium' },
+];
+
+export const YES_NO_OPTIONS = [
+  { value: 'Yes', label: 'Yes' },
+  { value: 'No', label: 'No' },
 ];
 
 /** Documents section — Aadhaar is Individual-only; GST Certificate and Incorporation Cert. are non-Individual only. */

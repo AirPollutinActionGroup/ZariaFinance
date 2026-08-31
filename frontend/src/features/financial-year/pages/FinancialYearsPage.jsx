@@ -18,7 +18,8 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { ConfirmDialog, DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
-import { MOCK_FINANCIAL_YEARS } from '../data/mockFinancialYears.js';
+import { FINANCIAL_YEAR_STATUS_LABEL } from '../constants.js';
+import { useFinancialYears, useCreateFinancialYear, useSetCurrentFinancialYear } from '../hooks/useFinancialYears.js';
 
 // Given a start date, suggest an "FY YYYY-YY" label following the Apr–Mar cycle
 function suggestCode(startDate) {
@@ -36,13 +37,6 @@ function suggestEndDate(startDate) {
   return `${endYear}-03-31`;
 }
 
-function getPeriodStatus(fy) {
-  const today = new Date().toISOString().slice(0, 10);
-  if (fy.endDate < today) return 'Closed';
-  if (fy.startDate > today) return 'Upcoming';
-  return 'Active';
-}
-
 function formatDate(value) {
   if (!value) return '—';
   return new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', {
@@ -53,13 +47,12 @@ function formatDate(value) {
 }
 
 const STATUS_COLORS = {
-  Active: { bg: '#E6F4EE', color: '#0F7B4D', border: '#B4E2D0' },
-  Upcoming: { bg: '#EEF2F6', color: '#1D4ED8', border: '#BFDBFE' },
-  Closed: { bg: '#F6F7F8', color: '#6F747D', border: '#DFE1E5' },
+  ACTIVE: { bg: '#E6F4EE', color: '#0F7B4D', border: '#B4E2D0' },
+  UPCOMING: { bg: '#EEF2F6', color: '#1D4ED8', border: '#BFDBFE' },
+  CLOSED: { bg: '#F6F7F8', color: '#6F747D', border: '#DFE1E5' },
 };
 
 export function FinancialYearsPage() {
-  const [financialYears, setFinancialYears] = useState(MOCK_FINANCIAL_YEARS);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [itemToSetCurrent, setItemToSetCurrent] = useState(null);
@@ -71,6 +64,12 @@ export function FinancialYearsPage() {
   const [newStartDate, setNewStartDate] = useState('');
   const [newEndDate, setNewEndDate] = useState('');
   const [newIsCurrent, setNewIsCurrent] = useState(false);
+
+  const financialYearsQuery = useFinancialYears();
+  const createFinancialYear = useCreateFinancialYear();
+  const setCurrentFinancialYear = useSetCurrentFinancialYear();
+
+  const financialYears = useMemo(() => financialYearsQuery.data || [], [financialYearsQuery.data]);
 
   const formError = useMemo(() => {
     if (!newStartDate || !newEndDate) return null;
@@ -91,11 +90,13 @@ export function FinancialYearsPage() {
 
   // Filtered Data
   const filteredFinancialYears = useMemo(() => {
-    return financialYears.filter((fy) => {
-      const matchesSearch = fy.code.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === 'All' || getPeriodStatus(fy) === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
+    return financialYears
+      .filter((fy) => {
+        const matchesSearch = fy.code.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === 'All' || fy.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      })
+      .map((fy, index) => ({ ...fy, srNo: index + 1 }));
   }, [financialYears, searchQuery, statusFilter]);
 
   const handleStartDateChange = (value) => {
@@ -105,31 +106,24 @@ export function FinancialYearsPage() {
   };
 
   // Handle Set as Current via Confirmation Dialog
-  const handleConfirmSetCurrent = () => {
+  const handleConfirmSetCurrent = async () => {
     if (!itemToSetCurrent) return;
-    setFinancialYears((prev) =>
-      prev.map((fy) => ({ ...fy, isCurrent: fy.id === itemToSetCurrent.id }))
-    );
+    await setCurrentFinancialYear.mutateAsync(itemToSetCurrent.id);
     setItemToSetCurrent(null);
   };
 
   // Handle Add New Financial Year
-  const handleCreateSubmit = (e) => {
+  const handleCreateSubmit = async (e) => {
     e.preventDefault();
     if (!isCreateValid) return;
 
-    const newFy = {
-      id: `fy-${Date.now()}`,
-      srNo: financialYears.length + 1,
-      code: newCode.trim(),
+    await createFinancialYear.mutateAsync({
+      code: newCode,
       startDate: newStartDate,
       endDate: newEndDate,
-      isCurrent: newIsCurrent,
-    };
+      current: newIsCurrent,
+    });
 
-    setFinancialYears((prev) =>
-      newIsCurrent ? [...prev.map((fy) => ({ ...fy, isCurrent: false })), newFy] : [...prev, newFy]
-    );
     setNewCode('');
     setCodeTouched(false);
     setNewStartDate('');
@@ -175,8 +169,7 @@ export function FinancialYearsPage() {
       header: 'STATUS',
       width: '15%',
       render: (row) => {
-        const status = getPeriodStatus(row);
-        const palette = STATUS_COLORS[status];
+        const palette = STATUS_COLORS[row.status] || STATUS_COLORS.CLOSED;
         return (
           <Box
             sx={{
@@ -192,7 +185,7 @@ export function FinancialYearsPage() {
               borderColor: palette.border,
             }}
           >
-            {status}
+            {row.statusLabel || FINANCIAL_YEAR_STATUS_LABEL[row.status] || row.status}
           </Box>
         );
       },
@@ -202,7 +195,7 @@ export function FinancialYearsPage() {
       header: 'CURRENT',
       width: '30%',
       render: (row) =>
-        row.isCurrent ? (
+        row.current ? (
           <Chip
             label="Current"
             size="small"
@@ -268,9 +261,9 @@ export function FinancialYearsPage() {
             sx={{ borderRadius: 2 }}
           >
             <MenuItem value="All">All Statuses</MenuItem>
-            <MenuItem value="Active">Active Only</MenuItem>
-            <MenuItem value="Upcoming">Upcoming Only</MenuItem>
-            <MenuItem value="Closed">Closed Only</MenuItem>
+            <MenuItem value="ACTIVE">Active Only</MenuItem>
+            <MenuItem value="UPCOMING">Upcoming Only</MenuItem>
+            <MenuItem value="CLOSED">Closed Only</MenuItem>
           </Select>
         </FormControl>
       </Stack>
@@ -280,6 +273,9 @@ export function FinancialYearsPage() {
         columns={columns}
         rows={filteredFinancialYears}
         getRowKey={(row) => row.id}
+        isLoading={financialYearsQuery.isPending}
+        error={financialYearsQuery.isError ? financialYearsQuery.error : null}
+        onRetry={financialYearsQuery.refetch}
         emptyTitle="No financial years found"
         emptyDescription="Try adjusting your search query or filter."
       />
@@ -343,6 +339,12 @@ export function FinancialYearsPage() {
                   {formError}
                 </Typography>
               ) : null}
+
+              {createFinancialYear.isError ? (
+                <Typography variant="body2" color="error">
+                  {createFinancialYear.error?.message || 'Could not save the financial year.'}
+                </Typography>
+              ) : null}
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2.5 }}>
@@ -356,7 +358,7 @@ export function FinancialYearsPage() {
             <Button
               type="submit"
               variant="contained"
-              disabled={!isCreateValid}
+              disabled={!isCreateValid || createFinancialYear.isPending}
               sx={{
                 bgcolor: '#17191C',
                 color: '#FFFFFF',
