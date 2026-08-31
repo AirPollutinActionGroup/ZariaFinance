@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Card, CardContent, Chip, Grid, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Chip, Grid, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,14 +16,17 @@ import SellOutlinedIcon from '@mui/icons-material/SellOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { PageHeader, RhfTextField, RhfSelect } from '../../../shared/components/index.js';
 import { geographyService } from '../../donor-management/services/geographyService.js';
-import { lookupIfsc } from '../data/ifscLookup.js';
+import { usePaymentModes } from '../../payment-mode/hooks/usePaymentModes.js';
+import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
+import { useCreateVendor } from '../hooks/useVendors.js';
 import {
   ENTITY_TYPE_OPTIONS,
   GST_REGISTRATION_TYPE_OPTIONS,
   TDS_SECTION_OPTIONS,
-  PAYMENT_MODE_OPTIONS,
   VENDOR_CATEGORY_OPTIONS,
   VENDOR_DOCUMENTS,
+  YES_NO_OPTIONS,
+  ENTERPRISE_CLASSIFICATION_OPTIONS,
 } from '../constants.js';
 import {
   vendorCreateSchema,
@@ -93,26 +96,31 @@ export function VendorCreatePage() {
       .catch((err) => console.error('Error fetching states:', err));
   }, []);
 
-  const { control, handleSubmit, setValue } = useForm({
+  const createVendor = useCreateVendor();
+  const paymentModesQuery = usePaymentModes();
+  const paymentModeOptions = (paymentModesQuery.data || [])
+    .filter((mode) => mode.status === 'ACTIVE')
+    .map((mode) => ({ value: mode.name, label: mode.name }));
+
+  const { control, handleSubmit, setValue, setError } = useForm({
     resolver: zodResolver(vendorCreateSchema),
     defaultValues: vendorCreateDefaults,
   });
 
   const entityType = useWatch({ control, name: 'entityType' });
-  const ifscCode = useWatch({ control, name: 'ifscCode' });
+  const hasIncorporationCertificate = useWatch({ control, name: 'hasIncorporationCertificate' });
+  const hasGstRegistration = useWatch({ control, name: 'hasGstRegistration' });
+  const hasMsmeRegistration = useWatch({ control, name: 'hasMsmeRegistration' });
+  const relatedParty = useWatch({ control, name: 'relatedParty' });
   const isIndividual = entityType === 'Individual';
+  const showIncorporationDetails = !isIndividual && hasIncorporationCertificate === 'Yes';
+  const showGstDetails = !isIndividual && hasGstRegistration === 'Yes';
+  const showMsmeDetails = !isIndividual && hasMsmeRegistration === 'Yes';
 
   // TDS section default follows entity type — 194J for Individuals, 194C otherwise.
   useEffect(() => {
     setValue('tdsSection', isIndividual ? '194J' : '194C');
   }, [isIndividual, setValue]);
-
-  // Bank / branch auto-fill once the IFSC code is well-formed and recognised.
-  useEffect(() => {
-    const match = lookupIfsc(ifscCode);
-    setValue('bankName', match?.bankName || '');
-    setValue('branchName', match?.branchName || '');
-  }, [ifscCode, setValue]);
 
   const applicableDocuments = VENDOR_DOCUMENTS.filter((doc) => {
     if (doc.requiredFor === 'all') return true;
@@ -127,21 +135,13 @@ export function VendorCreatePage() {
     }
   };
 
-  const onSubmit = (values) => {
-    const payload = {
-      ...values,
-      registrationNo: isIndividual ? '' : values.registrationNo,
-      dateOfIncorporation: isIndividual ? '' : values.dateOfIncorporation,
-      aadhaarNumber: isIndividual ? values.aadhaarNumber : '',
-      gstNumber: isIndividual ? '' : values.gstNumber,
-      gstRegistrationType: isIndividual ? 'Unregistered' : values.gstRegistrationType,
-      tanNumber: isIndividual ? '' : values.tanNumber,
-      udyamNumber: isIndividual ? '' : values.udyamNumber,
-      documents,
-    };
-    console.log('Creating Vendor Record:', payload);
-    alert(`Vendor "${values.legalName}" registered successfully!`);
-    navigate('/vendor-registration');
+  const onSubmit = async (values) => {
+    try {
+      const created = await createVendor.mutateAsync(values);
+      navigate(`/vendor-registration/${created.id}`);
+    } catch (error) {
+      applyServerErrors(error, setError);
+    }
   };
 
   return (
@@ -185,7 +185,7 @@ export function VendorCreatePage() {
           description={
             isIndividual
               ? 'Individual vendors are identified by Aadhaar in place of company registration.'
-              : 'Company registration hidden automatically when Entity Type is Individual.'
+              : 'Date of Incorporation and CIN / Registration No. appear only when an Incorporation Certificate is available.'
           }
         >
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -200,24 +200,38 @@ export function VendorCreatePage() {
           {!isIndividual && (
             <>
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <RhfTextField
-                  name="dateOfIncorporation"
+                <RhfSelect
+                  name="hasIncorporationCertificate"
                   control={control}
-                  label="Date of Incorporation"
-                  type="date"
+                  label="Incorporation Certificate"
                   required
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  options={YES_NO_OPTIONS}
+                  helperText="Select Yes to enter the certificate details."
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <RhfTextField
-                  name="registrationNo"
-                  control={control}
-                  label="CIN / Registration No."
-                  placeholder="e.g. U60200DL2015PTC281234"
-                  required
-                />
-              </Grid>
+              {showIncorporationDetails && (
+                <>
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <RhfTextField
+                      name="dateOfIncorporation"
+                      control={control}
+                      label="Date of Incorporation"
+                      type="date"
+                      required
+                      slotProps={{ inputLabel: { shrink: true } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <RhfTextField
+                      name="registrationNo"
+                      control={control}
+                      label="CIN / Registration No."
+                      placeholder="e.g. U60200DL2015PTC281234"
+                      required
+                    />
+                  </Grid>
+                </>
+              )}
             </>
           )}
           {isIndividual && (
@@ -241,7 +255,7 @@ export function VendorCreatePage() {
           description={
             isIndividual
               ? 'GST, TAN and Udyam fields are hidden for Individual vendors.'
-              : 'PAN is required for every vendor; GST applies above the turnover threshold.'
+              : 'GST Number and Registration Type appear only when GST Registration is Yes.'
           }
         >
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -256,23 +270,37 @@ export function VendorCreatePage() {
           {!isIndividual && (
             <>
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <RhfTextField
-                  name="gstNumber"
-                  control={control}
-                  label="GST Number"
-                  placeholder="e.g. 07AAACG1234H1ZC"
-                  helperText="Leave blank if turnover is below the GST threshold."
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <RhfSelect
-                  name="gstRegistrationType"
+                  name="hasGstRegistration"
                   control={control}
-                  label="GST Registration Type"
+                  label="GST Registration"
                   required
-                  options={GST_REGISTRATION_TYPE_OPTIONS}
+                  options={YES_NO_OPTIONS}
+                  helperText="Select Yes if the vendor is registered under GST."
                 />
               </Grid>
+              {showGstDetails && (
+                <>
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <RhfTextField
+                      name="gstNumber"
+                      control={control}
+                      label="GST Number"
+                      placeholder="e.g. 07AAACG1234H1ZC"
+                      required
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <RhfSelect
+                      name="gstRegistrationType"
+                      control={control}
+                      label="GST Registration Type"
+                      required
+                      options={GST_REGISTRATION_TYPE_OPTIONS}
+                    />
+                  </Grid>
+                </>
+              )}
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <RhfTextField
                   name="tanNumber"
@@ -282,13 +310,37 @@ export function VendorCreatePage() {
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <RhfTextField
-                  name="udyamNumber"
+                <RhfSelect
+                  name="hasMsmeRegistration"
                   control={control}
-                  label="Udyam / MSME Number"
-                  placeholder="Triggers the 45-day payment rule"
+                  label="MSME Registered"
+                  required
+                  options={YES_NO_OPTIONS}
+                  helperText="Select Yes if the vendor holds Udyam / MSME registration."
                 />
               </Grid>
+              {showMsmeDetails && (
+                <>
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <RhfTextField
+                      name="udyamNumber"
+                      control={control}
+                      label="Udyam / MSME Number"
+                      placeholder="Triggers the 45-day payment rule"
+                      required
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <RhfSelect
+                      name="enterpriseClassification"
+                      control={control}
+                      label="Enterprise Classification"
+                      required
+                      options={ENTERPRISE_CLASSIFICATION_OPTIONS}
+                    />
+                  </Grid>
+                </>
+              )}
             </>
           )}
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -306,7 +358,7 @@ export function VendorCreatePage() {
           number="04"
           icon={AccountBalanceOutlinedIcon}
           title="Banking Detail"
-          description="Bank and branch auto-fill once a recognised IFSC code is entered."
+          description="Enter the vendor's bank account and branch details."
         >
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <RhfTextField name="accountNumber" control={control} label="Account Number" required />
@@ -337,8 +389,6 @@ export function VendorCreatePage() {
               name="bankName"
               control={control}
               label="Bank Name"
-              helperText="Auto-fills from IFSC."
-              slotProps={{ input: { readOnly: true } }}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -346,8 +396,6 @@ export function VendorCreatePage() {
               name="branchName"
               control={control}
               label="Branch Name"
-              helperText="Auto-fills from IFSC."
-              slotProps={{ input: { readOnly: true } }}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -356,7 +404,15 @@ export function VendorCreatePage() {
               control={control}
               label="Payment Mode Preference"
               required
-              options={PAYMENT_MODE_OPTIONS}
+              disabled={paymentModesQuery.isLoading}
+              options={paymentModeOptions}
+              helperText={
+                paymentModesQuery.isLoading
+                  ? 'Loading payment modes…'
+                  : paymentModeOptions.length === 0
+                    ? 'No active payment modes configured.'
+                    : undefined
+              }
             />
           </Grid>
         </FormSection>
@@ -420,6 +476,24 @@ export function VendorCreatePage() {
               options={VENDOR_CATEGORY_OPTIONS}
             />
           </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <RhfSelect
+              name="relatedParty"
+              control={control}
+              label="Related Party"
+              required
+              options={YES_NO_OPTIONS}
+              helperText="Is this vendor a related party (director or board member)?"
+            />
+          </Grid>
+          {relatedParty === 'Yes' && (
+            <Grid size={12}>
+              <Alert severity="warning" variant="outlined">
+                This vendor will be flagged as a related party and routed for additional compliance
+                review before approval.
+              </Alert>
+            </Grid>
+          )}
         </FormSection>
 
         <FormSection
@@ -465,11 +539,17 @@ export function VendorCreatePage() {
             variant="contained"
             size="large"
             startIcon={<SaveIcon />}
+            disabled={createVendor.isPending}
             sx={{ px: 4, fontWeight: 700, borderRadius: 2 }}
           >
-            Save Vendor
+            {createVendor.isPending ? 'Saving…' : 'Save Vendor'}
           </Button>
         </Stack>
+        {createVendor.isError && !createVendor.error?.isValidationError ? (
+          <Typography color="error.main" sx={{ mt: 2, textAlign: 'right' }}>
+            {createVendor.error?.message || 'Failed to register vendor.'}
+          </Typography>
+        ) : null}
       </form>
     </Box>
   );

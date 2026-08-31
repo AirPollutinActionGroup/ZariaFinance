@@ -18,10 +18,18 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import { ConfirmDialog, DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
 import { BOOK } from '../../donation-management/constants.js';
-import { MOCK_BANK_DETAILS } from '../data/mockBankDetails.js';
+import { useBankDetails, useCreateBankDetail, useBankDetailLifecycle } from '../hooks/useBankDetails.js';
+
+const initialFormState = {
+  book: 'LC',
+  bankName: '',
+  accountNumber: '',
+  ifsc: '',
+  branchName: '',
+  status: 'Active',
+};
 
 export function BankDetailsPage() {
-  const [bankList, setBankList] = useState(MOCK_BANK_DETAILS);
   const [searchQuery, setSearchQuery] = useState('');
   const [bookFilter, setBookFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -29,66 +37,40 @@ export function BankDetailsPage() {
 
   // Add Bank Details Modal State
   const [openAddDialog, setOpenAddDialog] = useState(false);
-  const [newBook, setNewBook] = useState('LC');
-  const [newBankName, setNewBankName] = useState('');
-  const [newAccountNumber, setNewAccountNumber] = useState('');
-  const [newIfsc, setNewIfsc] = useState('');
-  const [newBranchName, setNewBranchName] = useState('');
-  const [newStatus, setNewStatus] = useState('Active');
+  const [form, setForm] = useState(initialFormState);
+
+  const bankDetailsQuery = useBankDetails(searchQuery);
+  const createBankDetail = useCreateBankDetail();
+  const bankDetailLifecycle = useBankDetailLifecycle();
 
   // Filtered List
   const filteredBankList = useMemo(() => {
-    return bankList.filter((b) => {
-      const q = searchQuery.toLowerCase();
-      const matchesSearch =
-        b.bankName.toLowerCase().includes(q) ||
-        b.accountNumber.toLowerCase().includes(q) ||
-        b.ifsc.toLowerCase().includes(q) ||
-        b.branchName.toLowerCase().includes(q);
+    const rows = bankDetailsQuery.data || [];
+    const filtered = rows.filter((b) => {
       const matchesBook = bookFilter === 'All' || b.book === bookFilter;
-      const matchesStatus =
-        statusFilter === 'All' || b.status.toLowerCase() === statusFilter.toLowerCase();
-      return matchesSearch && matchesBook && matchesStatus;
+      const matchesStatus = statusFilter === 'All' || b.status === statusFilter;
+      return matchesBook && matchesStatus;
     });
-  }, [bankList, searchQuery, bookFilter, statusFilter]);
+    return filtered.map((b, index) => ({ ...b, srNo: index + 1 }));
+  }, [bankDetailsQuery.data, bookFilter, statusFilter]);
 
   // Handle Confirm Status Toggle
   const handleConfirmStatusToggle = () => {
     if (!itemToToggle) return;
-    const nextStatus = itemToToggle.status === 'Active' ? 'Inactive' : 'Active';
-    setBankList((prev) =>
-      prev.map((b) => (b.id === itemToToggle.id ? { ...b, status: nextStatus } : b))
-    );
+    const action = itemToToggle.status === 'ACTIVE' ? 'deactivate' : 'activate';
+    bankDetailLifecycle.mutate({ id: itemToToggle.id, action });
     setItemToToggle(null);
   };
 
   // Handle Add Bank Details Submit
-  const handleAddSubmit = (e) => {
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
-    if (!newBankName.trim() || !newAccountNumber.trim() || !newIfsc.trim() || !newBranchName.trim()) {
+    if (!form.bankName.trim() || !form.accountNumber.trim() || !form.ifsc.trim() || !form.branchName.trim()) {
       return;
     }
 
-    const newEntry = {
-      id: `bnk-${Date.now()}`,
-      srNo: bankList.length + 1,
-      book: newBook,
-      bankName: newBankName.trim(),
-      accountNumber: newAccountNumber.trim(),
-      ifsc: newIfsc.trim().toUpperCase(),
-      branchName: newBranchName.trim(),
-      status: newStatus,
-    };
-
-    setBankList((prev) => [...prev, newEntry]);
-
-    // Reset Form
-    setNewBook('LC');
-    setNewBankName('');
-    setNewAccountNumber('');
-    setNewIfsc('');
-    setNewBranchName('');
-    setNewStatus('Active');
+    await createBankDetail.mutateAsync(form);
+    setForm(initialFormState);
     setOpenAddDialog(false);
   };
 
@@ -173,8 +155,8 @@ export function BankDetailsPage() {
       width: '10%',
       render: (row) => (
         <Chip
-          label={row.status}
-          color={row.status === 'Active' ? 'success' : 'error'}
+          label={row.statusLabel}
+          color={row.status === 'ACTIVE' ? 'success' : 'error'}
           size="small"
           variant="outlined"
           sx={{ fontWeight: 600, minWidth: 70 }}
@@ -189,7 +171,7 @@ export function BankDetailsPage() {
         <Button
           size="small"
           variant="outlined"
-          color={row.status === 'Active' ? 'warning' : 'success'}
+          color={row.status === 'ACTIVE' ? 'warning' : 'success'}
           onClick={() => setItemToToggle(row)}
           sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5 }}
         >
@@ -263,8 +245,8 @@ export function BankDetailsPage() {
               sx={{ borderRadius: 2 }}
             >
               <MenuItem value="All">All Statuses</MenuItem>
-              <MenuItem value="Active">Active Only</MenuItem>
-              <MenuItem value="Inactive">Inactive Only</MenuItem>
+              <MenuItem value="ACTIVE">Active Only</MenuItem>
+              <MenuItem value="INACTIVE">Inactive Only</MenuItem>
             </Select>
           </FormControl>
         </Stack>
@@ -275,6 +257,9 @@ export function BankDetailsPage() {
         columns={columns}
         rows={filteredBankList}
         getRowKey={(row) => row.id}
+        isLoading={bankDetailsQuery.isPending}
+        error={bankDetailsQuery.isError ? bankDetailsQuery.error : null}
+        onRetry={bankDetailsQuery.refetch}
         emptyTitle="No bank details found"
         emptyDescription="Try adjusting your search query or filters."
       />
@@ -301,8 +286,8 @@ export function BankDetailsPage() {
                       select
                       fullWidth
                       label="Book *"
-                      value={newBook}
-                      onChange={(e) => setNewBook(e.target.value)}
+                      value={form.book}
+                      onChange={(e) => setForm((prev) => ({ ...prev, book: e.target.value }))}
                     >
                       {Object.entries(BOOK).map(([code, label]) => (
                         <MenuItem key={code} value={code}>
@@ -320,8 +305,8 @@ export function BankDetailsPage() {
                       select
                       fullWidth
                       label="Status *"
-                      value={newStatus}
-                      onChange={(e) => setNewStatus(e.target.value)}
+                      value={form.status}
+                      onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
                     >
                       <MenuItem value="Active">Active</MenuItem>
                       <MenuItem value="Inactive">Inactive</MenuItem>
@@ -335,8 +320,8 @@ export function BankDetailsPage() {
                     fullWidth
                     label="Bank Name *"
                     placeholder="e.g. HDFC Bank, State Bank of India"
-                    value={newBankName}
-                    onChange={(e) => setNewBankName(e.target.value)}
+                    value={form.bankName}
+                    onChange={(e) => setForm((prev) => ({ ...prev, bankName: e.target.value }))}
                   />
                 </Grid>
 
@@ -346,10 +331,10 @@ export function BankDetailsPage() {
                     fullWidth
                     label="Account Number (A/C) *"
                     placeholder="e.g. 50200088201412"
-                    value={newAccountNumber}
+                    value={form.accountNumber}
                     onChange={(e) => {
                       const numericOnly = e.target.value.replace(/\D/g, '').slice(0, 18);
-                      setNewAccountNumber(numericOnly);
+                      setForm((prev) => ({ ...prev, accountNumber: numericOnly }));
                     }}
                     inputProps={{ inputMode: 'numeric', maxLength: 18 }}
                   />
@@ -361,10 +346,10 @@ export function BankDetailsPage() {
                     fullWidth
                     label="IFSC Code *"
                     placeholder="e.g. HDFC0000083"
-                    value={newIfsc}
+                    value={form.ifsc}
                     onChange={(e) => {
                       const formattedIfsc = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
-                      setNewIfsc(formattedIfsc);
+                      setForm((prev) => ({ ...prev, ifsc: formattedIfsc }));
                     }}
                     inputProps={{ maxLength: 11, style: { textTransform: 'uppercase' } }}
                   />
@@ -376,8 +361,8 @@ export function BankDetailsPage() {
                     fullWidth
                     label="Branch Name *"
                     placeholder="e.g. GK-1 Branch, New Delhi"
-                    value={newBranchName}
-                    onChange={(e) => setNewBranchName(e.target.value)}
+                    value={form.branchName}
+                    onChange={(e) => setForm((prev) => ({ ...prev, branchName: e.target.value }))}
                   />
                 </Grid>
               </Grid>
@@ -395,10 +380,11 @@ export function BankDetailsPage() {
               type="submit"
               variant="contained"
               disabled={
-                !newBankName.trim() ||
-                !newAccountNumber.trim() ||
-                !newIfsc.trim() ||
-                !newBranchName.trim()
+                !form.bankName.trim() ||
+                !form.accountNumber.trim() ||
+                !form.ifsc.trim() ||
+                !form.branchName.trim() ||
+                createBankDetail.isPending
               }
               sx={{
                 bgcolor: '#17191C',
@@ -420,13 +406,13 @@ export function BankDetailsPage() {
         title="Change Bank Account Status"
         description={
           itemToToggle
-            ? `Are you sure you want to change the status of "${itemToToggle.bankName} (${itemToToggle.accountNumber})" from ${itemToToggle.status.toLowerCase()} to ${
-                itemToToggle.status === 'Active' ? 'inactive' : 'active'
+            ? `Are you sure you want to change the status of "${itemToToggle.bankName} (${itemToToggle.accountNumber})" from ${itemToToggle.statusLabel.toLowerCase()} to ${
+                itemToToggle.status === 'ACTIVE' ? 'inactive' : 'active'
               }?`
             : ''
         }
         confirmLabel="Confirm"
-        confirmColor={itemToToggle?.status === 'Active' ? 'warning' : 'primary'}
+        confirmColor={itemToToggle?.status === 'ACTIVE' ? 'warning' : 'primary'}
         onConfirm={handleConfirmStatusToggle}
         onClose={() => setItemToToggle(null)}
       />

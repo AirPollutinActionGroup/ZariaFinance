@@ -16,21 +16,25 @@ export const vendorCreateSchema = z
 
     // Identification
     legalName: z.string().min(2, 'Legal name is required'),
+    hasIncorporationCertificate: z.enum(['Yes', 'No']).optional(),
     dateOfIncorporation: z.string().optional(),
     registrationNo: z.string().optional(),
     aadhaarNumber: z.string().optional(),
 
     // Tax & Statutory
     panNumber: z.string().regex(PAN_REGEX, 'Enter a valid PAN (e.g. ABCDE1234F)'),
+    hasGstRegistration: z.enum(['Yes', 'No']).optional(),
     gstNumber: z
       .string()
       .optional()
       .refine((val) => !val || GST_REGEX.test(val), 'Enter a valid GSTIN'),
-    gstRegistrationType: z.enum(['Regular', 'Composition', 'Unregistered', 'SEZ'], {
-      errorMap: () => ({ message: 'GST registration type is required' }),
-    }),
+    gstRegistrationType: z
+      .enum(['Regular', 'Composition', 'Unregistered', 'SEZ'])
+      .optional(),
     tanNumber: z.string().optional(),
+    hasMsmeRegistration: z.enum(['Yes', 'No']).optional(),
     udyamNumber: z.string().optional(),
+    enterpriseClassification: z.enum(['Micro', 'Small', 'Medium']).optional(),
     tdsSection: z.enum(['194C', '194J'], {
       errorMap: () => ({ message: 'TDS applicable section is required' }),
     }),
@@ -41,9 +45,7 @@ export const vendorCreateSchema = z
     accountHolderName: z.string().min(2, 'Account holder name is required'),
     bankName: z.string().optional(),
     branchName: z.string().optional(),
-    paymentMode: z.enum(['NEFT', 'RTGS', 'UPI', 'Cheque'], {
-      errorMap: () => ({ message: 'Payment mode preference is required' }),
-    }),
+    paymentMode: z.string().min(1, 'Payment mode preference is required'),
 
     // Contact & Address
     contactName: z.string().min(2, 'Contact name is required'),
@@ -58,7 +60,9 @@ export const vendorCreateSchema = z
       ['Goods', 'Services', 'Consulting', 'Logistics', 'IT', 'Grantee-linked'],
       { errorMap: () => ({ message: 'Vendor category is required' }) },
     ),
-    status: z.enum(['Active', 'Inactive']).default('Active'),
+    relatedParty: z.enum(['Yes', 'No'], {
+      errorMap: () => ({ message: 'Select whether the vendor is a related party' }),
+    }),
   })
   .superRefine((data, ctx) => {
     if (data.entityType === 'Individual') {
@@ -70,19 +74,76 @@ export const vendorCreateSchema = z
         });
       }
     } else {
-      if (!data.registrationNo || data.registrationNo.trim().length < 2) {
+      if (data.hasIncorporationCertificate !== 'Yes' && data.hasIncorporationCertificate !== 'No') {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ['registrationNo'],
-          message: 'CIN / Registration number is required',
+          path: ['hasIncorporationCertificate'],
+          message: 'Select whether an Incorporation Certificate is available',
         });
       }
-      if (!data.dateOfIncorporation) {
+      if (data.hasIncorporationCertificate === 'Yes') {
+        if (!data.registrationNo || data.registrationNo.trim().length < 2) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['registrationNo'],
+            message: 'CIN / Registration number is required',
+          });
+        }
+        if (!data.dateOfIncorporation) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['dateOfIncorporation'],
+            message: 'Date of incorporation is required',
+          });
+        }
+      }
+
+      if (data.hasGstRegistration !== 'Yes' && data.hasGstRegistration !== 'No') {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ['dateOfIncorporation'],
-          message: 'Date of incorporation is required',
+          path: ['hasGstRegistration'],
+          message: 'Select whether the vendor is GST registered',
         });
+      }
+      if (data.hasGstRegistration === 'Yes') {
+        if (!data.gstNumber || !GST_REGEX.test(data.gstNumber)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['gstNumber'],
+            message: 'Enter a valid GSTIN',
+          });
+        }
+        if (!data.gstRegistrationType) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['gstRegistrationType'],
+            message: 'GST registration type is required',
+          });
+        }
+      }
+
+      if (data.hasMsmeRegistration !== 'Yes' && data.hasMsmeRegistration !== 'No') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['hasMsmeRegistration'],
+          message: 'Select whether the vendor is MSME registered',
+        });
+      }
+      if (data.hasMsmeRegistration === 'Yes') {
+        if (!data.udyamNumber || data.udyamNumber.trim().length < 2) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['udyamNumber'],
+            message: 'Udyam / MSME number is required',
+          });
+        }
+        if (!data.enterpriseClassification) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['enterpriseClassification'],
+            message: 'Enterprise classification is required',
+          });
+        }
       }
     }
   });
@@ -90,21 +151,25 @@ export const vendorCreateSchema = z
 export const vendorCreateDefaults = {
   entityType: 'Proprietorship',
   legalName: '',
+  hasIncorporationCertificate: 'Yes',
   dateOfIncorporation: '',
   registrationNo: '',
   aadhaarNumber: '',
   panNumber: '',
+  hasGstRegistration: 'No',
   gstNumber: '',
   gstRegistrationType: 'Unregistered',
   tanNumber: '',
+  hasMsmeRegistration: 'No',
   udyamNumber: '',
+  enterpriseClassification: 'Micro',
   tdsSection: '194C',
   accountNumber: '',
   ifscCode: '',
   accountHolderName: '',
   bankName: '',
   branchName: '',
-  paymentMode: 'NEFT',
+  paymentMode: '',
   contactName: '',
   phoneNumber: '',
   contactEmail: '',
@@ -112,5 +177,5 @@ export const vendorCreateDefaults = {
   state: 'Delhi',
   pincode: '',
   vendorCategory: 'Goods',
-  status: 'Active',
+  relatedParty: 'No',
 };

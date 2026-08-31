@@ -1,38 +1,34 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Box, Button, Chip, MenuItem, Select, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import { DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
-import { MOCK_VENDORS } from '../data/mockVendors.js';
+import { useVendors } from '../hooks/useVendors.js';
 
 export function VendorListPage() {
   const navigate = useNavigate();
-  const [vendors] = useState(MOCK_VENDORS);
   const [search, setSearch] = useState('');
   const [entityTypeFilter, setEntityTypeFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const vendorsQuery = useVendors(search);
 
-  const entityTypes = Array.from(new Set(vendors.map((v) => v.entityType))).filter(Boolean);
-  const categories = Array.from(new Set(vendors.map((v) => v.vendorCategory))).filter(Boolean);
+  const vendors = vendorsQuery.data || [];
+  const entityTypes = useMemo(
+    () => Array.from(new Set(vendors.map((v) => v.entityType))).filter(Boolean),
+    [vendors],
+  );
+  const categories = useMemo(
+    () => Array.from(new Set(vendors.map((v) => v.vendorCategory))).filter(Boolean),
+    [vendors],
+  );
 
   const filteredVendors = vendors.filter((vendor) => {
-    const matchesSearch =
-      vendor.vendorCode.toLowerCase().includes(search.toLowerCase()) ||
-      vendor.legalName.toLowerCase().includes(search.toLowerCase()) ||
-      vendor.panNumber.toLowerCase().includes(search.toLowerCase()) ||
-      vendor.contactName.toLowerCase().includes(search.toLowerCase());
-
-    const matchesEntityType =
-      entityTypeFilter === 'All' || vendor.entityType === entityTypeFilter;
-
-    const matchesCategory =
-      categoryFilter === 'All' || vendor.vendorCategory === categoryFilter;
-
+    const matchesEntityType = entityTypeFilter === 'All' || vendor.entityType === entityTypeFilter;
+    const matchesCategory = categoryFilter === 'All' || vendor.vendorCategory === categoryFilter;
     const matchesStatus =
       statusFilter === 'All' || (vendor.status || 'Active').toLowerCase() === statusFilter.toLowerCase();
-
-    return matchesSearch && matchesEntityType && matchesCategory && matchesStatus;
+    return matchesEntityType && matchesCategory && matchesStatus;
   });
 
   const columns = [
@@ -177,8 +173,12 @@ export function VendorListPage() {
         columns={columns}
         rows={filteredVendors}
         getRowKey={(r) => r.id}
+        isLoading={vendorsQuery.isPending}
+        error={vendorsQuery.isError ? vendorsQuery.error : null}
+        onRetry={vendorsQuery.refetch}
         onRowClick={(r) => navigate(`/vendor-registration/${r.id}`)}
         emptyTitle="No vendors found"
+        emptyDescription="Register the first vendor to see it here."
       />
     </>
   );

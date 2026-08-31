@@ -17,26 +17,19 @@ import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { PageHeader, RhfTextField, RhfSelect } from '../../../shared/components/index.js';
 import { geographyService } from '../../donor-management/services/geographyService.js';
+import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
+import { useCreateEmployee } from '../hooks/useEmployees.js';
+import { useDepartments } from '../../masters/hooks/useDepartments.js';
+import { useDesignations } from '../../masters/hooks/useDesignations.js';
+import { useProgrammes } from '../../donor-management/hooks/useProgrammes.js';
 import {
   employeeCreateSchema,
   employeeCreateDefaults,
 } from '../validation/employeeCreateSchema.js';
 
-const DEPARTMENT_OPTIONS = [
-  { value: 'DEPT-LEADERSHIP', label: 'DEPT-LEADERSHIP' },
-  { value: 'DEPT-PROCESS', label: 'DEPT-PROCESS' },
-  { value: 'DEPT-SPP', label: 'DEPT-SPP' },
-  { value: 'DEPT-PMU-CPCB', label: 'DEPT-PMU-CPCB' },
-];
-
 const BUCKET_OPTIONS = [
   { value: 'Admin', label: 'Admin' },
   { value: 'Project', label: 'Project' },
-];
-
-const PROGRAMME_OPTIONS = [
-  { value: 'PP1', label: 'PP1' },
-  { value: 'PP6', label: 'PP6' },
 ];
 
 const EMPLOYMENT_TYPE_OPTIONS = [
@@ -70,21 +63,51 @@ export function EmployeeCreatePage() {
       .catch((err) => console.error('Error fetching states:', err));
   }, []);
 
-  const { control, handleSubmit } = useForm({
+  const createEmployee = useCreateEmployee();
+  const departmentsQuery = useDepartments();
+  const designationsQuery = useDesignations();
+  const programmesQuery = useProgrammes();
+
+  const departmentOptions = (departmentsQuery.data || [])
+    .filter((dept) => dept.status === 'ACTIVE')
+    .map((dept) => ({ value: dept.id, label: dept.name }));
+
+  const programmeOptions = (programmesQuery.data || [])
+    .filter((programme) => programme.isActive)
+    .map((programme) => ({ value: programme.id, label: programme.programmeName }));
+
+  const { control, handleSubmit, setError, setValue } = useForm({
     resolver: zodResolver(employeeCreateSchema),
     defaultValues: employeeCreateDefaults,
   });
 
   const selectedBucket = useWatch({ control, name: 'bucket' });
+  const selectedDepartmentId = useWatch({ control, name: 'departmentId' });
 
-  const onSubmit = (values) => {
-    const payload = {
-      ...values,
-      primaryProgramme: values.bucket === 'Project' ? values.primaryProgramme : '',
-    };
-    console.log('Creating Employee Master Record:', payload);
-    alert(`Employee "${values.name}" (${values.empId}) added successfully!`);
-    navigate('/employee-list');
+  const designationOptions = (designationsQuery.data || [])
+    .filter((desig) => desig.status === 'ACTIVE' && desig.departmentId === selectedDepartmentId)
+    .map((desig) => ({ value: desig.id, label: desig.name }));
+
+  // Designation options depend on the selected department — drop a stale
+  // pick when the department changes to a set that no longer contains it.
+  useEffect(() => {
+    setValue('designationId', '');
+  }, [selectedDepartmentId, setValue]);
+
+  // Primary programme only applies to the Project bucket.
+  useEffect(() => {
+    if (selectedBucket !== 'Project') {
+      setValue('primaryProgrammeId', '');
+    }
+  }, [selectedBucket, setValue]);
+
+  const onSubmit = async (values) => {
+    try {
+      const created = await createEmployee.mutateAsync(values);
+      navigate(`/employee-list/${created.id}`);
+    } catch (error) {
+      applyServerErrors(error, setError);
+    }
   };
 
   return (
@@ -157,21 +180,39 @@ export function EmployeeCreatePage() {
 
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <RhfSelect
-                  name="department"
+                  name="departmentId"
                   control={control}
                   label="Department (F4)"
                   required
-                  options={DEPARTMENT_OPTIONS}
+                  disabled={departmentsQuery.isLoading}
+                  options={departmentOptions}
+                  helperText={
+                    departmentsQuery.isLoading
+                      ? 'Loading departments…'
+                      : departmentOptions.length === 0
+                        ? 'No active departments configured.'
+                        : undefined
+                  }
                 />
               </Grid>
 
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <RhfTextField
-                  name="designation"
+                <RhfSelect
+                  name="designationId"
                   control={control}
                   label="Designation"
-                  placeholder="e.g. Finance Manager"
                   required
+                  disabled={designationsQuery.isLoading || !selectedDepartmentId}
+                  options={designationOptions}
+                  helperText={
+                    designationsQuery.isLoading
+                      ? 'Loading designations…'
+                      : !selectedDepartmentId
+                        ? 'Select a department first.'
+                        : designationOptions.length === 0
+                          ? 'No active designations for this department.'
+                          : undefined
+                  }
                 />
               </Grid>
 
@@ -188,11 +229,19 @@ export function EmployeeCreatePage() {
               {selectedBucket === 'Project' && (
                 <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                   <RhfSelect
-                    name="primaryProgramme"
+                    name="primaryProgrammeId"
                     control={control}
                     label="Primary Programme"
                     required
-                    options={PROGRAMME_OPTIONS}
+                    disabled={programmesQuery.isLoading}
+                    options={programmeOptions}
+                    helperText={
+                      programmesQuery.isLoading
+                        ? 'Loading programmes…'
+                        : programmeOptions.length === 0
+                          ? 'No active programmes configured.'
+                          : undefined
+                    }
                   />
                 </Grid>
               )}
@@ -285,11 +334,17 @@ export function EmployeeCreatePage() {
             variant="contained"
             size="large"
             startIcon={<SaveIcon />}
+            disabled={createEmployee.isPending}
             sx={{ px: 4, fontWeight: 700, borderRadius: 2 }}
           >
-            Save Employee
+            {createEmployee.isPending ? 'Saving…' : 'Save Employee'}
           </Button>
         </Stack>
+        {createEmployee.isError && !createEmployee.error?.isValidationError ? (
+          <Typography color="error.main" sx={{ mt: 2, textAlign: 'right' }}>
+            {createEmployee.error?.message || 'Failed to add employee.'}
+          </Typography>
+        ) : null}
       </form>
     </Box>
   );

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Alert,
   Avatar,
   Box,
   Button,
@@ -14,8 +15,8 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import StorefrontIcon from '@mui/icons-material/Storefront';
-import { ConfirmDialog, PageHeader } from '../../../shared/components/index.js';
-import { MOCK_VENDORS } from '../data/mockVendors.js';
+import { ConfirmDialog, ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
+import { useVendor, useVendorLifecycle } from '../hooks/useVendors.js';
 
 function DetailField({ label, value, chip = null }) {
   return (
@@ -48,26 +49,23 @@ function SectionTitle({ children }) {
 export function VendorDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const vendorQuery = useVendor(id);
+  const lifecycle = useVendorLifecycle(id);
+  const [pendingAction, setPendingAction] = useState(null);
 
-  const vendorRecord =
-    MOCK_VENDORS.find((v) => v.id === id || v.vendorCode.toLowerCase() === id?.toLowerCase()) ||
-    MOCK_VENDORS[0];
+  if (vendorQuery.isPending) return <LoadingState label="Loading vendor…" />;
+  if (vendorQuery.isError) {
+    return <ErrorState error={vendorQuery.error} onRetry={vendorQuery.refetch} />;
+  }
 
-  const [status, setStatus] = useState(vendorRecord.status || 'Active');
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const vendorRecord = vendorQuery.data;
   const isIndividual = vendorRecord.entityType === 'Individual';
+  const isActive = vendorRecord.status === 'Active';
 
-  const handleConfirmStatusChange = () => {
-    const nextStatus = status === 'Active' ? 'Inactive' : 'Active';
-    setStatus(nextStatus);
-    setDialogOpen(false);
+  const runLifecycle = async () => {
+    await lifecycle.mutateAsync(pendingAction);
+    setPendingAction(null);
   };
-
-  const isActive = status === 'Active';
-
-  const dialogDescription = isActive
-    ? 'Are you sure you want to change the status of this vendor from active to inactive?'
-    : 'Are you sure you want to change the status of this vendor from inactive to active?';
 
   return (
     <Box>
@@ -79,7 +77,7 @@ export function VendorDetailPage() {
             <Button
               variant="outlined"
               color={isActive ? 'warning' : 'success'}
-              onClick={() => setDialogOpen(true)}
+              onClick={() => setPendingAction(isActive ? 'deactivate' : 'activate')}
               sx={{ fontWeight: 600 }}
             >
               {isActive ? 'Mark Inactive' : 'Mark Active'}
@@ -107,7 +105,7 @@ export function VendorDetailPage() {
                   {vendorRecord.legalName}
                 </Typography>
                 <Chip
-                  label={status}
+                  label={vendorRecord.status}
                   color={isActive ? 'success' : 'error'}
                   size="small"
                   variant="outlined"
@@ -134,8 +132,16 @@ export function VendorDetailPage() {
               <DetailField label="Aadhaar Number" value={vendorRecord.aadhaarNumber} />
             ) : (
               <>
-                <DetailField label="Date of Incorporation" value={vendorRecord.dateOfIncorporation} />
-                <DetailField label="CIN / Registration No." value={vendorRecord.registrationNo} />
+                <DetailField
+                  label="Incorporation Certificate"
+                  value={vendorRecord.hasIncorporationCertificate}
+                />
+                {vendorRecord.hasIncorporationCertificate === 'Yes' && (
+                  <>
+                    <DetailField label="Date of Incorporation" value={vendorRecord.dateOfIncorporation} />
+                    <DetailField label="CIN / Registration No." value={vendorRecord.registrationNo} />
+                  </>
+                )}
               </>
             )}
           </Grid>
@@ -147,10 +153,24 @@ export function VendorDetailPage() {
             <DetailField label="PAN Number" value={vendorRecord.panNumber} />
             {!isIndividual && (
               <>
-                <DetailField label="GST Number" value={vendorRecord.gstNumber || 'Not registered'} />
-                <DetailField label="GST Registration Type" value={vendorRecord.gstRegistrationType} />
+                <DetailField label="GST Registration" value={vendorRecord.hasGstRegistration} />
+                {vendorRecord.hasGstRegistration === 'Yes' && (
+                  <>
+                    <DetailField label="GST Number" value={vendorRecord.gstNumber} />
+                    <DetailField label="GST Registration Type" value={vendorRecord.gstRegistrationType} />
+                  </>
+                )}
                 <DetailField label="TAN Number" value={vendorRecord.tanNumber || '—'} />
-                <DetailField label="Udyam / MSME Number" value={vendorRecord.udyamNumber || '—'} />
+                <DetailField label="MSME Registered" value={vendorRecord.hasMsmeRegistration} />
+                {vendorRecord.hasMsmeRegistration === 'Yes' && (
+                  <>
+                    <DetailField label="Udyam / MSME Number" value={vendorRecord.udyamNumber} />
+                    <DetailField
+                      label="Enterprise Classification"
+                      value={vendorRecord.enterpriseClassification}
+                    />
+                  </>
+                )}
               </>
             )}
             <DetailField label="TDS Applicable Section" value={vendorRecord.tdsSection} />
@@ -197,11 +217,24 @@ export function VendorDetailPage() {
               }
             />
             <DetailField
-              label="Status"
-              value={status}
+              label="Related Party"
+              value={vendorRecord.relatedParty}
               chip={
                 <Chip
-                  label={status}
+                  label={vendorRecord.relatedParty}
+                  color={vendorRecord.relatedParty === 'Yes' ? 'warning' : 'default'}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontWeight: 600, minWidth: 50 }}
+                />
+              }
+            />
+            <DetailField
+              label="Status"
+              value={vendorRecord.status}
+              chip={
+                <Chip
+                  label={vendorRecord.status}
                   color={isActive ? 'success' : 'error'}
                   size="small"
                   variant="outlined"
@@ -210,17 +243,28 @@ export function VendorDetailPage() {
               }
             />
           </Grid>
+          {vendorRecord.relatedParty === 'Yes' && (
+            <Alert severity="warning" variant="outlined" sx={{ mt: 2 }}>
+              This vendor is flagged as a related party and is subject to additional compliance
+              review.
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
       <ConfirmDialog
-        open={dialogOpen}
-        title="Change Vendor Status"
-        description={dialogDescription}
-        confirmLabel="Confirm"
-        confirmColor={isActive ? 'warning' : 'primary'}
-        onConfirm={handleConfirmStatusChange}
-        onClose={() => setDialogOpen(false)}
+        open={Boolean(pendingAction)}
+        title={pendingAction === 'activate' ? 'Mark vendor active' : 'Mark vendor inactive'}
+        description={
+          pendingAction === 'activate'
+            ? `Mark ${vendorRecord.legalName} as active again?`
+            : `Mark ${vendorRecord.legalName} as inactive? It will be excluded from new activity until reactivated.`
+        }
+        confirmLabel={pendingAction === 'activate' ? 'Mark Active' : 'Mark Inactive'}
+        confirmColor={pendingAction === 'activate' ? 'primary' : 'warning'}
+        busy={lifecycle.isPending}
+        onConfirm={runLifecycle}
+        onClose={() => setPendingAction(null)}
       />
     </Box>
   );
