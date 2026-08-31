@@ -13,7 +13,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     boolean existsByEmpId(String empId);
 
     @Query("SELECT e FROM Employee e WHERE e.name LIKE %:searchTerm% "
-            + "OR e.empId LIKE %:searchTerm% OR e.designation LIKE %:searchTerm% "
-            + "OR e.department LIKE %:searchTerm% OR e.state LIKE %:searchTerm%")
+            + "OR e.empId LIKE %:searchTerm% OR e.state LIKE %:searchTerm%")
     List<Employee> searchEmployees(@Param("searchTerm") String searchTerm);
 }

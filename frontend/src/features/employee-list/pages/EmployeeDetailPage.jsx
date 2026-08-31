@@ -66,7 +66,7 @@ export function EmployeeDetailPage() {
     <Box>
       <PageHeader
         title={employeeRecord.name}
-        subtitle={`${employeeRecord.empId} · ${employeeRecord.designation} · ${employeeRecord.department}`}
+        subtitle={`${employeeRecord.empId} · ${employeeRecord.designationName} · ${employeeRecord.departmentName}`}
         actions={
           <Stack direction="row" spacing={1.5}>
             <Button
@@ -131,10 +131,10 @@ export function EmployeeDetailPage() {
               }
             />
             <DetailField label="Employee Name" value={employeeRecord.name} />
-            <DetailField label="Department (F4)" value={employeeRecord.department} />
-            <DetailField label="Designation" value={employeeRecord.designation} />
+            <DetailField label="Department (F4)" value={employeeRecord.departmentName} />
+            <DetailField label="Designation" value={employeeRecord.designationName} />
             <DetailField label="Bucket" value={employeeRecord.bucket} />
-            <DetailField label="Primary Programme" value={employeeRecord.primaryProgramme || 'None'} />
+            <DetailField label="Primary Programme" value={employeeRecord.primaryProgrammeName || 'None'} />
             <DetailField label="State" value={employeeRecord.state} />
             <DetailField
               label="Employment Type"

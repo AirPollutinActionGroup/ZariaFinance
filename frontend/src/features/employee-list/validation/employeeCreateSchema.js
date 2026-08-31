@@ -3,10 +3,10 @@ import { z } from 'zod';
 export const employeeCreateSchema = z.object({
   empId: z.string().min(2, 'Employee ID is required'),
   name: z.string().min(2, 'Employee name is required'),
-  department: z.string().min(2, 'Department is required'),
-  designation: z.string().min(2, 'Designation is required'),
+  departmentId: z.union([z.string(), z.number()]).refine((val) => val !== '' && val != null, 'Department is required'),
+  designationId: z.union([z.string(), z.number()]).refine((val) => val !== '' && val != null, 'Designation is required'),
   bucket: z.string().min(1, 'Bucket is required'),
-  primaryProgramme: z.string().optional(),
+  primaryProgrammeId: z.union([z.string(), z.number()]).optional(),
   state: z.string().min(1, 'State is required'),
   annualCtc: z
     .string()
@@ -24,10 +24,10 @@ export const employeeCreateSchema = z.object({
 export const employeeCreateDefaults = {
   empId: '',
   name: '',
-  department: 'DEPT-PROCESS',
-  designation: '',
+  departmentId: '',
+  designationId: '',
   bucket: 'Admin',
-  primaryProgramme: '',
+  primaryProgrammeId: '',
   state: 'Delhi',
   annualCtc: '',
   employmentType: 'Permanent',

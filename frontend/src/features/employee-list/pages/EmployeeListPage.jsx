@@ -24,7 +24,7 @@ export function EmployeeListPage() {
 
   const employees = employeesQuery.data || [];
   const departments = useMemo(
-    () => Array.from(new Set(employees.map((e) => e.department))).filter(Boolean),
+    () => Array.from(new Set(employees.map((e) => e.departmentName))).filter(Boolean),
     [employees],
   );
   const buckets = useMemo(
@@ -36,12 +36,12 @@ export function EmployeeListPage() {
     const matchesSearch =
       emp.empId.toLowerCase().includes(search.toLowerCase()) ||
       emp.name.toLowerCase().includes(search.toLowerCase()) ||
-      emp.designation.toLowerCase().includes(search.toLowerCase()) ||
-      emp.department.toLowerCase().includes(search.toLowerCase()) ||
+      emp.designationName.toLowerCase().includes(search.toLowerCase()) ||
+      emp.departmentName.toLowerCase().includes(search.toLowerCase()) ||
       emp.state.toLowerCase().includes(search.toLowerCase());
 
     const matchesDept =
-      departmentFilter === 'All' || emp.department === departmentFilter;
+      departmentFilter === 'All' || emp.departmentName === departmentFilter;
 
     const matchesType =
       typeFilter === 'All' || emp.employmentType.toLowerCase() === typeFilter.toLowerCase();
@@ -73,20 +73,20 @@ export function EmployeeListPage() {
       render: (r) => <b>{r.name}</b>,
     },
     {
-      key: 'department',
+      key: 'departmentName',
       header: 'Department (F4)',
       width: 180,
       render: (r) => (
         <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: 12.5, fontWeight: 600 }}>
-          {r.department}
+          {r.departmentName}
         </Typography>
       ),
     },
     {
-      key: 'designation',
+      key: 'designationName',
       header: 'Designation',
       width: 220,
-      render: (r) => r.designation,
+      render: (r) => r.designationName,
     },
     {
       key: 'bucket',

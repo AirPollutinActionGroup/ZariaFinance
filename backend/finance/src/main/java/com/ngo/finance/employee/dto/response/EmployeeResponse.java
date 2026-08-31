@@ -24,13 +24,19 @@ public class EmployeeResponse {
 
     private String name;
 
-    private String department;
+    private Long departmentId;
 
-    private String designation;
+    private String departmentName;
+
+    private Long designationId;
+
+    private String designationName;
 
     private String bucket;
 
-    private String primaryProgramme;
+    private Long primaryProgrammeId;
+
+    private String primaryProgrammeName;
 
     private String state;
 

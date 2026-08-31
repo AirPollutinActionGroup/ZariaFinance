@@ -25,17 +25,18 @@ public class CreateEmployeeRequest {
     @NotBlank(message = "Employee name is required")
     private String name;
 
-    @NotBlank(message = "Department is required")
-    private String department;
+    @NotNull(message = "Department is required")
+    private Long departmentId;
 
-    @NotBlank(message = "Designation is required")
-    private String designation;
+    @NotNull(message = "Designation is required")
+    private Long designationId;
 
     @NotBlank(message = "Bucket is required")
     @Pattern(regexp = "Admin|Project", message = "Bucket is not a recognised value")
     private String bucket;
 
-    private String primaryProgramme;
+    /** Required only when bucket is "Project" — enforced in the service layer. */
+    private Long primaryProgrammeId;
 
     @NotBlank(message = "State is required")
     private String state;

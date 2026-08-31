@@ -20,6 +20,9 @@ public interface EmployeeMapper {
     @Mapping(target = "updatedBy", ignore = true)
     Employee toEntity(CreateEmployeeRequest request);
 
+    @Mapping(target = "departmentName", ignore = true)
+    @Mapping(target = "designationName", ignore = true)
+    @Mapping(target = "primaryProgrammeName", ignore = true)
     @Mapping(target = "status", expression = "java(Boolean.TRUE.equals(entity.getStatus()) ? \"Active\" : \"Inactive\")")
     EmployeeResponse toResponse(Employee entity);
 }

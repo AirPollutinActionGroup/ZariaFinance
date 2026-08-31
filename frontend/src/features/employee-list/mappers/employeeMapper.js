@@ -17,10 +17,10 @@ export function toCreateEmployeeRequest(values) {
   return {
     empId: values.empId.trim(),
     name: values.name.trim(),
-    department: values.department,
-    designation: values.designation.trim(),
+    departmentId: values.departmentId,
+    designationId: values.designationId,
     bucket: values.bucket,
-    primaryProgramme: isProject ? values.primaryProgramme : null,
+    primaryProgrammeId: isProject ? values.primaryProgrammeId : null,
     state: values.state,
     annualCtc: Number(String(values.annualCtc).replace(/,/g, '')),
     employmentType: values.employmentType,

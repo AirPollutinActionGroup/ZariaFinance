@@ -29,17 +29,17 @@ public class Employee extends AuditEntity {
     @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(nullable = false, length = 50)
-    private String department;
+    @Column(name = "department_id", nullable = false)
+    private Long departmentId;
 
-    @Column(nullable = false, length = 255)
-    private String designation;
+    @Column(name = "designation_id", nullable = false)
+    private Long designationId;
 
     @Column(nullable = false, length = 20)
     private String bucket;
 
-    @Column(name = "primary_programme", length = 20)
-    private String primaryProgramme;
+    @Column(name = "primary_programme_id")
+    private Long primaryProgrammeId;
 
     @Column(nullable = false, length = 100)
     private String state;

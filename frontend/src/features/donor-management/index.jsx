@@ -83,8 +83,8 @@ export const donorManagementModule = {
     { label: 'Bank Details', path: '/bank-details', icon: AccountBalanceOutlinedIcon },
     { label: 'Financial Year', path: '/financial-years', icon: CalendarMonthOutlinedIcon },
 
-    { label: 'Transaction Entry', path: '/transaction-entry', icon: ReceiptLongOutlinedIcon },
     { label: 'Payment Type', path: '/payment-types', icon: AccountTreeOutlinedIcon },
+    { label: 'Transaction Entry', path: '/transaction-entry', icon: ReceiptLongOutlinedIcon },
     { label: 'Payment Window(Cr/Dr)', path: '/new-transaction', icon: ReceiptOutlinedIcon },
     { label: 'Inflow Budget', path: '/inflow-budget', icon: TrendingUpOutlinedIcon },
     { label: 'Outflow Budget', path: '/outflow-budget', icon: TrendingDownOutlinedIcon },
