@@ -92,5 +92,6 @@ export const queryKeys = {
     all: () => ['employees'],
     list: (search) => ['employees', 'list', { search: search || '' }],
     detail: (id) => ['employees', 'detail', String(id)],
+    updateLogs: (id) => ['employees', 'updateLogs', String(id)],
   },
 };

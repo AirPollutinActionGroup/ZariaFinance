@@ -30,4 +30,8 @@ export const employeeService = {
   async updateEmployeeStatus(id, status) {
     await employeeApi.updateStatus(id, status);
   },
+
+  async getEmployeeUpdateLogs(id) {
+    return employeeApi.getUpdateLogs(id);
+  },
 };

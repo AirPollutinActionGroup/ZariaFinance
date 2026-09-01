@@ -3,6 +3,7 @@ package com.ngo.finance.employee.service;
 import com.ngo.finance.employee.dto.request.CreateEmployeeRequest;
 import com.ngo.finance.employee.dto.request.UpdateEmployeeRequest;
 import com.ngo.finance.employee.dto.response.EmployeeResponse;
+import com.ngo.finance.employee.dto.response.EmployeeUpdateLogResponse;
 import java.util.List;
 
 public interface EmployeeService {
@@ -17,4 +18,6 @@ public interface EmployeeService {
     List<EmployeeResponse> searchEmployees(String searchTerm);
 
     void updateStatus(Long id, String status);
+
+    List<EmployeeUpdateLogResponse> getUpdateLogs(Long id);
 }

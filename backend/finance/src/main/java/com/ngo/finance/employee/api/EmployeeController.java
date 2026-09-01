@@ -4,6 +4,7 @@ import com.ngo.finance.employee.dto.request.CreateEmployeeRequest;
 import com.ngo.finance.employee.dto.request.UpdateEmployeeRequest;
 import com.ngo.finance.employee.dto.request.UpdateEmployeeStatusRequest;
 import com.ngo.finance.employee.dto.response.EmployeeResponse;
+import com.ngo.finance.employee.dto.response.EmployeeUpdateLogResponse;
 import com.ngo.finance.employee.service.EmployeeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -75,5 +76,12 @@ public class EmployeeController {
         log.info("PATCH /api/v1/employees/{}/status - Updating status to {}", id, request.getStatus());
         employeeService.updateStatus(id, request.getStatus());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/update-logs")
+    @Operation(summary = "Get an employee's field-level change history")
+    public ResponseEntity<List<EmployeeUpdateLogResponse>> getUpdateLogs(@PathVariable Long id) {
+        log.info("GET /api/v1/employees/{}/update-logs - Fetching update logs", id);
+        return ResponseEntity.ok(employeeService.getUpdateLogs(id));
     }
 }

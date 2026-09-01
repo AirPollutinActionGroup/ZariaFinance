@@ -12,9 +12,12 @@ import com.ngo.finance.employee.EmployeeStatuses;
 import com.ngo.finance.employee.dto.request.CreateEmployeeRequest;
 import com.ngo.finance.employee.dto.request.UpdateEmployeeRequest;
 import com.ngo.finance.employee.dto.response.EmployeeResponse;
+import com.ngo.finance.employee.dto.response.EmployeeUpdateLogResponse;
 import com.ngo.finance.employee.entity.Employee;
+import com.ngo.finance.employee.entity.EmployeeUpdateLog;
 import com.ngo.finance.employee.mapper.EmployeeMapper;
 import com.ngo.finance.employee.repository.EmployeeRepository;
+import com.ngo.finance.employee.repository.EmployeeUpdateLogRepository;
 import com.ngo.finance.employee.service.EmployeeService;
 import com.ngo.finance.masters.department.entity.Department;
 import com.ngo.finance.masters.department.repository.DepartmentRepository;
@@ -22,8 +25,10 @@ import com.ngo.finance.masters.designation.entity.Designation;
 import com.ngo.finance.masters.designation.repository.DesignationRepository;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -52,6 +57,8 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final StateRepository stateRepository;
 
     private final CityRepository cityRepository;
+
+    private final EmployeeUpdateLogRepository employeeUpdateLogRepository;
 
     private final EmployeeMapper employeeMapper;
 
@@ -96,6 +103,11 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new ValidationException("An employee with ID '" + request.getEmpId() + "' already exists");
         }
 
+        Map<String, String> before = buildFieldSnapshot(employee, requireDepartment(employee.getDepartmentId()),
+                requireDesignation(employee.getDesignationId()), stateRepository.findAllById(employee.getStateIds()),
+                cityRepository.findAllById(employee.getCityIds()),
+                programmeRepository.findAllById(employee.getPrimaryProgrammeIds()));
+
         RelatedEntities related = resolveAndValidateRelated(
                 request.getDepartmentId(), request.getDesignationId(), request.getStateIds(),
                 request.getCityIds(), request.getBucket(), request.getPrimaryProgrammeIds());
@@ -106,6 +118,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         Employee saved = employeeRepository.save(employee);
         log.info("Employee updated successfully");
+
+        Map<String, String> after = buildFieldSnapshot(saved, related);
+        recordFieldChanges(saved.getId(), before, after);
 
         return toResponseWithNames(saved, related);
     }
@@ -145,9 +160,37 @@ public class EmployeeServiceImpl implements EmployeeService {
         log.info("Updating status of employee with id: {} to {}", id, status);
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", id));
+        String previousStatus = employee.getStatus();
         employee.setStatus(status);
         employeeRepository.save(employee);
+        if (!Objects.equals(previousStatus, status)) {
+            employeeUpdateLogRepository.save(EmployeeUpdateLog.builder()
+                    .employeeId(id)
+                    .fieldName("Status")
+                    .oldValue(previousStatus)
+                    .newValue(status)
+                    .build());
+        }
         log.info("Employee status updated successfully");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EmployeeUpdateLogResponse> getUpdateLogs(Long id) {
+        log.debug("Fetching update logs for employee with id: {}", id);
+        if (!employeeRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Employee", id);
+        }
+        return employeeUpdateLogRepository.findByEmployeeIdOrderByCreatedAtDesc(id).stream()
+                .map(entry -> EmployeeUpdateLogResponse.builder()
+                        .id(entry.getId())
+                        .fieldName(entry.getFieldName())
+                        .oldValue(entry.getOldValue())
+                        .newValue(entry.getNewValue())
+                        .changedAt(entry.getCreatedAt())
+                        .changedBy(entry.getCreatedBy())
+                        .build())
+                .toList();
     }
 
     /** Resolves department/designation/states/cities/programmes and enforces the cross-field rules. */
@@ -177,6 +220,55 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
 
         return new RelatedEntities(department, designation, states, cities, programmes);
+    }
+
+    /** Human-readable field-name -> display-value snapshot, for diffing before/after an edit. */
+    private Map<String, String> buildFieldSnapshot(Employee employee, RelatedEntities related) {
+        return buildFieldSnapshot(employee, related.department(), related.designation(), related.states(),
+                related.cities(), related.programmes());
+    }
+
+    private Map<String, String> buildFieldSnapshot(
+            Employee employee, Department department, Designation designation, List<StateMaster> states,
+            List<CityMaster> cities, List<Programme> programmes) {
+        Map<String, String> snapshot = new LinkedHashMap<>();
+        snapshot.put("Employee ID", employee.getEmpId());
+        snapshot.put("Name", employee.getName());
+        snapshot.put("Department", department.getName());
+        snapshot.put("Designation", designation.getName());
+        snapshot.put("Bucket", employee.getBucket());
+        snapshot.put("Primary Programme", joinNames(programmes.stream().map(Programme::getProgrammeName).toList()));
+        snapshot.put("State", joinNames(states.stream().map(StateMaster::getStateName).toList()));
+        snapshot.put("City", joinNames(cities.stream().map(CityMaster::getCityName).toList()));
+        snapshot.put("Joining Date", String.valueOf(employee.getJoiningDate()));
+        snapshot.put("Exit Date", employee.getExitDate() != null ? employee.getExitDate().toString() : "");
+        snapshot.put("Annual CTC", employee.getAnnualCtc() != null ? employee.getAnnualCtc().toPlainString() : "");
+        snapshot.put("Employment Type", employee.getEmploymentType());
+        snapshot.put("PF", employee.getPf());
+        snapshot.put("ESI", employee.getEsi());
+        snapshot.put("Gratuity", employee.getGratuity());
+        snapshot.put("Status", employee.getStatus());
+        return snapshot;
+    }
+
+    private String joinNames(List<String> names) {
+        return names.isEmpty() ? "" : String.join(", ", names);
+    }
+
+    /** Writes one log row per field whose display value actually changed. */
+    private void recordFieldChanges(Long employeeId, Map<String, String> before, Map<String, String> after) {
+        for (Map.Entry<String, String> field : before.entrySet()) {
+            String oldValue = field.getValue();
+            String newValue = after.get(field.getKey());
+            if (!Objects.equals(oldValue, newValue)) {
+                employeeUpdateLogRepository.save(EmployeeUpdateLog.builder()
+                        .employeeId(employeeId)
+                        .fieldName(field.getKey())
+                        .oldValue(oldValue)
+                        .newValue(newValue)
+                        .build());
+            }
+        }
     }
 
     private void applyRelated(Employee employee, RelatedEntities related) {

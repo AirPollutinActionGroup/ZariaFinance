@@ -19,4 +19,7 @@ export const employeeApi = {
 
   /** PATCH /api/v1/employees/{id}/status — body: { status } → 204. */
   updateStatus: (id, status) => http.patch(`/v1/employees/${id}/status`, { status }),
+
+  /** GET /api/v1/employees/{id}/update-logs → EmployeeUpdateLogResponse[]. */
+  getUpdateLogs: (id) => http.get(`/v1/employees/${id}/update-logs`),
 };

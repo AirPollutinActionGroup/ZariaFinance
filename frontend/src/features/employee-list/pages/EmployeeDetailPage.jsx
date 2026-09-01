@@ -17,9 +17,22 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
 import BadgeIcon from '@mui/icons-material/Badge';
-import { ConfirmDialog, ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
-import { useEmployee, useUpdateEmployeeStatus } from '../hooks/useEmployees.js';
+import { ConfirmDialog, DataTable, ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
+import { useEmployee, useEmployeeUpdateLogs, useUpdateEmployeeStatus } from '../hooks/useEmployees.js';
 import { EMPLOYEE_STATUSES, EMPLOYEE_STATUS_TONE } from '../constants.js';
+
+const UPDATE_LOG_COLUMNS = [
+  { key: 'fieldName', header: 'Field', width: 160 },
+  { key: 'oldValue', header: 'Old Value', render: (r) => r.oldValue || '—' },
+  { key: 'newValue', header: 'New Value', render: (r) => r.newValue || '—' },
+  {
+    key: 'changedAt',
+    header: 'Changed At',
+    width: 180,
+    render: (r) => new Date(r.changedAt).toLocaleString('en-IN'),
+  },
+  { key: 'changedBy', header: 'Changed By', width: 160, render: (r) => r.changedBy || '—' },
+];
 
 function DetailField({ label, value, chip = null }) {
   return (
@@ -46,6 +59,7 @@ export function EmployeeDetailPage() {
   const navigate = useNavigate();
   const employeeQuery = useEmployee(id);
   const updateStatus = useUpdateEmployeeStatus(id);
+  const updateLogsQuery = useEmployeeUpdateLogs(id);
   const [pendingStatus, setPendingStatus] = useState(null);
 
   if (employeeQuery.isPending) return <LoadingState label="Loading employee…" />;
@@ -232,6 +246,19 @@ export function EmployeeDetailPage() {
           </Grid>
         </CardContent>
       </Card>
+
+      {/* UPDATE HISTORY */}
+      <DataTable
+        title="Update History"
+        columns={UPDATE_LOG_COLUMNS}
+        rows={updateLogsQuery.data || []}
+        getRowKey={(r) => r.id}
+        isLoading={updateLogsQuery.isPending}
+        error={updateLogsQuery.isError ? updateLogsQuery.error : null}
+        onRetry={updateLogsQuery.refetch}
+        emptyTitle="No changes recorded yet"
+        emptyDescription="Edits and status changes will show up here."
+      />
 
       {/* CONFIRM STATUS CHANGE DIALOG */}
       <ConfirmDialog
