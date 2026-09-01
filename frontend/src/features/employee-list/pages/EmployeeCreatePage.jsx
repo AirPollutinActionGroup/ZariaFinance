@@ -23,6 +23,7 @@ import { useCreateEmployee } from '../hooks/useEmployees.js';
 import { useDepartments } from '../../masters/hooks/useDepartments.js';
 import { useDesignations } from '../../masters/hooks/useDesignations.js';
 import { useProgrammes } from '../../donor-management/hooks/useProgrammes.js';
+import { EMPLOYEE_STATUSES } from '../constants.js';
 import {
   employeeCreateSchema,
   employeeCreateDefaults,
@@ -43,10 +44,7 @@ const YES_NO_OPTIONS = [
   { value: 'No', label: 'No' },
 ];
 
-const STATUS_OPTIONS = [
-  { value: 'Active', label: 'Active' },
-  { value: 'Inactive', label: 'Inactive' },
-];
+const STATUS_OPTIONS = EMPLOYEE_STATUSES.map((status) => ({ value: status, label: status }));
 
 export function EmployeeCreatePage() {
   const navigate = useNavigate();
@@ -344,6 +342,28 @@ export function EmployeeCreatePage() {
                   label="Annual CTC (Rs)"
                   placeholder="e.g. 1500000"
                   required
+                />
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <RhfTextField
+                  name="joiningDate"
+                  control={control}
+                  label="Joining Date"
+                  type="date"
+                  required
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <RhfTextField
+                  name="exitDate"
+                  control={control}
+                  label="Exit Date"
+                  type="date"
+                  helperText="Only set once the employee has left."
+                  slotProps={{ inputLabel: { shrink: true } }}
                 />
               </Grid>
 

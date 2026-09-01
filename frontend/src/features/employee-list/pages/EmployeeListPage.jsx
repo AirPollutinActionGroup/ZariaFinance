@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import { DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
 import { useEmployees } from '../hooks/useEmployees.js';
+import { EMPLOYEE_STATUSES, EMPLOYEE_STATUS_TONE } from '../constants.js';
 
 export function EmployeeListPage() {
   const navigate = useNavigate();
@@ -121,11 +122,11 @@ export function EmployeeListPage() {
       width: 120,
       align: 'center',
       render: (r) => {
-        const isActive = (r.status || 'Active') === 'Active';
+        const status = r.status || 'Active';
         return (
           <Chip
-            label={r.status || 'Active'}
-            color={isActive ? 'success' : 'error'}
+            label={status}
+            color={EMPLOYEE_STATUS_TONE[status] || 'default'}
             size="small"
             variant="outlined"
             sx={{ fontWeight: 600, minWidth: 75 }}
@@ -217,8 +218,11 @@ export function EmployeeListPage() {
           sx={{ minWidth: 130, borderRadius: 2 }}
         >
           <MenuItem value="All">All Statuses</MenuItem>
-          <MenuItem value="Active">Active</MenuItem>
-          <MenuItem value="Inactive">Inactive</MenuItem>
+          {EMPLOYEE_STATUSES.map((s) => (
+            <MenuItem key={s} value={s}>
+              {s}
+            </MenuItem>
+          ))}
         </Select>
       </Stack>
 

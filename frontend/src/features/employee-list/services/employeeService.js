@@ -19,11 +19,7 @@ export const employeeService = {
     return fromEmployeeResponse(await employeeApi.create(toCreateEmployeeRequest(formValues)));
   },
 
-  async activateEmployee(id) {
-    await employeeApi.activate(id);
-  },
-
-  async deactivateEmployee(id) {
-    await employeeApi.deactivate(id);
+  async updateEmployeeStatus(id, status) {
+    await employeeApi.updateStatus(id, status);
   },
 };

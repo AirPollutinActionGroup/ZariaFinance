@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.AllArgsConstructor;
@@ -62,6 +63,12 @@ public class Employee extends AuditEntity {
     @Builder.Default
     private Set<Long> cityIds = new HashSet<>();
 
+    @Column(name = "joining_date", nullable = false)
+    private LocalDate joiningDate;
+
+    @Column(name = "exit_date")
+    private LocalDate exitDate;
+
     @Column(name = "annual_ctc", nullable = false, precision = 15, scale = 2)
     private BigDecimal annualCtc;
 
@@ -77,7 +84,7 @@ public class Employee extends AuditEntity {
     @Column(nullable = false, length = 3)
     private String gratuity;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 30)
     @Builder.Default
-    private Boolean status = true;
+    private String status = "Active";
 }

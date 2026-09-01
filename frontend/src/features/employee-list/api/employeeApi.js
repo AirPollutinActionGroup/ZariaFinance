@@ -14,9 +14,6 @@ export const employeeApi = {
   /** GET /api/v1/employees[?search=] → EmployeeResponse[]. */
   list: (search) => http.get('/v1/employees', { params: search ? { search } : undefined }),
 
-  /** PATCH /api/v1/employees/{id}/activate → 204. */
-  activate: (id) => http.patch(`/v1/employees/${id}/activate`),
-
-  /** PATCH /api/v1/employees/{id}/deactivate → 204. */
-  deactivate: (id) => http.patch(`/v1/employees/${id}/deactivate`),
+  /** PATCH /api/v1/employees/{id}/status — body: { status } → 204. */
+  updateStatus: (id, status) => http.patch(`/v1/employees/${id}/status`, { status }),
 };

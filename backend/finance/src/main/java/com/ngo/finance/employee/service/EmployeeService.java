@@ -13,7 +13,5 @@ public interface EmployeeService {
 
     List<EmployeeResponse> searchEmployees(String searchTerm);
 
-    void activateEmployee(Long id);
-
-    void deactivateEmployee(Long id);
+    void updateStatus(Long id, String status);
 }

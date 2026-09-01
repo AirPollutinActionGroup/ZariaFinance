@@ -1,6 +1,7 @@
 package com.ngo.finance.employee.api;
 
 import com.ngo.finance.employee.dto.request.CreateEmployeeRequest;
+import com.ngo.finance.employee.dto.request.UpdateEmployeeStatusRequest;
 import com.ngo.finance.employee.dto.response.EmployeeResponse;
 import com.ngo.finance.employee.service.EmployeeService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -57,19 +58,12 @@ public class EmployeeController {
         return ResponseEntity.ok(response);
     }
 
-    @PatchMapping("/{id}/activate")
-    @Operation(summary = "Activate an employee")
-    public ResponseEntity<Void> activateEmployee(@PathVariable Long id) {
-        log.info("PATCH /api/v1/employees/{}/activate - Activating employee", id);
-        employeeService.activateEmployee(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PatchMapping("/{id}/deactivate")
-    @Operation(summary = "Deactivate an employee")
-    public ResponseEntity<Void> deactivateEmployee(@PathVariable Long id) {
-        log.info("PATCH /api/v1/employees/{}/deactivate - Deactivating employee", id);
-        employeeService.deactivateEmployee(id);
+    @PatchMapping("/{id}/status")
+    @Operation(summary = "Change an employee's lifecycle status")
+    public ResponseEntity<Void> updateStatus(
+            @PathVariable Long id, @Valid @RequestBody UpdateEmployeeStatusRequest request) {
+        log.info("PATCH /api/v1/employees/{}/status - Updating status to {}", id, request.getStatus());
+        employeeService.updateStatus(id, request.getStatus());
         return ResponseEntity.noContent().build();
     }
 }

@@ -2,6 +2,7 @@ package com.ngo.finance.employee.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -46,6 +47,10 @@ public class EmployeeResponse {
     private List<Long> cityIds;
 
     private List<String> cityNames;
+
+    private LocalDate joiningDate;
+
+    private LocalDate exitDate;
 
     private BigDecimal annualCtc;
 

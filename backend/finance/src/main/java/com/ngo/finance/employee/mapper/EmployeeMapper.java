@@ -25,6 +25,5 @@ public interface EmployeeMapper {
     @Mapping(target = "primaryProgrammeNames", ignore = true)
     @Mapping(target = "stateNames", ignore = true)
     @Mapping(target = "cityNames", ignore = true)
-    @Mapping(target = "status", expression = "java(Boolean.TRUE.equals(entity.getStatus()) ? \"Active\" : \"Inactive\")")
     EmployeeResponse toResponse(Employee entity);
 }

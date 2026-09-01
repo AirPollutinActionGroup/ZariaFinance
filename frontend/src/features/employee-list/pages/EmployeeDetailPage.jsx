@@ -8,6 +8,8 @@ import {
   Chip,
   Divider,
   Grid,
+  MenuItem,
+  Select,
   Stack,
   Typography,
 } from '@mui/material';
@@ -15,7 +17,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BadgeIcon from '@mui/icons-material/Badge';
 import { ConfirmDialog, ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
-import { useEmployee, useEmployeeLifecycle } from '../hooks/useEmployees.js';
+import { useEmployee, useUpdateEmployeeStatus } from '../hooks/useEmployees.js';
+import { EMPLOYEE_STATUSES, EMPLOYEE_STATUS_TONE } from '../constants.js';
 
 function DetailField({ label, value, chip = null }) {
   return (
@@ -41,8 +44,8 @@ export function EmployeeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const employeeQuery = useEmployee(id);
-  const lifecycle = useEmployeeLifecycle(id);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const updateStatus = useUpdateEmployeeStatus(id);
+  const [pendingStatus, setPendingStatus] = useState(null);
 
   if (employeeQuery.isPending) return <LoadingState label="Loading employee…" />;
   if (employeeQuery.isError) {
@@ -51,16 +54,12 @@ export function EmployeeDetailPage() {
 
   const employeeRecord = employeeQuery.data;
   const status = employeeRecord.status || 'Active';
-  const isActive = status === 'Active';
+  const statusTone = EMPLOYEE_STATUS_TONE[status] || 'default';
 
   const handleConfirmStatusChange = async () => {
-    await lifecycle.mutateAsync(isActive ? 'deactivate' : 'activate');
-    setDialogOpen(false);
+    await updateStatus.mutateAsync(pendingStatus);
+    setPendingStatus(null);
   };
-
-  const dialogDescription = isActive
-    ? 'Are you sure you want to change the status of the employee from active to inactive?'
-    : 'Are you sure you want to change the status of the employee from inactive to active?';
 
   return (
     <Box>
@@ -68,15 +67,21 @@ export function EmployeeDetailPage() {
         title={employeeRecord.name}
         subtitle={`${employeeRecord.empId} · ${employeeRecord.designationName} · ${employeeRecord.departmentName}`}
         actions={
-          <Stack direction="row" spacing={1.5}>
-            <Button
-              variant="outlined"
-              color={isActive ? 'warning' : 'success'}
-              onClick={() => setDialogOpen(true)}
-              sx={{ fontWeight: 600 }}
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Select
+              size="small"
+              value={status}
+              onChange={(e) => {
+                if (e.target.value !== status) setPendingStatus(e.target.value);
+              }}
+              sx={{ minWidth: 200, borderRadius: 2, fontWeight: 600 }}
             >
-              {isActive ? 'Mark Inactive' : 'Mark Active'}
-            </Button>
+              {EMPLOYEE_STATUSES.map((s) => (
+                <MenuItem key={s} value={s}>
+                  {s}
+                </MenuItem>
+              ))}
+            </Select>
             <Button
               variant="outlined"
               startIcon={<ArrowBackIcon />}
@@ -102,7 +107,7 @@ export function EmployeeDetailPage() {
                 </Typography>
                 <Chip
                   label={status}
-                  color={isActive ? 'success' : 'error'}
+                  color={statusTone}
                   size="small"
                   variant="outlined"
                   sx={{ fontWeight: 600 }}
@@ -159,13 +164,15 @@ export function EmployeeDetailPage() {
               chip={
                 <Chip
                   label={status}
-                  color={isActive ? 'success' : 'error'}
+                  color={statusTone}
                   size="small"
                   variant="outlined"
                   sx={{ fontWeight: 600, minWidth: 70 }}
                 />
               }
             />
+            <DetailField label="Joining Date" value={employeeRecord.joiningDate} />
+            <DetailField label="Exit Date" value={employeeRecord.exitDate || 'Still employed'} />
             <DetailField
               label="Provident Fund (PF)"
               value={employeeRecord.pf}
@@ -218,16 +225,16 @@ export function EmployeeDetailPage() {
         </CardContent>
       </Card>
 
-      {/* CONFIRM STATUS TOGGLE DIALOG */}
+      {/* CONFIRM STATUS CHANGE DIALOG */}
       <ConfirmDialog
-        open={dialogOpen}
+        open={Boolean(pendingStatus)}
         title="Change Employee Status"
-        description={dialogDescription}
+        description={`Change ${employeeRecord.name}'s status from "${status}" to "${pendingStatus}"?`}
         confirmLabel="Confirm"
-        confirmColor={isActive ? 'warning' : 'primary'}
-        busy={lifecycle.isPending}
+        confirmColor={pendingStatus === 'Active' ? 'primary' : 'warning'}
+        busy={updateStatus.isPending}
         onConfirm={handleConfirmStatusChange}
-        onClose={() => setDialogOpen(false)}
+        onClose={() => setPendingStatus(null)}
       />
     </Box>
   );

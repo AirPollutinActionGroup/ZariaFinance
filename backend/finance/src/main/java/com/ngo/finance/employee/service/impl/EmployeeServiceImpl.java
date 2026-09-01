@@ -8,6 +8,7 @@ import com.ngo.finance.donor.entity.StateMaster;
 import com.ngo.finance.donor.repository.CityRepository;
 import com.ngo.finance.donor.repository.ProgrammeRepository;
 import com.ngo.finance.donor.repository.StateRepository;
+import com.ngo.finance.employee.EmployeeStatuses;
 import com.ngo.finance.employee.dto.request.CreateEmployeeRequest;
 import com.ngo.finance.employee.dto.response.EmployeeResponse;
 import com.ngo.finance.employee.entity.Employee;
@@ -86,7 +87,9 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
 
         Employee employee = employeeMapper.toEntity(request);
-        employee.setStatus(request.getStatus() == null || request.getStatus());
+        employee.setStatus(request.getStatus() == null || request.getStatus().isBlank()
+                ? EmployeeStatuses.ACTIVE
+                : request.getStatus());
         employee.setStateIds(new HashSet<>(request.getStateIds()));
         employee.setCityIds(request.getCityIds() == null ? new HashSet<>() : new HashSet<>(request.getCityIds()));
         employee.setPrimaryProgrammeIds(
@@ -128,23 +131,13 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
-    public void activateEmployee(Long id) {
-        log.info("Activating employee with id: {}", id);
+    public void updateStatus(Long id, String status) {
+        log.info("Updating status of employee with id: {} to {}", id, status);
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", id));
-        employee.setStatus(true);
+        employee.setStatus(status);
         employeeRepository.save(employee);
-        log.info("Employee activated successfully");
-    }
-
-    @Override
-    public void deactivateEmployee(Long id) {
-        log.info("Deactivating employee with id: {}", id);
-        Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee", id));
-        employee.setStatus(false);
-        employeeRepository.save(employee);
-        log.info("Employee deactivated successfully");
+        log.info("Employee status updated successfully");
     }
 
     private Department requireDepartment(Long departmentId) {

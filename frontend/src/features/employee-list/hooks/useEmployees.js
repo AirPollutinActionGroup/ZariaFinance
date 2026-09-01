@@ -25,12 +25,10 @@ export function useCreateEmployee() {
   });
 }
 
-/** activate | deactivate with shared invalidation. */
-export function useEmployeeLifecycle(id) {
+export function useUpdateEmployeeStatus(id) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (action) =>
-      action === 'activate' ? employeeService.activateEmployee(id) : employeeService.deactivateEmployee(id),
+    mutationFn: (status) => employeeService.updateEmployeeStatus(id, status),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() }),
   });
 }
