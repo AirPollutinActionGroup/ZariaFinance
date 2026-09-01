@@ -10,6 +10,7 @@ import com.ngo.finance.donor.repository.ProgrammeRepository;
 import com.ngo.finance.donor.repository.StateRepository;
 import com.ngo.finance.employee.EmployeeStatuses;
 import com.ngo.finance.employee.dto.request.CreateEmployeeRequest;
+import com.ngo.finance.employee.dto.request.UpdateEmployeeRequest;
 import com.ngo.finance.employee.dto.response.EmployeeResponse;
 import com.ngo.finance.employee.entity.Employee;
 import com.ngo.finance.employee.mapper.EmployeeMapper;
@@ -54,6 +55,12 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeMapper employeeMapper;
 
+    /** Resolved + validated master-data references shared by create and update. */
+    private record RelatedEntities(
+            Department department, Designation designation, List<StateMaster> states,
+            List<CityMaster> cities, List<Programme> programmes) {
+    }
+
     @Override
     public EmployeeResponse createEmployee(CreateEmployeeRequest request) {
         log.info("Registering new employee: {}", request.getEmpId());
@@ -62,43 +69,45 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new ValidationException("An employee with ID '" + request.getEmpId() + "' already exists");
         }
 
-        Department department = departmentRepository.findById(request.getDepartmentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Department", request.getDepartmentId()));
-        Designation designation = designationRepository.findById(request.getDesignationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Designation", request.getDesignationId()));
-        if (!designation.getDepartmentId().equals(department.getId())) {
-            throw new ValidationException("Selected designation does not belong to the selected department");
-        }
-
-        List<StateMaster> states = findAllOrThrow(stateRepository, request.getStateIds(), "State");
-        List<CityMaster> cities = request.getCityIds() == null
-                ? List.of()
-                : findAllOrThrow(cityRepository, request.getCityIds(), "City");
-
-        boolean isProject = "Project".equals(request.getBucket());
-        List<Programme> programmes;
-        if (isProject) {
-            if (request.getPrimaryProgrammeIds() == null || request.getPrimaryProgrammeIds().isEmpty()) {
-                throw new ValidationException("At least one primary programme is required for the Project bucket");
-            }
-            programmes = findAllOrThrow(programmeRepository, request.getPrimaryProgrammeIds(), "Programme");
-        } else {
-            programmes = List.of();
-        }
+        RelatedEntities related = resolveAndValidateRelated(
+                request.getDepartmentId(), request.getDesignationId(), request.getStateIds(),
+                request.getCityIds(), request.getBucket(), request.getPrimaryProgrammeIds());
 
         Employee employee = employeeMapper.toEntity(request);
+        applyRelated(employee, related);
         employee.setStatus(request.getStatus() == null || request.getStatus().isBlank()
                 ? EmployeeStatuses.ACTIVE
                 : request.getStatus());
-        employee.setStateIds(new HashSet<>(request.getStateIds()));
-        employee.setCityIds(request.getCityIds() == null ? new HashSet<>() : new HashSet<>(request.getCityIds()));
-        employee.setPrimaryProgrammeIds(
-                isProject ? programmes.stream().map(Programme::getId).collect(Collectors.toSet()) : new HashSet<>());
 
         Employee saved = employeeRepository.save(employee);
         log.info("Employee registered successfully with id: {}", saved.getId());
 
-        return toResponseWithNames(saved, department, designation, states, cities, programmes);
+        return toResponseWithNames(saved, related);
+    }
+
+    @Override
+    public EmployeeResponse updateEmployee(Long id, UpdateEmployeeRequest request) {
+        log.info("Updating employee with id: {}", id);
+
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", id));
+
+        if (!request.getEmpId().equals(employee.getEmpId()) && employeeRepository.existsByEmpId(request.getEmpId())) {
+            throw new ValidationException("An employee with ID '" + request.getEmpId() + "' already exists");
+        }
+
+        RelatedEntities related = resolveAndValidateRelated(
+                request.getDepartmentId(), request.getDesignationId(), request.getStateIds(),
+                request.getCityIds(), request.getBucket(), request.getPrimaryProgrammeIds());
+
+        employeeMapper.updateEntity(request, employee);
+        applyRelated(employee, related);
+        employee.setStatus(request.getStatus());
+
+        Employee saved = employeeRepository.save(employee);
+        log.info("Employee updated successfully");
+
+        return toResponseWithNames(saved, related);
     }
 
     @Override
@@ -109,11 +118,12 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", id));
         return toResponseWithNames(
                 employee,
-                requireDepartment(employee.getDepartmentId()),
-                requireDesignation(employee.getDesignationId()),
-                stateRepository.findAllById(employee.getStateIds()),
-                cityRepository.findAllById(employee.getCityIds()),
-                programmeRepository.findAllById(employee.getPrimaryProgrammeIds()));
+                new RelatedEntities(
+                        requireDepartment(employee.getDepartmentId()),
+                        requireDesignation(employee.getDesignationId()),
+                        stateRepository.findAllById(employee.getStateIds()),
+                        cityRepository.findAllById(employee.getCityIds()),
+                        programmeRepository.findAllById(employee.getPrimaryProgrammeIds())));
     }
 
     @Override
@@ -140,6 +150,41 @@ public class EmployeeServiceImpl implements EmployeeService {
         log.info("Employee status updated successfully");
     }
 
+    /** Resolves department/designation/states/cities/programmes and enforces the cross-field rules. */
+    private RelatedEntities resolveAndValidateRelated(
+            Long departmentId, Long designationId, List<Long> stateIds, List<Long> cityIds,
+            String bucket, List<Long> primaryProgrammeIds) {
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Department", departmentId));
+        Designation designation = designationRepository.findById(designationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Designation", designationId));
+        if (!designation.getDepartmentId().equals(department.getId())) {
+            throw new ValidationException("Selected designation does not belong to the selected department");
+        }
+
+        List<StateMaster> states = findAllOrThrow(stateRepository, stateIds, "State");
+        List<CityMaster> cities = cityIds == null ? List.of() : findAllOrThrow(cityRepository, cityIds, "City");
+
+        boolean isProject = "Project".equals(bucket);
+        List<Programme> programmes;
+        if (isProject) {
+            if (primaryProgrammeIds == null || primaryProgrammeIds.isEmpty()) {
+                throw new ValidationException("At least one primary programme is required for the Project bucket");
+            }
+            programmes = findAllOrThrow(programmeRepository, primaryProgrammeIds, "Programme");
+        } else {
+            programmes = List.of();
+        }
+
+        return new RelatedEntities(department, designation, states, cities, programmes);
+    }
+
+    private void applyRelated(Employee employee, RelatedEntities related) {
+        employee.setStateIds(related.states().stream().map(StateMaster::getId).collect(Collectors.toSet()));
+        employee.setCityIds(related.cities().stream().map(CityMaster::getId).collect(Collectors.toSet()));
+        employee.setPrimaryProgrammeIds(related.programmes().stream().map(Programme::getId).collect(Collectors.toSet()));
+    }
+
     private Department requireDepartment(Long departmentId) {
         return departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Department", departmentId));
@@ -160,19 +205,13 @@ public class EmployeeServiceImpl implements EmployeeService {
         return found;
     }
 
-    private EmployeeResponse toResponseWithNames(
-            Employee employee,
-            Department department,
-            Designation designation,
-            List<StateMaster> states,
-            List<CityMaster> cities,
-            List<Programme> programmes) {
+    private EmployeeResponse toResponseWithNames(Employee employee, RelatedEntities related) {
         EmployeeResponse response = employeeMapper.toResponse(employee);
-        response.setDepartmentName(department.getName());
-        response.setDesignationName(designation.getName());
-        response.setStateNames(states.stream().map(StateMaster::getStateName).toList());
-        response.setCityNames(cities.stream().map(CityMaster::getCityName).toList());
-        response.setPrimaryProgrammeNames(programmes.stream().map(Programme::getProgrammeName).toList());
+        response.setDepartmentName(related.department().getName());
+        response.setDesignationName(related.designation().getName());
+        response.setStateNames(related.states().stream().map(StateMaster::getStateName).toList());
+        response.setCityNames(related.cities().stream().map(CityMaster::getCityName).toList());
+        response.setPrimaryProgrammeNames(related.programmes().stream().map(Programme::getProgrammeName).toList());
         return response;
     }
 

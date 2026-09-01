@@ -39,6 +39,7 @@ import { MODULE_ID } from './constants.js';
 import { EmployeeListPage } from '../employee-list/pages/EmployeeListPage.jsx';
 import { EmployeeCreatePage } from '../employee-list/pages/EmployeeCreatePage.jsx';
 import { EmployeeDetailPage } from '../employee-list/pages/EmployeeDetailPage.jsx';
+import { EmployeeEditPage } from '../employee-list/pages/EmployeeEditPage.jsx';
 import { MasterPage } from '../masters/pages/MasterPage.jsx';
 import { VendorListPage } from '../vendor-registration/pages/VendorListPage.jsx';
 import { VendorCreatePage } from '../vendor-registration/pages/VendorCreatePage.jsx';
@@ -118,6 +119,7 @@ export const donorManagementModule = {
     { path: '/employee-list', element: <EmployeeListPage /> },
     { path: '/employee-list/new', element: <EmployeeCreatePage /> },
     { path: '/employee-list/:id', element: <EmployeeDetailPage /> },
+    { path: '/employee-list/:id/edit', element: <EmployeeEditPage /> },
     { path: '/masters', element: <MasterPage /> },
     { path: '/masters/departments', element: <MasterPage /> },
     { path: '/masters/designations', element: <MasterPage /> },

@@ -25,6 +25,14 @@ export function useCreateEmployee() {
   });
 }
 
+export function useUpdateEmployee(id) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (formValues) => employeeService.updateEmployee(id, formValues),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() }),
+  });
+}
+
 export function useUpdateEmployeeStatus(id) {
   const queryClient = useQueryClient();
   return useMutation({

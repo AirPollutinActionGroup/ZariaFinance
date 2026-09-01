@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import EditIcon from '@mui/icons-material/Edit';
 import BadgeIcon from '@mui/icons-material/Badge';
 import { ConfirmDialog, ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
 import { useEmployee, useUpdateEmployeeStatus } from '../hooks/useEmployees.js';
@@ -82,6 +83,13 @@ export function EmployeeDetailPage() {
                 </MenuItem>
               ))}
             </Select>
+            <Button
+              variant="outlined"
+              startIcon={<EditIcon />}
+              onClick={() => navigate(`/employee-list/${id}/edit`)}
+            >
+              Edit
+            </Button>
             <Button
               variant="outlined"
               startIcon={<ArrowBackIcon />}

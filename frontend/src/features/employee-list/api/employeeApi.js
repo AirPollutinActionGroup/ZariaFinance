@@ -11,6 +11,9 @@ export const employeeApi = {
   /** GET /api/v1/employees/{id} → EmployeeResponse. */
   getById: (id) => http.get(`/v1/employees/${id}`),
 
+  /** PUT /api/v1/employees/{id} — body: UpdateEmployeeRequest → EmployeeResponse. */
+  update: (id, payload) => http.put(`/v1/employees/${id}`, payload),
+
   /** GET /api/v1/employees[?search=] → EmployeeResponse[]. */
   list: (search) => http.get('/v1/employees', { params: search ? { search } : undefined }),
 

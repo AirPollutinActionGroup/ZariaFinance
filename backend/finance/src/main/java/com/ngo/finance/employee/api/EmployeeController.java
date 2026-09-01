@@ -1,6 +1,7 @@
 package com.ngo.finance.employee.api;
 
 import com.ngo.finance.employee.dto.request.CreateEmployeeRequest;
+import com.ngo.finance.employee.dto.request.UpdateEmployeeRequest;
 import com.ngo.finance.employee.dto.request.UpdateEmployeeStatusRequest;
 import com.ngo.finance.employee.dto.response.EmployeeResponse;
 import com.ngo.finance.employee.service.EmployeeService;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,6 +41,14 @@ public class EmployeeController {
         log.info("POST /api/v1/employees - Registering new employee");
         EmployeeResponse response = employeeService.createEmployee(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Update an existing employee")
+    public ResponseEntity<EmployeeResponse> updateEmployee(
+            @PathVariable Long id, @Valid @RequestBody UpdateEmployeeRequest request) {
+        log.info("PUT /api/v1/employees/{} - Updating employee", id);
+        return ResponseEntity.ok(employeeService.updateEmployee(id, request));
     }
 
     @GetMapping("/{id}")
