@@ -6,8 +6,9 @@ export const employeeCreateSchema = z.object({
   departmentId: z.union([z.string(), z.number()]).refine((val) => val !== '' && val != null, 'Department is required'),
   designationId: z.union([z.string(), z.number()]).refine((val) => val !== '' && val != null, 'Designation is required'),
   bucket: z.string().min(1, 'Bucket is required'),
-  primaryProgrammeId: z.union([z.string(), z.number()]).optional(),
-  state: z.string().min(1, 'State is required'),
+  primaryProgrammeIds: z.array(z.union([z.string(), z.number()])).optional(),
+  stateIds: z.array(z.union([z.string(), z.number()])).min(1, 'At least one state is required'),
+  cityIds: z.array(z.union([z.string(), z.number()])).optional(),
   annualCtc: z
     .string()
     .min(1, 'Annual CTC is required')
@@ -27,8 +28,9 @@ export const employeeCreateDefaults = {
   departmentId: '',
   designationId: '',
   bucket: 'Admin',
-  primaryProgrammeId: '',
-  state: 'Delhi',
+  primaryProgrammeIds: [],
+  stateIds: [],
+  cityIds: [],
   annualCtc: '',
   employmentType: 'Permanent',
   status: 'Active',

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Avatar,
   Box,
@@ -10,12 +10,13 @@ import {
   Typography,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import BadgeIcon from '@mui/icons-material/Badge';
 import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { PageHeader, RhfTextField, RhfSelect } from '../../../shared/components/index.js';
+import { PageHeader, RhfTextField, RhfSelect, RhfMultiSelect } from '../../../shared/components/index.js';
 import { geographyService } from '../../donor-management/services/geographyService.js';
 import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
 import { useCreateEmployee } from '../hooks/useEmployees.js';
@@ -49,17 +50,12 @@ const STATUS_OPTIONS = [
 
 export function EmployeeCreatePage() {
   const navigate = useNavigate();
-  const [states, setStates] = useState([]);
+  const [stateOptions, setStateOptions] = useState([]);
 
   useEffect(() => {
     geographyService
       .listStates(1)
-      .then((data) => {
-        if (data && data.length > 0) {
-          // Map to state name labels matching Employee Master schema
-          setStates(data.map((s) => ({ value: s.label, label: s.label })));
-        }
-      })
+      .then((data) => setStateOptions(data || []))
       .catch((err) => console.error('Error fetching states:', err));
   }, []);
 
@@ -76,13 +72,14 @@ export function EmployeeCreatePage() {
     .filter((programme) => programme.isActive)
     .map((programme) => ({ value: programme.id, label: programme.programmeName }));
 
-  const { control, handleSubmit, setError, setValue } = useForm({
+  const { control, handleSubmit, setError, setValue, getValues } = useForm({
     resolver: zodResolver(employeeCreateSchema),
     defaultValues: employeeCreateDefaults,
   });
 
   const selectedBucket = useWatch({ control, name: 'bucket' });
   const selectedDepartmentId = useWatch({ control, name: 'departmentId' });
+  const selectedStateIds = useWatch({ control, name: 'stateIds' }) || [];
 
   const designationOptions = (designationsQuery.data || [])
     .filter((desig) => desig.status === 'ACTIVE' && desig.departmentId === selectedDepartmentId)
@@ -97,9 +94,35 @@ export function EmployeeCreatePage() {
   // Primary programme only applies to the Project bucket.
   useEffect(() => {
     if (selectedBucket !== 'Project') {
-      setValue('primaryProgrammeId', '');
+      setValue('primaryProgrammeIds', []);
     }
   }, [selectedBucket, setValue]);
+
+  // City options are the union of cities across every selected state — refetch
+  // whenever the state selection changes.
+  const selectedStateIdsKey = selectedStateIds.join(',');
+  const citiesQuery = useQuery({
+    queryKey: ['employee-city-options', selectedStateIdsKey],
+    queryFn: async () => {
+      const results = await Promise.all(
+        selectedStateIds.map((stateId) => geographyService.listCities(stateId).catch(() => [])),
+      );
+      const merged = results.flat();
+      return Array.from(new Map(merged.map((c) => [c.value, c])).values());
+    },
+    enabled: selectedStateIds.length > 0,
+  });
+  const cityOptions = useMemo(() => citiesQuery.data || [], [citiesQuery.data]);
+
+  // Drop any previously-picked city that's no longer valid for the current states.
+  useEffect(() => {
+    const validIds = new Set(cityOptions.map((c) => c.value));
+    const currentCityIds = getValues('cityIds') || [];
+    const filtered = currentCityIds.filter((id) => validIds.has(id));
+    if (filtered.length !== currentCityIds.length) {
+      setValue('cityIds', filtered);
+    }
+  }, [cityOptions, setValue, getValues]);
 
   const onSubmit = async (values) => {
     try {
@@ -228,12 +251,11 @@ export function EmployeeCreatePage() {
 
               {selectedBucket === 'Project' && (
                 <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                  <RhfSelect
-                    name="primaryProgrammeId"
+                  <RhfMultiSelect
+                    name="primaryProgrammeIds"
                     control={control}
                     label="Primary Programme"
                     required
-                    disabled={programmesQuery.isLoading}
                     options={programmeOptions}
                     helperText={
                       programmesQuery.isLoading
@@ -247,12 +269,31 @@ export function EmployeeCreatePage() {
               )}
 
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <RhfSelect
-                  name="state"
+                <RhfMultiSelect
+                  name="stateIds"
                   control={control}
                   label="State"
                   required
-                  options={states}
+                  options={stateOptions}
+                  helperText={stateOptions.length === 0 ? 'Loading states…' : undefined}
+                />
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <RhfMultiSelect
+                  name="cityIds"
+                  control={control}
+                  label="City"
+                  options={cityOptions}
+                  helperText={
+                    selectedStateIds.length === 0
+                      ? 'Select a state first.'
+                      : citiesQuery.isFetching
+                        ? 'Loading cities…'
+                        : cityOptions.length === 0
+                          ? 'No cities found for the selected state(s).'
+                          : undefined
+                  }
                 />
               </Grid>
 

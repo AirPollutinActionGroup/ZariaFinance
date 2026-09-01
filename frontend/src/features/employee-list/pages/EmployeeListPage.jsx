@@ -38,7 +38,7 @@ export function EmployeeListPage() {
       emp.name.toLowerCase().includes(search.toLowerCase()) ||
       emp.designationName.toLowerCase().includes(search.toLowerCase()) ||
       emp.departmentName.toLowerCase().includes(search.toLowerCase()) ||
-      emp.state.toLowerCase().includes(search.toLowerCase());
+      (emp.stateNames || []).some((s) => s.toLowerCase().includes(search.toLowerCase()));
 
     const matchesDept =
       departmentFilter === 'All' || emp.departmentName === departmentFilter;
@@ -95,10 +95,10 @@ export function EmployeeListPage() {
       render: (r) => r.bucket,
     },
     {
-      key: 'state',
+      key: 'stateNames',
       header: 'State',
-      width: 110,
-      render: (r) => r.state,
+      width: 150,
+      render: (r) => (r.stateNames || []).join(', '),
     },
     {
       key: 'employmentType',

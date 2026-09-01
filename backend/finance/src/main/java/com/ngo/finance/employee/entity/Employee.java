@@ -1,10 +1,16 @@
 package com.ngo.finance.employee.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -38,11 +44,23 @@ public class Employee extends AuditEntity {
     @Column(nullable = false, length = 20)
     private String bucket;
 
-    @Column(name = "primary_programme_id")
-    private Long primaryProgrammeId;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "employee_programme", joinColumns = @JoinColumn(name = "employee_id"))
+    @Column(name = "programme_id")
+    @Builder.Default
+    private Set<Long> primaryProgrammeIds = new HashSet<>();
 
-    @Column(nullable = false, length = 100)
-    private String state;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "employee_state", joinColumns = @JoinColumn(name = "employee_id"))
+    @Column(name = "state_id")
+    @Builder.Default
+    private Set<Long> stateIds = new HashSet<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "employee_city", joinColumns = @JoinColumn(name = "employee_id"))
+    @Column(name = "city_id")
+    @Builder.Default
+    private Set<Long> cityIds = new HashSet<>();
 
     @Column(name = "annual_ctc", nullable = false, precision = 15, scale = 2)
     private BigDecimal annualCtc;

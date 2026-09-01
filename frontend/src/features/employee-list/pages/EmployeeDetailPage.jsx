@@ -134,8 +134,12 @@ export function EmployeeDetailPage() {
             <DetailField label="Department (F4)" value={employeeRecord.departmentName} />
             <DetailField label="Designation" value={employeeRecord.designationName} />
             <DetailField label="Bucket" value={employeeRecord.bucket} />
-            <DetailField label="Primary Programme" value={employeeRecord.primaryProgrammeName || 'None'} />
-            <DetailField label="State" value={employeeRecord.state} />
+            <DetailField
+              label="Primary Programme"
+              value={(employeeRecord.primaryProgrammeNames || []).join(', ') || 'None'}
+            />
+            <DetailField label="State" value={(employeeRecord.stateNames || []).join(', ')} />
+            <DetailField label="City" value={(employeeRecord.cityNames || []).join(', ') || 'None'} />
             <DetailField
               label="Employment Type"
               value={employeeRecord.employmentType}
