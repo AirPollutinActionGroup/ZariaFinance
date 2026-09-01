@@ -102,6 +102,12 @@ export function EmployeeListPage() {
       render: (r) => (r.stateNames || []).join(', '),
     },
     {
+      key: 'joiningDate',
+      header: 'Joining Date',
+      width: 120,
+      render: (r) => r.joiningDate,
+    },
+    {
       key: 'employmentType',
       header: 'Employment type',
       width: 150,
