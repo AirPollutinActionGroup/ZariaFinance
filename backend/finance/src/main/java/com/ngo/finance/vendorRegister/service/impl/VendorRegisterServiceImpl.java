@@ -76,15 +76,19 @@ public class VendorRegisterServiceImpl implements VendorRegisterService {
             return errors;
         }
 
-        String hasIncorporation = request.getHasIncorporationCertificate();
-        if (!"Yes".equals(hasIncorporation) && !"No".equals(hasIncorporation)) {
-            errors.put("hasIncorporationCertificate", "Select whether an Incorporation Certificate is available");
-        } else if ("Yes".equals(hasIncorporation)) {
-            if (isBlank(request.getRegistrationNo()) || request.getRegistrationNo().trim().length() < 2) {
-                errors.put("registrationNo", "CIN / Registration number is required");
-            }
-            if (request.getDateOfIncorporation() == null) {
-                errors.put("dateOfIncorporation", "Date of incorporation is required");
+        boolean isIncorporationEligible =
+                "LLP".equals(request.getEntityType()) || "Pvt Ltd".equals(request.getEntityType());
+        if (isIncorporationEligible) {
+            String hasIncorporation = request.getHasIncorporationCertificate();
+            if (!"Yes".equals(hasIncorporation) && !"No".equals(hasIncorporation)) {
+                errors.put("hasIncorporationCertificate", "Select whether an Incorporation Certificate is available");
+            } else if ("Yes".equals(hasIncorporation)) {
+                if (isBlank(request.getRegistrationNo()) || request.getRegistrationNo().trim().length() < 2) {
+                    errors.put("registrationNo", "CIN / Registration number is required");
+                }
+                if (request.getDateOfIncorporation() == null) {
+                    errors.put("dateOfIncorporation", "Date of incorporation is required");
+                }
             }
         }
 

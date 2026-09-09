@@ -3,10 +3,8 @@ package com.ngo.finance.employee.service.impl;
 import com.ngo.finance.common.exception.ResourceNotFoundException;
 import com.ngo.finance.common.exception.ValidationException;
 import com.ngo.finance.donor.entity.CityMaster;
-import com.ngo.finance.donor.entity.Programme;
 import com.ngo.finance.donor.entity.StateMaster;
 import com.ngo.finance.donor.repository.CityRepository;
-import com.ngo.finance.donor.repository.ProgrammeRepository;
 import com.ngo.finance.donor.repository.StateRepository;
 import com.ngo.finance.employee.EmployeeStatuses;
 import com.ngo.finance.employee.dto.request.CreateEmployeeRequest;
@@ -52,8 +50,6 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private final DesignationRepository designationRepository;
 
-    private final ProgrammeRepository programmeRepository;
-
     private final StateRepository stateRepository;
 
     private final CityRepository cityRepository;
@@ -64,8 +60,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     /** Resolved + validated master-data references shared by create and update. */
     private record RelatedEntities(
-            Department department, Designation designation, List<StateMaster> states,
-            List<CityMaster> cities, List<Programme> programmes) {
+            Department department, Designation designation, List<StateMaster> states, List<CityMaster> cities) {
     }
 
     @Override
@@ -77,8 +72,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
 
         RelatedEntities related = resolveAndValidateRelated(
-                request.getDepartmentId(), request.getDesignationId(), request.getStateIds(),
-                request.getCityIds(), request.getBucket(), request.getPrimaryProgrammeIds());
+                request.getDepartmentId(), request.getDesignationId(), request.getStateIds(), request.getCityIds());
 
         Employee employee = employeeMapper.toEntity(request);
         applyRelated(employee, related);
@@ -105,12 +99,10 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         Map<String, String> before = buildFieldSnapshot(employee, requireDepartment(employee.getDepartmentId()),
                 requireDesignation(employee.getDesignationId()), stateRepository.findAllById(employee.getStateIds()),
-                cityRepository.findAllById(employee.getCityIds()),
-                programmeRepository.findAllById(employee.getPrimaryProgrammeIds()));
+                cityRepository.findAllById(employee.getCityIds()));
 
         RelatedEntities related = resolveAndValidateRelated(
-                request.getDepartmentId(), request.getDesignationId(), request.getStateIds(),
-                request.getCityIds(), request.getBucket(), request.getPrimaryProgrammeIds());
+                request.getDepartmentId(), request.getDesignationId(), request.getStateIds(), request.getCityIds());
 
         employeeMapper.updateEntity(request, employee);
         applyRelated(employee, related);
@@ -137,8 +129,7 @@ public class EmployeeServiceImpl implements EmployeeService {
                         requireDepartment(employee.getDepartmentId()),
                         requireDesignation(employee.getDesignationId()),
                         stateRepository.findAllById(employee.getStateIds()),
-                        cityRepository.findAllById(employee.getCityIds()),
-                        programmeRepository.findAllById(employee.getPrimaryProgrammeIds())));
+                        cityRepository.findAllById(employee.getCityIds())));
     }
 
     @Override
@@ -193,10 +184,9 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .toList();
     }
 
-    /** Resolves department/designation/states/cities/programmes and enforces the cross-field rules. */
+    /** Resolves department/designation/states/cities and enforces the cross-field rules. */
     private RelatedEntities resolveAndValidateRelated(
-            Long departmentId, Long designationId, List<Long> stateIds, List<Long> cityIds,
-            String bucket, List<Long> primaryProgrammeIds) {
+            Long departmentId, Long designationId, List<Long> stateIds, List<Long> cityIds) {
         Department department = departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Department", departmentId));
         Designation designation = designationRepository.findById(designationId)
@@ -208,36 +198,24 @@ public class EmployeeServiceImpl implements EmployeeService {
         List<StateMaster> states = findAllOrThrow(stateRepository, stateIds, "State");
         List<CityMaster> cities = cityIds == null ? List.of() : findAllOrThrow(cityRepository, cityIds, "City");
 
-        boolean isProject = "Project".equals(bucket);
-        List<Programme> programmes;
-        if (isProject) {
-            if (primaryProgrammeIds == null || primaryProgrammeIds.isEmpty()) {
-                throw new ValidationException("At least one primary programme is required for the Project bucket");
-            }
-            programmes = findAllOrThrow(programmeRepository, primaryProgrammeIds, "Programme");
-        } else {
-            programmes = List.of();
-        }
-
-        return new RelatedEntities(department, designation, states, cities, programmes);
+        return new RelatedEntities(department, designation, states, cities);
     }
 
     /** Human-readable field-name -> display-value snapshot, for diffing before/after an edit. */
     private Map<String, String> buildFieldSnapshot(Employee employee, RelatedEntities related) {
         return buildFieldSnapshot(employee, related.department(), related.designation(), related.states(),
-                related.cities(), related.programmes());
+                related.cities());
     }
 
     private Map<String, String> buildFieldSnapshot(
             Employee employee, Department department, Designation designation, List<StateMaster> states,
-            List<CityMaster> cities, List<Programme> programmes) {
+            List<CityMaster> cities) {
         Map<String, String> snapshot = new LinkedHashMap<>();
         snapshot.put("Employee ID", employee.getEmpId());
         snapshot.put("Name", employee.getName());
         snapshot.put("Department", department.getName());
         snapshot.put("Designation", designation.getName());
         snapshot.put("Bucket", employee.getBucket());
-        snapshot.put("Primary Programme", joinNames(programmes.stream().map(Programme::getProgrammeName).toList()));
         snapshot.put("State", joinNames(states.stream().map(StateMaster::getStateName).toList()));
         snapshot.put("City", joinNames(cities.stream().map(CityMaster::getCityName).toList()));
         snapshot.put("Joining Date", String.valueOf(employee.getJoiningDate()));
@@ -248,6 +226,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         snapshot.put("ESI", employee.getEsi());
         snapshot.put("Gratuity", employee.getGratuity());
         snapshot.put("Status", employee.getStatus());
+        snapshot.put("Remark", employee.getRemark() != null ? employee.getRemark() : "");
         return snapshot;
     }
 
@@ -274,7 +253,6 @@ public class EmployeeServiceImpl implements EmployeeService {
     private void applyRelated(Employee employee, RelatedEntities related) {
         employee.setStateIds(related.states().stream().map(StateMaster::getId).collect(Collectors.toSet()));
         employee.setCityIds(related.cities().stream().map(CityMaster::getId).collect(Collectors.toSet()));
-        employee.setPrimaryProgrammeIds(related.programmes().stream().map(Programme::getId).collect(Collectors.toSet()));
     }
 
     private Department requireDepartment(Long departmentId) {
@@ -303,7 +281,6 @@ public class EmployeeServiceImpl implements EmployeeService {
         response.setDesignationName(related.designation().getName());
         response.setStateNames(related.states().stream().map(StateMaster::getStateName).toList());
         response.setCityNames(related.cities().stream().map(CityMaster::getCityName).toList());
-        response.setPrimaryProgrammeNames(related.programmes().stream().map(Programme::getProgrammeName).toList());
         return response;
     }
 
@@ -319,15 +296,11 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         Set<Long> allStateIds = employees.stream().flatMap(e -> e.getStateIds().stream()).collect(Collectors.toSet());
         Set<Long> allCityIds = employees.stream().flatMap(e -> e.getCityIds().stream()).collect(Collectors.toSet());
-        Set<Long> allProgrammeIds =
-                employees.stream().flatMap(e -> e.getPrimaryProgrammeIds().stream()).collect(Collectors.toSet());
 
         Map<Long, StateMaster> statesById = stateRepository.findAllById(allStateIds).stream()
                 .collect(Collectors.toMap(StateMaster::getId, Function.identity()));
         Map<Long, CityMaster> citiesById = cityRepository.findAllById(allCityIds).stream()
                 .collect(Collectors.toMap(CityMaster::getId, Function.identity()));
-        Map<Long, Programme> programmesById = programmeRepository.findAllById(allProgrammeIds).stream()
-                .collect(Collectors.toMap(Programme::getId, Function.identity()));
 
         return employees.stream()
                 .map(employee -> {
@@ -338,8 +311,6 @@ public class EmployeeServiceImpl implements EmployeeService {
                     response.setDesignationName(designation != null ? designation.getName() : null);
                     response.setStateNames(resolveNames(employee.getStateIds(), statesById, StateMaster::getStateName));
                     response.setCityNames(resolveNames(employee.getCityIds(), citiesById, CityMaster::getCityName));
-                    response.setPrimaryProgrammeNames(
-                            resolveNames(employee.getPrimaryProgrammeIds(), programmesById, Programme::getProgrammeName));
                     return response;
                 })
                 .toList();

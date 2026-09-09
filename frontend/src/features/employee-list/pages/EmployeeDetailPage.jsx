@@ -34,9 +34,9 @@ const UPDATE_LOG_COLUMNS = [
   { key: 'changedBy', header: 'Changed By', width: 160, render: (r) => r.changedBy || '—' },
 ];
 
-function DetailField({ label, value, chip = null }) {
+function DetailField({ label, value, chip = null, fullWidth = false }) {
   return (
-    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+    <Grid size={fullWidth ? 12 : { xs: 12, sm: 6, md: 4 }}>
       <Typography
         variant="caption"
         component="p"
@@ -161,10 +161,6 @@ export function EmployeeDetailPage() {
             <DetailField label="Department (F4)" value={employeeRecord.departmentName} />
             <DetailField label="Designation" value={employeeRecord.designationName} />
             <DetailField label="Bucket" value={employeeRecord.bucket} />
-            <DetailField
-              label="Primary Programme"
-              value={(employeeRecord.primaryProgrammeNames || []).join(', ') || 'None'}
-            />
             <DetailField label="State" value={(employeeRecord.stateNames || []).join(', ')} />
             <DetailField label="City" value={(employeeRecord.cityNames || []).join(', ') || 'None'} />
             <DetailField
@@ -243,6 +239,7 @@ export function EmployeeDetailPage() {
                 </Typography>
               }
             />
+            <DetailField label="Remark" value={employeeRecord.remark} fullWidth />
           </Grid>
         </CardContent>
       </Card>

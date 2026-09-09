@@ -34,3 +34,15 @@ export function useProgrammeLifecycle(id) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.programmes.all() }),
   });
 }
+
+/** Sets any lifecycle status directly (Planned/Active/On Hold/Complete/Close). */
+export function useUpdateProgrammeStatus(id) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (status) => programmeService.updateProgrammeStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.programmes.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.programmes.detail(id) });
+    },
+  });
+}

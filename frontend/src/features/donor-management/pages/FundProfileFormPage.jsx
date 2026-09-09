@@ -165,7 +165,9 @@ export function FundProfileFormPage() {
 
   const programmeOptions = [
     { value: '', label: 'Untied (no programme)' },
-    ...(programmesQuery.data || []).map((p) => ({ value: p.id, label: p.programmeName })),
+    ...(programmesQuery.data || [])
+      .filter((p) => p.type !== 'Project')
+      .map((p) => ({ value: p.id, label: p.programmeName })),
   ];
 
   const backTo = donorId ? `/donors/${donorId}` : '/donors';

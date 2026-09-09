@@ -40,6 +40,8 @@ import { EmployeeListPage } from '../employee-list/pages/EmployeeListPage.jsx';
 import { EmployeeCreatePage } from '../employee-list/pages/EmployeeCreatePage.jsx';
 import { EmployeeDetailPage } from '../employee-list/pages/EmployeeDetailPage.jsx';
 import { EmployeeEditPage } from '../employee-list/pages/EmployeeEditPage.jsx';
+import { EmployeeAllocationPage } from '../employee-allocation/pages/EmployeeAllocationPage.jsx';
+import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined';
 import { MasterPage } from '../masters/pages/MasterPage.jsx';
 import { VendorListPage } from '../vendor-registration/pages/VendorListPage.jsx';
 import { VendorCreatePage } from '../vendor-registration/pages/VendorCreatePage.jsx';
@@ -78,6 +80,7 @@ export const donorManagementModule = {
     //{ label: 'organization Register', path: '/organisation-register', icon: BusinessIcon },
     //{ label: 'Role Directory', path: '/role-directory', icon: GroupsOutlinedIcon },
     { label: 'Employee List', path: '/employee-list', icon: BadgeOutlinedIcon },
+    { label: 'Employee Allocation', path: '/employee-allocation', icon: AssignmentIndOutlinedIcon },
     { label: 'Master', path: '/masters', icon: StorageOutlinedIcon },
     { label: 'Vendor Registration', path: '/vendor-registration', icon: StorefrontOutlinedIcon },
     { label: 'Payment Mode', path: '/payment-modes', icon: PaymentOutlinedIcon },
@@ -120,6 +123,7 @@ export const donorManagementModule = {
     { path: '/employee-list/new', element: <EmployeeCreatePage /> },
     { path: '/employee-list/:id', element: <EmployeeDetailPage /> },
     { path: '/employee-list/:id/edit', element: <EmployeeEditPage /> },
+    { path: '/employee-allocation', element: <EmployeeAllocationPage /> },
     { path: '/masters', element: <MasterPage /> },
     { path: '/masters/departments', element: <MasterPage /> },
     { path: '/masters/designations', element: <MasterPage /> },

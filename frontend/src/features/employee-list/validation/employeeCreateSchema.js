@@ -7,7 +7,6 @@ export const employeeCreateSchema = z.object({
   departmentId: z.union([z.string(), z.number()]).refine((val) => val !== '' && val != null, 'Department is required'),
   designationId: z.union([z.string(), z.number()]).refine((val) => val !== '' && val != null, 'Designation is required'),
   bucket: z.string().min(1, 'Bucket is required'),
-  primaryProgrammeIds: z.array(z.union([z.string(), z.number()])).optional(),
   stateIds: z.array(z.union([z.string(), z.number()])).min(1, 'At least one state is required'),
   cityIds: z.array(z.union([z.string(), z.number()])).optional(),
   joiningDate: z.string().min(1, 'Joining date is required'),
@@ -23,6 +22,7 @@ export const employeeCreateSchema = z.object({
   pf: z.enum(['Yes', 'No']),
   esi: z.enum(['Yes', 'No']),
   gratuity: z.enum(['Yes', 'No']),
+  remark: z.string().optional(),
 });
 
 export const employeeCreateDefaults = {
@@ -31,7 +31,6 @@ export const employeeCreateDefaults = {
   departmentId: '',
   designationId: '',
   bucket: 'Admin',
-  primaryProgrammeIds: [],
   stateIds: [],
   cityIds: [],
   joiningDate: '',
@@ -42,4 +41,5 @@ export const employeeCreateDefaults = {
   pf: 'Yes',
   esi: 'No',
   gratuity: 'Yes',
+  remark: '',
 };

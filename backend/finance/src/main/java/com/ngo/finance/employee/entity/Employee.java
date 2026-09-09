@@ -19,8 +19,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * Employee master entity — department and state map to F4 cost centres;
- * bucket determines which F3 ledger the employee's cost posts to (Project
- * buckets additionally carry a primary programme).
+ * bucket determines which F3 ledger the employee's cost posts to.
  */
 @Entity
 @Table(name = "employee")
@@ -44,12 +43,6 @@ public class Employee extends AuditEntity {
 
     @Column(nullable = false, length = 20)
     private String bucket;
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "employee_programme", joinColumns = @JoinColumn(name = "employee_id"))
-    @Column(name = "programme_id")
-    @Builder.Default
-    private Set<Long> primaryProgrammeIds = new HashSet<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "employee_state", joinColumns = @JoinColumn(name = "employee_id"))
@@ -87,4 +80,7 @@ public class Employee extends AuditEntity {
     @Column(nullable = false, length = 30)
     @Builder.Default
     private String status = "Active";
+
+    @Column(columnDefinition = "TEXT")
+    private String remark;
 }

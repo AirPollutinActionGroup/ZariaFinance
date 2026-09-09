@@ -18,7 +18,6 @@ export function toEditFormValues(dto) {
     departmentId: dto.departmentId,
     designationId: dto.designationId,
     bucket: dto.bucket,
-    primaryProgrammeIds: dto.primaryProgrammeIds || [],
     stateIds: dto.stateIds || [],
     cityIds: dto.cityIds || [],
     joiningDate: dto.joiningDate || '',
@@ -29,20 +28,18 @@ export function toEditFormValues(dto) {
     esi: dto.esi,
     gratuity: dto.gratuity,
     status: dto.status,
+    remark: dto.remark || '',
   };
 }
 
 /** Form values → CreateEmployeeRequest. */
 export function toCreateEmployeeRequest(values) {
-  const isProject = values.bucket === 'Project';
-
   return {
     empId: values.empId.trim(),
     name: values.name.trim(),
     departmentId: values.departmentId,
     designationId: values.designationId,
     bucket: values.bucket,
-    primaryProgrammeIds: isProject ? values.primaryProgrammeIds : [],
     stateIds: values.stateIds,
     cityIds: values.cityIds,
     joiningDate: values.joiningDate,
@@ -53,6 +50,7 @@ export function toCreateEmployeeRequest(values) {
     esi: values.esi,
     gratuity: values.gratuity,
     status: values.status,
+    remark: values.remark?.trim() || null,
   };
 }
 

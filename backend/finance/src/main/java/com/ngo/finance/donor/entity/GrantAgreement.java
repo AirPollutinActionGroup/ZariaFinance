@@ -3,6 +3,7 @@ package com.ngo.finance.donor.entity;
 import com.ngo.finance.common.entity.AuditEntity;
 import com.ngo.finance.donor.enums.FundClass;
 import com.ngo.finance.donor.enums.GrantStatus;
+import com.ngo.finance.programme.entity.Programme;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

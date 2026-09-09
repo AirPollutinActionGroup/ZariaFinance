@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, Chip, Grid, Stack, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Grid,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,6 +37,7 @@ import {
   TDS_SECTION_OPTIONS,
   VENDOR_CATEGORY_OPTIONS,
   VENDOR_DOCUMENTS,
+  VENDOR_TYPE_OPTIONS,
   YES_NO_OPTIONS,
   ENTERPRISE_CLASSIFICATION_OPTIONS,
 } from '../constants.js';
@@ -107,15 +120,30 @@ export function VendorCreatePage() {
     defaultValues: vendorCreateDefaults,
   });
 
+  const [vendorType, setVendorType] = useState(
+    vendorCreateDefaults.entityType === 'Individual' ? 'Individual' : 'Organisation',
+  );
+
   const entityType = useWatch({ control, name: 'entityType' });
   const hasIncorporationCertificate = useWatch({ control, name: 'hasIncorporationCertificate' });
   const hasGstRegistration = useWatch({ control, name: 'hasGstRegistration' });
   const hasMsmeRegistration = useWatch({ control, name: 'hasMsmeRegistration' });
   const relatedParty = useWatch({ control, name: 'relatedParty' });
   const isIndividual = entityType === 'Individual';
-  const showIncorporationDetails = !isIndividual && hasIncorporationCertificate === 'Yes';
+  const showIncorporationField = entityType === 'LLP' || entityType === 'Pvt Ltd';
+  const showIncorporationDetails = showIncorporationField && hasIncorporationCertificate === 'Yes';
   const showGstDetails = !isIndividual && hasGstRegistration === 'Yes';
   const showMsmeDetails = !isIndividual && hasMsmeRegistration === 'Yes';
+
+  const handleVendorTypeChange = (event) => {
+    const next = event.target.value;
+    setVendorType(next);
+    if (next === 'Individual') {
+      setValue('entityType', 'Individual', { shouldValidate: true });
+    } else if (entityType === 'Individual') {
+      setValue('entityType', ENTITY_TYPE_OPTIONS[0].value, { shouldValidate: true });
+    }
+  };
 
   // TDS section default follows entity type — 194J for Individuals, 194C otherwise.
   useEffect(() => {
@@ -123,6 +151,7 @@ export function VendorCreatePage() {
   }, [isIndividual, setValue]);
 
   const applicableDocuments = VENDOR_DOCUMENTS.filter((doc) => {
+    if (Array.isArray(doc.requiredFor)) return doc.requiredFor.includes(entityType);
     if (doc.requiredFor === 'all') return true;
     if (doc.requiredFor === 'individual') return isIndividual;
     return !isIndividual;
@@ -168,14 +197,33 @@ export function VendorCreatePage() {
           description="Drives which identification, tax and document fields apply below."
         >
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <RhfSelect
-              name="entityType"
-              control={control}
-              label="Entity Type"
+            <TextField
+              select
+              label="Vendor Type"
               required
-              options={ENTITY_TYPE_OPTIONS}
-            />
+              fullWidth
+              value={vendorType}
+              onChange={handleVendorTypeChange}
+              helperText="Individual for a person; Organisation for a registered entity."
+            >
+              {VENDOR_TYPE_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
           </Grid>
+          {vendorType === 'Organisation' && (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <RhfSelect
+                name="entityType"
+                control={control}
+                label="Entity Type"
+                required
+                options={ENTITY_TYPE_OPTIONS}
+              />
+            </Grid>
+          )}
         </FormSection>
 
         <FormSection
@@ -185,7 +233,9 @@ export function VendorCreatePage() {
           description={
             isIndividual
               ? 'Individual vendors are identified by Aadhaar in place of company registration.'
-              : 'Date of Incorporation and CIN / Registration No. appear only when an Incorporation Certificate is available.'
+              : showIncorporationField
+                ? 'Date of Incorporation and CIN / Registration No. appear only when an Incorporation Certificate is available.'
+                : 'Incorporation Certificate applies only to LLP and Pvt Ltd entities.'
           }
         >
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -197,7 +247,7 @@ export function VendorCreatePage() {
               required
             />
           </Grid>
-          {!isIndividual && (
+          {showIncorporationField && (
             <>
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <RhfSelect
@@ -503,7 +553,7 @@ export function VendorCreatePage() {
           description={
             isIndividual
               ? 'GST Certificate and Incorporation Certificate are not required for Individual vendors.'
-              : 'Incorporation Certificate hidden automatically when Entity Type is Individual.'
+              : 'Incorporation Certificate applies only to LLP and Pvt Ltd entities.'
           }
         >
           <Grid size={12}>

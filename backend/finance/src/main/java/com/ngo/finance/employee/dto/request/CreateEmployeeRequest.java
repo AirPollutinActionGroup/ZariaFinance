@@ -39,9 +39,6 @@ public class CreateEmployeeRequest {
     @Pattern(regexp = "Admin|Project", message = "Bucket is not a recognised value")
     private String bucket;
 
-    /** Required only when bucket is "Project" — enforced in the service layer. */
-    private List<Long> primaryProgrammeIds;
-
     @NotEmpty(message = "At least one state is required")
     private List<Long> stateIds;
 
@@ -75,4 +72,6 @@ public class CreateEmployeeRequest {
     /** Defaults to "Active" when omitted. */
     @Pattern(regexp = EmployeeStatuses.PATTERN, message = "Status is not a recognised value")
     private String status;
+
+    private String remark;
 }

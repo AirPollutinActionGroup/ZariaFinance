@@ -94,4 +94,7 @@ export const queryKeys = {
     detail: (id) => ['employees', 'detail', String(id)],
     updateLogs: (id) => ['employees', 'updateLogs', String(id)],
   },
+  employeeAllocations: {
+    all: () => ['employeeAllocations'],
+  },
 };

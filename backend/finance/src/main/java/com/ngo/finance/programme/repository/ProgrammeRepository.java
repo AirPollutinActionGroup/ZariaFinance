@@ -1,6 +1,6 @@
-package com.ngo.finance.donor.repository;
+package com.ngo.finance.programme.repository;
 
-import com.ngo.finance.donor.entity.Programme;
+import com.ngo.finance.programme.entity.Programme;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -36,10 +36,6 @@ public class EmployeeResponse {
 
     private String bucket;
 
-    private List<Long> primaryProgrammeIds;
-
-    private List<String> primaryProgrammeNames;
-
     private List<Long> stateIds;
 
     private List<String> stateNames;
@@ -63,6 +59,8 @@ public class EmployeeResponse {
     private String gratuity;
 
     private String status;
+
+    private String remark;
 
     private LocalDateTime createdAt;
 

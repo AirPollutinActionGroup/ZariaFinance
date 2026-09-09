@@ -10,7 +10,6 @@ import { geographyService } from '../../donor-management/services/geographyServi
 import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
 import { useDepartments } from '../../masters/hooks/useDepartments.js';
 import { useDesignations } from '../../masters/hooks/useDesignations.js';
-import { useProgrammes } from '../../donor-management/hooks/useProgrammes.js';
 import { EMPLOYEE_STATUSES } from '../constants.js';
 import { employeeCreateSchema } from '../validation/employeeCreateSchema.js';
 
@@ -50,22 +49,16 @@ export function EmployeeForm({ defaultValues, onSubmit, submitLabel, submitPendi
 
   const departmentsQuery = useDepartments();
   const designationsQuery = useDesignations();
-  const programmesQuery = useProgrammes();
 
   const departmentOptions = (departmentsQuery.data || [])
     .filter((dept) => dept.status === 'ACTIVE')
     .map((dept) => ({ value: dept.id, label: dept.name }));
-
-  const programmeOptions = (programmesQuery.data || [])
-    .filter((programme) => programme.isActive)
-    .map((programme) => ({ value: programme.id, label: programme.programmeName }));
 
   const { control, handleSubmit, setError, setValue, getValues, formState } = useForm({
     resolver: zodResolver(employeeCreateSchema),
     defaultValues,
   });
 
-  const selectedBucket = useWatch({ control, name: 'bucket' });
   const selectedDepartmentId = useWatch({ control, name: 'departmentId' });
   const selectedStateIds = useWatch({ control, name: 'stateIds' }) || [];
 
@@ -86,17 +79,6 @@ export function EmployeeForm({ defaultValues, onSubmit, submitLabel, submitPendi
     settledDepartmentId.current = selectedDepartmentId;
     setValue('designationId', '');
   }, [selectedDepartmentId, setValue]);
-
-  // Primary programme only applies to the Project bucket — same
-  // settled-value comparison as above, for the same StrictMode reason.
-  const settledBucket = useRef(defaultValues.bucket);
-  useEffect(() => {
-    if (selectedBucket === settledBucket.current) return;
-    settledBucket.current = selectedBucket;
-    if (selectedBucket !== 'Project') {
-      setValue('primaryProgrammeIds', []);
-    }
-  }, [selectedBucket, setValue]);
 
   // City options are the union of cities across every selected state — refetch
   // whenever the state selection changes.
@@ -237,25 +219,6 @@ export function EmployeeForm({ defaultValues, onSubmit, submitLabel, submitPendi
               />
             </Grid>
 
-            {selectedBucket === 'Project' && (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <RhfMultiSelect
-                  name="primaryProgrammeIds"
-                  control={control}
-                  label="Primary Programme"
-                  required
-                  options={programmeOptions}
-                  helperText={
-                    programmesQuery.isLoading
-                      ? 'Loading programmes…'
-                      : programmeOptions.length === 0
-                        ? 'No active programmes configured.'
-                        : undefined
-                  }
-                />
-              </Grid>
-            )}
-
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <RhfMultiSelect
                 name="stateIds"
@@ -364,6 +327,17 @@ export function EmployeeForm({ defaultValues, onSubmit, submitLabel, submitPendi
                 label="Status"
                 required
                 options={STATUS_OPTIONS}
+              />
+            </Grid>
+
+            <Grid size={12}>
+              <RhfTextField
+                name="remark"
+                control={control}
+                label="Remark"
+                placeholder="Any additional notes about this employee…"
+                multiline
+                minRows={2}
               />
             </Grid>
           </Grid>

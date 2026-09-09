@@ -1,9 +1,10 @@
-package com.ngo.finance.donor.api;
+package com.ngo.finance.programme.api;
 
-import com.ngo.finance.donor.dto.request.CreateProgrammeRequest;
-import com.ngo.finance.donor.dto.response.ProgrammeListResponse;
-import com.ngo.finance.donor.dto.response.ProgrammeResponse;
-import com.ngo.finance.donor.service.ProgrammeService;
+import com.ngo.finance.programme.dto.request.CreateProgrammeRequest;
+import com.ngo.finance.programme.dto.request.UpdateProgrammeStatusRequest;
+import com.ngo.finance.programme.dto.response.ProgrammeListResponse;
+import com.ngo.finance.programme.dto.response.ProgrammeResponse;
+import com.ngo.finance.programme.service.ProgrammeService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -50,5 +51,11 @@ public class ProgrammeController {
     public ResponseEntity<Void> deactivateProgramme(@PathVariable Long id) {
         programmeService.deactivateProgramme(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ProgrammeResponse> updateStatus(
+            @PathVariable Long id, @Valid @RequestBody UpdateProgrammeStatusRequest request) {
+        return ResponseEntity.ok(programmeService.updateStatus(id, request.getStatus()));
     }
 }
