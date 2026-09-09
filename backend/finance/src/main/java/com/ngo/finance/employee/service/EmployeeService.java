@@ -1,11 +1,15 @@
 package com.ngo.finance.employee.service;
 
 import com.ngo.finance.employee.dto.request.CreateEmployeeRequest;
+import com.ngo.finance.employee.dto.request.UpdateEmployeeRequest;
 import com.ngo.finance.employee.dto.response.EmployeeResponse;
+import com.ngo.finance.employee.dto.response.EmployeeUpdateLogResponse;
 import java.util.List;
 
 public interface EmployeeService {
     EmployeeResponse createEmployee(CreateEmployeeRequest request);
+
+    EmployeeResponse updateEmployee(Long id, UpdateEmployeeRequest request);
 
     EmployeeResponse getEmployeeById(Long id);
 
@@ -13,7 +17,7 @@ public interface EmployeeService {
 
     List<EmployeeResponse> searchEmployees(String searchTerm);
 
-    void activateEmployee(Long id);
+    void updateStatus(Long id, String status);
 
-    void deactivateEmployee(Long id);
+    List<EmployeeUpdateLogResponse> getUpdateLogs(Long id);
 }

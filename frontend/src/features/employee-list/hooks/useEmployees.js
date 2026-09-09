@@ -25,12 +25,32 @@ export function useCreateEmployee() {
   });
 }
 
-/** activate | deactivate with shared invalidation. */
-export function useEmployeeLifecycle(id) {
+export function useUpdateEmployee(id) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (action) =>
-      action === 'activate' ? employeeService.activateEmployee(id) : employeeService.deactivateEmployee(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() }),
+    mutationFn: (formValues) => employeeService.updateEmployee(id, formValues),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.employees.updateLogs(id) });
+    },
+  });
+}
+
+export function useUpdateEmployeeStatus(id) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (status) => employeeService.updateEmployeeStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.employees.updateLogs(id) });
+    },
+  });
+}
+
+export function useEmployeeUpdateLogs(id) {
+  return useQuery({
+    queryKey: queryKeys.employees.updateLogs(id),
+    queryFn: () => employeeService.getEmployeeUpdateLogs(id),
+    enabled: id != null,
   });
 }

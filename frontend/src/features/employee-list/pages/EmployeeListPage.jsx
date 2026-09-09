@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import { DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
 import { useEmployees } from '../hooks/useEmployees.js';
+import { EMPLOYEE_STATUSES, EMPLOYEE_STATUS_TONE } from '../constants.js';
 
 export function EmployeeListPage() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export function EmployeeListPage() {
       emp.name.toLowerCase().includes(search.toLowerCase()) ||
       emp.designationName.toLowerCase().includes(search.toLowerCase()) ||
       emp.departmentName.toLowerCase().includes(search.toLowerCase()) ||
-      emp.state.toLowerCase().includes(search.toLowerCase());
+      (emp.stateNames || []).some((s) => s.toLowerCase().includes(search.toLowerCase()));
 
     const matchesDept =
       departmentFilter === 'All' || emp.departmentName === departmentFilter;
@@ -95,10 +96,16 @@ export function EmployeeListPage() {
       render: (r) => r.bucket,
     },
     {
-      key: 'state',
+      key: 'stateNames',
       header: 'State',
-      width: 110,
-      render: (r) => r.state,
+      width: 150,
+      render: (r) => (r.stateNames || []).join(', '),
+    },
+    {
+      key: 'joiningDate',
+      header: 'Joining Date',
+      width: 120,
+      render: (r) => r.joiningDate,
     },
     {
       key: 'employmentType',
@@ -121,11 +128,11 @@ export function EmployeeListPage() {
       width: 120,
       align: 'center',
       render: (r) => {
-        const isActive = (r.status || 'Active') === 'Active';
+        const status = r.status || 'Active';
         return (
           <Chip
-            label={r.status || 'Active'}
-            color={isActive ? 'success' : 'error'}
+            label={status}
+            color={EMPLOYEE_STATUS_TONE[status] || 'default'}
             size="small"
             variant="outlined"
             sx={{ fontWeight: 600, minWidth: 75 }}
@@ -217,8 +224,11 @@ export function EmployeeListPage() {
           sx={{ minWidth: 130, borderRadius: 2 }}
         >
           <MenuItem value="All">All Statuses</MenuItem>
-          <MenuItem value="Active">Active</MenuItem>
-          <MenuItem value="Inactive">Inactive</MenuItem>
+          {EMPLOYEE_STATUSES.map((s) => (
+            <MenuItem key={s} value={s}>
+              {s}
+            </MenuItem>
+          ))}
         </Select>
       </Stack>
 

@@ -1,5 +1,9 @@
 import { employeeApi } from '../api/employeeApi.js';
-import { fromEmployeeResponse, toCreateEmployeeRequest } from '../mappers/employeeMapper.js';
+import {
+  fromEmployeeResponse,
+  toCreateEmployeeRequest,
+  toUpdateEmployeeRequest,
+} from '../mappers/employeeMapper.js';
 
 /**
  * Employee Master domain service. All business behaviour lives here; hooks
@@ -19,11 +23,15 @@ export const employeeService = {
     return fromEmployeeResponse(await employeeApi.create(toCreateEmployeeRequest(formValues)));
   },
 
-  async activateEmployee(id) {
-    await employeeApi.activate(id);
+  async updateEmployee(id, formValues) {
+    return fromEmployeeResponse(await employeeApi.update(id, toUpdateEmployeeRequest(formValues)));
   },
 
-  async deactivateEmployee(id) {
-    await employeeApi.deactivate(id);
+  async updateEmployeeStatus(id, status) {
+    await employeeApi.updateStatus(id, status);
+  },
+
+  async getEmployeeUpdateLogs(id) {
+    return employeeApi.getUpdateLogs(id);
   },
 };

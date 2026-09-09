@@ -4,7 +4,7 @@ import com.ngo.finance.common.entity.AuditEntity;
 import com.ngo.finance.donation.enums.GikIntendedUse;
 import com.ngo.finance.donation.enums.GikRealisationStatus;
 import com.ngo.finance.donation.enums.GikValuationBasis;
-import com.ngo.finance.donor.entity.Programme;
+import com.ngo.finance.programme.entity.Programme;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

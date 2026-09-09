@@ -79,7 +79,9 @@ public class SecurityConfig {
                                                 "/api/v1/bank-details",
                                                 "/api/v1/bank-details/**",
                                                 "/api/v1/employees",
-                                                "/api/v1/employees/**"))
+                                                "/api/v1/employees/**",
+                                                "/api/v1/employee-allocations",
+                                                "/api/v1/employee-allocations/**"))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                                 .requestMatchers(
@@ -137,6 +139,8 @@ public class SecurityConfig {
                                                                 "/api/v1/bank-details/**",
                                                                 "/api/v1/employees",
                                                                 "/api/v1/employees/**",
+                                                                "/api/v1/employee-allocations",
+                                                                "/api/v1/employee-allocations/**",
                                                                 "/swagger-ui.html",
                                                                 "/swagger-ui/**",
                                                                 "/api-docs/**",

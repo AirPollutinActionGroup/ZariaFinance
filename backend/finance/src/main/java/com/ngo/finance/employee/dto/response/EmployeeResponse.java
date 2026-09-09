@@ -2,7 +2,9 @@ package com.ngo.finance.employee.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -34,11 +36,17 @@ public class EmployeeResponse {
 
     private String bucket;
 
-    private Long primaryProgrammeId;
+    private List<Long> stateIds;
 
-    private String primaryProgrammeName;
+    private List<String> stateNames;
 
-    private String state;
+    private List<Long> cityIds;
+
+    private List<String> cityNames;
+
+    private LocalDate joiningDate;
+
+    private LocalDate exitDate;
 
     private BigDecimal annualCtc;
 
@@ -51,6 +59,8 @@ public class EmployeeResponse {
     private String gratuity;
 
     private String status;
+
+    private String remark;
 
     private LocalDateTime createdAt;
 

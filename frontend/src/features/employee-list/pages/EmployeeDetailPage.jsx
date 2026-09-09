@@ -8,18 +8,35 @@ import {
   Chip,
   Divider,
   Grid,
+  MenuItem,
+  Select,
   Stack,
   Typography,
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import EditIcon from '@mui/icons-material/Edit';
 import BadgeIcon from '@mui/icons-material/Badge';
-import { ConfirmDialog, ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
-import { useEmployee, useEmployeeLifecycle } from '../hooks/useEmployees.js';
+import { ConfirmDialog, DataTable, ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
+import { useEmployee, useEmployeeUpdateLogs, useUpdateEmployeeStatus } from '../hooks/useEmployees.js';
+import { EMPLOYEE_STATUSES, EMPLOYEE_STATUS_TONE } from '../constants.js';
 
-function DetailField({ label, value, chip = null }) {
+const UPDATE_LOG_COLUMNS = [
+  { key: 'fieldName', header: 'Field', width: 160 },
+  { key: 'oldValue', header: 'Old Value', render: (r) => r.oldValue || '—' },
+  { key: 'newValue', header: 'New Value', render: (r) => r.newValue || '—' },
+  {
+    key: 'changedAt',
+    header: 'Changed At',
+    width: 180,
+    render: (r) => new Date(r.changedAt).toLocaleString('en-IN'),
+  },
+  { key: 'changedBy', header: 'Changed By', width: 160, render: (r) => r.changedBy || '—' },
+];
+
+function DetailField({ label, value, chip = null, fullWidth = false }) {
   return (
-    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+    <Grid size={fullWidth ? 12 : { xs: 12, sm: 6, md: 4 }}>
       <Typography
         variant="caption"
         component="p"
@@ -41,8 +58,9 @@ export function EmployeeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const employeeQuery = useEmployee(id);
-  const lifecycle = useEmployeeLifecycle(id);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const updateStatus = useUpdateEmployeeStatus(id);
+  const updateLogsQuery = useEmployeeUpdateLogs(id);
+  const [pendingStatus, setPendingStatus] = useState(null);
 
   if (employeeQuery.isPending) return <LoadingState label="Loading employee…" />;
   if (employeeQuery.isError) {
@@ -51,16 +69,12 @@ export function EmployeeDetailPage() {
 
   const employeeRecord = employeeQuery.data;
   const status = employeeRecord.status || 'Active';
-  const isActive = status === 'Active';
+  const statusTone = EMPLOYEE_STATUS_TONE[status] || 'default';
 
   const handleConfirmStatusChange = async () => {
-    await lifecycle.mutateAsync(isActive ? 'deactivate' : 'activate');
-    setDialogOpen(false);
+    await updateStatus.mutateAsync(pendingStatus);
+    setPendingStatus(null);
   };
-
-  const dialogDescription = isActive
-    ? 'Are you sure you want to change the status of the employee from active to inactive?'
-    : 'Are you sure you want to change the status of the employee from inactive to active?';
 
   return (
     <Box>
@@ -68,14 +82,27 @@ export function EmployeeDetailPage() {
         title={employeeRecord.name}
         subtitle={`${employeeRecord.empId} · ${employeeRecord.designationName} · ${employeeRecord.departmentName}`}
         actions={
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Select
+              size="small"
+              value={status}
+              onChange={(e) => {
+                if (e.target.value !== status) setPendingStatus(e.target.value);
+              }}
+              sx={{ minWidth: 200, borderRadius: 2, fontWeight: 600 }}
+            >
+              {EMPLOYEE_STATUSES.map((s) => (
+                <MenuItem key={s} value={s}>
+                  {s}
+                </MenuItem>
+              ))}
+            </Select>
             <Button
               variant="outlined"
-              color={isActive ? 'warning' : 'success'}
-              onClick={() => setDialogOpen(true)}
-              sx={{ fontWeight: 600 }}
+              startIcon={<EditIcon />}
+              onClick={() => navigate(`/employee-list/${id}/edit`)}
             >
-              {isActive ? 'Mark Inactive' : 'Mark Active'}
+              Edit
             </Button>
             <Button
               variant="outlined"
@@ -102,7 +129,7 @@ export function EmployeeDetailPage() {
                 </Typography>
                 <Chip
                   label={status}
-                  color={isActive ? 'success' : 'error'}
+                  color={statusTone}
                   size="small"
                   variant="outlined"
                   sx={{ fontWeight: 600 }}
@@ -134,8 +161,8 @@ export function EmployeeDetailPage() {
             <DetailField label="Department (F4)" value={employeeRecord.departmentName} />
             <DetailField label="Designation" value={employeeRecord.designationName} />
             <DetailField label="Bucket" value={employeeRecord.bucket} />
-            <DetailField label="Primary Programme" value={employeeRecord.primaryProgrammeName || 'None'} />
-            <DetailField label="State" value={employeeRecord.state} />
+            <DetailField label="State" value={(employeeRecord.stateNames || []).join(', ')} />
+            <DetailField label="City" value={(employeeRecord.cityNames || []).join(', ') || 'None'} />
             <DetailField
               label="Employment Type"
               value={employeeRecord.employmentType}
@@ -155,13 +182,15 @@ export function EmployeeDetailPage() {
               chip={
                 <Chip
                   label={status}
-                  color={isActive ? 'success' : 'error'}
+                  color={statusTone}
                   size="small"
                   variant="outlined"
                   sx={{ fontWeight: 600, minWidth: 70 }}
                 />
               }
             />
+            <DetailField label="Joining Date" value={employeeRecord.joiningDate} />
+            <DetailField label="Exit Date" value={employeeRecord.exitDate || 'Still employed'} />
             <DetailField
               label="Provident Fund (PF)"
               value={employeeRecord.pf}
@@ -210,20 +239,34 @@ export function EmployeeDetailPage() {
                 </Typography>
               }
             />
+            <DetailField label="Remark" value={employeeRecord.remark} fullWidth />
           </Grid>
         </CardContent>
       </Card>
 
-      {/* CONFIRM STATUS TOGGLE DIALOG */}
+      {/* UPDATE HISTORY */}
+      <DataTable
+        title="Update History"
+        columns={UPDATE_LOG_COLUMNS}
+        rows={updateLogsQuery.data || []}
+        getRowKey={(r) => r.id}
+        isLoading={updateLogsQuery.isPending}
+        error={updateLogsQuery.isError ? updateLogsQuery.error : null}
+        onRetry={updateLogsQuery.refetch}
+        emptyTitle="No changes recorded yet"
+        emptyDescription="Edits and status changes will show up here."
+      />
+
+      {/* CONFIRM STATUS CHANGE DIALOG */}
       <ConfirmDialog
-        open={dialogOpen}
+        open={Boolean(pendingStatus)}
         title="Change Employee Status"
-        description={dialogDescription}
+        description={`Change ${employeeRecord.name}'s status from "${status}" to "${pendingStatus}"?`}
         confirmLabel="Confirm"
-        confirmColor={isActive ? 'warning' : 'primary'}
-        busy={lifecycle.isPending}
+        confirmColor={pendingStatus === 'Active' ? 'primary' : 'warning'}
+        busy={updateStatus.isPending}
         onConfirm={handleConfirmStatusChange}
-        onClose={() => setDialogOpen(false)}
+        onClose={() => setPendingStatus(null)}
       />
     </Box>
   );

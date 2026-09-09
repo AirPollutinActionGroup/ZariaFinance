@@ -19,4 +19,7 @@ export const programmeApi = {
 
   /** PATCH /api/v1/programmes/{id}/deactivate → 204. */
   deactivate: (id) => http.patch(`/v1/programmes/${id}/deactivate`),
+
+  /** PATCH /api/v1/programmes/{id}/status — body: {status} → ProgrammeResponse. */
+  updateStatus: (id, status) => http.patch(`/v1/programmes/${id}/status`, { status }),
 };

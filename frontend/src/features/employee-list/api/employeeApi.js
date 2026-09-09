@@ -11,12 +11,15 @@ export const employeeApi = {
   /** GET /api/v1/employees/{id} → EmployeeResponse. */
   getById: (id) => http.get(`/v1/employees/${id}`),
 
+  /** PUT /api/v1/employees/{id} — body: UpdateEmployeeRequest → EmployeeResponse. */
+  update: (id, payload) => http.put(`/v1/employees/${id}`, payload),
+
   /** GET /api/v1/employees[?search=] → EmployeeResponse[]. */
   list: (search) => http.get('/v1/employees', { params: search ? { search } : undefined }),
 
-  /** PATCH /api/v1/employees/{id}/activate → 204. */
-  activate: (id) => http.patch(`/v1/employees/${id}/activate`),
+  /** PATCH /api/v1/employees/{id}/status — body: { status } → 204. */
+  updateStatus: (id, status) => http.patch(`/v1/employees/${id}/status`, { status }),
 
-  /** PATCH /api/v1/employees/{id}/deactivate → 204. */
-  deactivate: (id) => http.patch(`/v1/employees/${id}/deactivate`),
+  /** GET /api/v1/employees/{id}/update-logs → EmployeeUpdateLogResponse[]. */
+  getUpdateLogs: (id) => http.get(`/v1/employees/${id}/update-logs`),
 };

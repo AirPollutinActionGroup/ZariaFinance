@@ -121,10 +121,12 @@ export function GrantForm({
     profileOptions.unshift({ value: String(fundProfileId), label: 'Loading fund profile…' });
   }
 
-  const programmeOptions = (programmesQuery.data || []).map((p) => ({
-    value: String(p.id),
-    label: `${p.programmeCode} · ${p.programmeName}`,
-  }));
+  const programmeOptions = (programmesQuery.data || [])
+    .filter((p) => p.type !== 'Project')
+    .map((p) => ({
+      value: String(p.id),
+      label: `${p.programmeCode} · ${p.programmeName}`,
+    }));
 
   const userOptions = (usersQuery.data || []).map((user) => ({
     value: String(user.id),

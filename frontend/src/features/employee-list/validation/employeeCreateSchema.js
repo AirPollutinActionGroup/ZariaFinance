@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { EMPLOYEE_STATUSES } from '../constants.js';
 
 export const employeeCreateSchema = z.object({
   empId: z.string().min(2, 'Employee ID is required'),
@@ -6,8 +7,10 @@ export const employeeCreateSchema = z.object({
   departmentId: z.union([z.string(), z.number()]).refine((val) => val !== '' && val != null, 'Department is required'),
   designationId: z.union([z.string(), z.number()]).refine((val) => val !== '' && val != null, 'Designation is required'),
   bucket: z.string().min(1, 'Bucket is required'),
-  primaryProgrammeId: z.union([z.string(), z.number()]).optional(),
-  state: z.string().min(1, 'State is required'),
+  stateIds: z.array(z.union([z.string(), z.number()])).min(1, 'At least one state is required'),
+  cityIds: z.array(z.union([z.string(), z.number()])).optional(),
+  joiningDate: z.string().min(1, 'Joining date is required'),
+  exitDate: z.string().optional(),
   annualCtc: z
     .string()
     .min(1, 'Annual CTC is required')
@@ -15,10 +18,11 @@ export const employeeCreateSchema = z.object({
   employmentType: z.enum(['Permanent', 'Contract'], {
     errorMap: () => ({ message: 'Employment type is required' }),
   }),
-  status: z.enum(['Active', 'Inactive']).default('Active'),
+  status: z.enum(EMPLOYEE_STATUSES).default('Active'),
   pf: z.enum(['Yes', 'No']),
   esi: z.enum(['Yes', 'No']),
   gratuity: z.enum(['Yes', 'No']),
+  remark: z.string().optional(),
 });
 
 export const employeeCreateDefaults = {
@@ -27,12 +31,15 @@ export const employeeCreateDefaults = {
   departmentId: '',
   designationId: '',
   bucket: 'Admin',
-  primaryProgrammeId: '',
-  state: 'Delhi',
+  stateIds: [],
+  cityIds: [],
+  joiningDate: '',
+  exitDate: '',
   annualCtc: '',
   employmentType: 'Permanent',
   status: 'Active',
   pf: 'Yes',
   esi: 'No',
   gratuity: 'Yes',
+  remark: '',
 };

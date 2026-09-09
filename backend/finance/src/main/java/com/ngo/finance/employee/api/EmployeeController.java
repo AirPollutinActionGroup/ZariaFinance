@@ -1,7 +1,10 @@
 package com.ngo.finance.employee.api;
 
 import com.ngo.finance.employee.dto.request.CreateEmployeeRequest;
+import com.ngo.finance.employee.dto.request.UpdateEmployeeRequest;
+import com.ngo.finance.employee.dto.request.UpdateEmployeeStatusRequest;
 import com.ngo.finance.employee.dto.response.EmployeeResponse;
+import com.ngo.finance.employee.dto.response.EmployeeUpdateLogResponse;
 import com.ngo.finance.employee.service.EmployeeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,6 +44,14 @@ public class EmployeeController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PutMapping("/{id}")
+    @Operation(summary = "Update an existing employee")
+    public ResponseEntity<EmployeeResponse> updateEmployee(
+            @PathVariable Long id, @Valid @RequestBody UpdateEmployeeRequest request) {
+        log.info("PUT /api/v1/employees/{} - Updating employee", id);
+        return ResponseEntity.ok(employeeService.updateEmployee(id, request));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get employee by ID")
     public ResponseEntity<EmployeeResponse> getEmployee(@PathVariable Long id) {
@@ -57,19 +69,19 @@ public class EmployeeController {
         return ResponseEntity.ok(response);
     }
 
-    @PatchMapping("/{id}/activate")
-    @Operation(summary = "Activate an employee")
-    public ResponseEntity<Void> activateEmployee(@PathVariable Long id) {
-        log.info("PATCH /api/v1/employees/{}/activate - Activating employee", id);
-        employeeService.activateEmployee(id);
+    @PatchMapping("/{id}/status")
+    @Operation(summary = "Change an employee's lifecycle status")
+    public ResponseEntity<Void> updateStatus(
+            @PathVariable Long id, @Valid @RequestBody UpdateEmployeeStatusRequest request) {
+        log.info("PATCH /api/v1/employees/{}/status - Updating status to {}", id, request.getStatus());
+        employeeService.updateStatus(id, request.getStatus());
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{id}/deactivate")
-    @Operation(summary = "Deactivate an employee")
-    public ResponseEntity<Void> deactivateEmployee(@PathVariable Long id) {
-        log.info("PATCH /api/v1/employees/{}/deactivate - Deactivating employee", id);
-        employeeService.deactivateEmployee(id);
-        return ResponseEntity.noContent().build();
+    @GetMapping("/{id}/update-logs")
+    @Operation(summary = "Get an employee's field-level change history")
+    public ResponseEntity<List<EmployeeUpdateLogResponse>> getUpdateLogs(@PathVariable Long id) {
+        log.info("GET /api/v1/employees/{}/update-logs - Fetching update logs", id);
+        return ResponseEntity.ok(employeeService.getUpdateLogs(id));
     }
 }

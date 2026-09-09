@@ -29,7 +29,7 @@ export const vendorCreateSchema = z
       .optional()
       .refine((val) => !val || GST_REGEX.test(val), 'Enter a valid GSTIN'),
     gstRegistrationType: z
-      .enum(['Regular', 'Composition', 'Unregistered', 'SEZ'])
+      .enum(['Regular', 'Composition', 'SEZ'])
       .optional(),
     tanNumber: z.string().optional(),
     hasMsmeRegistration: z.enum(['Yes', 'No']).optional(),
@@ -74,27 +74,30 @@ export const vendorCreateSchema = z
         });
       }
     } else {
-      if (data.hasIncorporationCertificate !== 'Yes' && data.hasIncorporationCertificate !== 'No') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['hasIncorporationCertificate'],
-          message: 'Select whether an Incorporation Certificate is available',
-        });
-      }
-      if (data.hasIncorporationCertificate === 'Yes') {
-        if (!data.registrationNo || data.registrationNo.trim().length < 2) {
+      const isIncorporationEligible = data.entityType === 'LLP' || data.entityType === 'Pvt Ltd';
+      if (isIncorporationEligible) {
+        if (data.hasIncorporationCertificate !== 'Yes' && data.hasIncorporationCertificate !== 'No') {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            path: ['registrationNo'],
-            message: 'CIN / Registration number is required',
+            path: ['hasIncorporationCertificate'],
+            message: 'Select whether an Incorporation Certificate is available',
           });
         }
-        if (!data.dateOfIncorporation) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ['dateOfIncorporation'],
-            message: 'Date of incorporation is required',
-          });
+        if (data.hasIncorporationCertificate === 'Yes') {
+          if (!data.registrationNo || data.registrationNo.trim().length < 2) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['registrationNo'],
+              message: 'CIN / Registration number is required',
+            });
+          }
+          if (!data.dateOfIncorporation) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['dateOfIncorporation'],
+              message: 'Date of incorporation is required',
+            });
+          }
         }
       }
 
@@ -158,7 +161,7 @@ export const vendorCreateDefaults = {
   panNumber: '',
   hasGstRegistration: 'No',
   gstNumber: '',
-  gstRegistrationType: 'Unregistered',
+  gstRegistrationType: 'Regular',
   tanNumber: '',
   hasMsmeRegistration: 'No',
   udyamNumber: '',

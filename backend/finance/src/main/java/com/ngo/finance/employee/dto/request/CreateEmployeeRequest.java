@@ -1,10 +1,14 @@
 package com.ngo.finance.employee.dto.request;
 
+import com.ngo.finance.employee.EmployeeStatuses;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,11 +39,15 @@ public class CreateEmployeeRequest {
     @Pattern(regexp = "Admin|Project", message = "Bucket is not a recognised value")
     private String bucket;
 
-    /** Required only when bucket is "Project" — enforced in the service layer. */
-    private Long primaryProgrammeId;
+    @NotEmpty(message = "At least one state is required")
+    private List<Long> stateIds;
 
-    @NotBlank(message = "State is required")
-    private String state;
+    private List<Long> cityIds;
+
+    @NotNull(message = "Joining date is required")
+    private LocalDate joiningDate;
+
+    private LocalDate exitDate;
 
     @NotNull(message = "Annual CTC is required")
     @DecimalMin(value = "0.01", message = "Annual CTC must be greater than zero")
@@ -61,6 +69,9 @@ public class CreateEmployeeRequest {
     @Pattern(regexp = "Yes|No", message = "Must be Yes or No")
     private String gratuity;
 
-    /** Defaults to active when omitted. */
-    private Boolean status;
+    /** Defaults to "Active" when omitted. */
+    @Pattern(regexp = EmployeeStatuses.PATTERN, message = "Status is not a recognised value")
+    private String status;
+
+    private String remark;
 }

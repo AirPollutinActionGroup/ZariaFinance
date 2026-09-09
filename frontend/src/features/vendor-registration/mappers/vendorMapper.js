@@ -22,22 +22,22 @@ export function fromVendorResponse(dto) {
 /** Form values → CreateVendorRequest. */
 export function toCreateVendorRequest(values) {
   const isIndividual = values.entityType === 'Individual';
-  const showIncorporationDetails = !isIndividual && values.hasIncorporationCertificate === 'Yes';
+  const isIncorporationEligible = values.entityType === 'LLP' || values.entityType === 'Pvt Ltd';
+  const showIncorporationDetails = isIncorporationEligible && values.hasIncorporationCertificate === 'Yes';
   const showGstDetails = !isIndividual && values.hasGstRegistration === 'Yes';
   const showMsmeDetails = !isIndividual && values.hasMsmeRegistration === 'Yes';
 
   return {
     entityType: values.entityType,
     legalName: values.legalName.trim(),
-    hasIncorporationCertificate: isIndividual ? null : values.hasIncorporationCertificate,
+    hasIncorporationCertificate: isIncorporationEligible ? values.hasIncorporationCertificate : null,
     dateOfIncorporation: showIncorporationDetails ? nullIfBlank(values.dateOfIncorporation) : null,
     registrationNo: showIncorporationDetails ? nullIfBlank(values.registrationNo) : null,
     aadhaarNumber: isIndividual ? nullIfBlank(values.aadhaarNumber) : null,
     panNumber: values.panNumber.trim().toUpperCase(),
     hasGstRegistration: isIndividual ? null : values.hasGstRegistration,
     gstNumber: showGstDetails ? nullIfBlank(values.gstNumber)?.toUpperCase() ?? null : null,
-    // "Unregistered" is a meaningful GST status, not a blank — keep it even when GST Registration is No.
-    gstRegistrationType: isIndividual ? null : showGstDetails ? values.gstRegistrationType : 'Unregistered',
+    gstRegistrationType: showGstDetails ? values.gstRegistrationType : null,
     tanNumber: isIndividual ? null : nullIfBlank(values.tanNumber),
     hasMsmeRegistration: isIndividual ? null : values.hasMsmeRegistration,
     udyamNumber: showMsmeDetails ? nullIfBlank(values.udyamNumber) : null,
