@@ -56,12 +56,21 @@ export function EmployeeAllocationPage() {
           onChange={(_, val) => setActiveTab(val)}
           sx={{ '& .MuiTab-root': { textTransform: 'none', fontWeight: 700, fontSize: 14, minHeight: 48 } }}
         >
-          <Tab label="By employee" />
           <Tab label="Final view" />
+          <Tab label="By employee" />
         </Tabs>
       </Box>
 
       {activeTab === 0 && (
+        <FinalAllocationView
+          allocations={allocations}
+          isLoading={allocationsQuery.isLoading}
+          error={allocationsQuery.isError ? allocationsQuery.error : null}
+          onRetry={allocationsQuery.refetch}
+        />
+      )}
+
+      {activeTab === 1 && (
         <Box>
           {allocationsQuery.isLoading ? (
             <LoadingState label="Loading allocations…" />
@@ -94,15 +103,6 @@ export function EmployeeAllocationPage() {
             </>
           )}
         </Box>
-      )}
-
-      {activeTab === 1 && (
-        <FinalAllocationView
-          allocations={allocations}
-          isLoading={allocationsQuery.isLoading}
-          error={allocationsQuery.isError ? allocationsQuery.error : null}
-          onRetry={allocationsQuery.refetch}
-        />
       )}
 
       <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="md" fullWidth>
