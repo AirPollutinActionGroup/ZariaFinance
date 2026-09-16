@@ -490,6 +490,7 @@ public class DisbursementControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(ReceiveTrancheRequest.builder()
                                 .actualAmount(new BigDecimal("150000.00"))
                                 .actualDate(LocalDate.of(2026, 4, 3))
+                                .bankReference("REF-001")
                                 .build())))
                 .andExpect(status().isOk());
 
