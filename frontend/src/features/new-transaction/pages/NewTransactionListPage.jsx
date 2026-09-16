@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import { DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
 import { formatInr } from '../../../lib/format/currency.js';
-import { MOCK_TRANSACTIONS } from '../data/mockNewTransaction.js';
+import { useTransactions } from '../hooks/useTransactions.js';
 
 export function NewTransactionListPage() {
   const navigate = useNavigate();
-  const [transactions] = useState(MOCK_TRANSACTIONS);
+  const transactionsQuery = useTransactions();
+  const transactions = transactionsQuery.data || [];
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
   const [bookFilter, setBookFilter] = useState('All');
@@ -156,6 +157,9 @@ export function NewTransactionListPage() {
         columns={columns}
         rows={filteredTransactions}
         getRowKey={(r) => r.id}
+        isLoading={transactionsQuery.isPending}
+        error={transactionsQuery.isError ? transactionsQuery.error : null}
+        onRetry={transactionsQuery.refetch}
         onRowClick={(r) => navigate(`/new-transaction/${r.id}`)}
         emptyTitle="No transactions found"
       />

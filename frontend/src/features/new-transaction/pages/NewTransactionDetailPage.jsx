@@ -15,7 +15,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ReceiptOutlinedIcon from '@mui/icons-material/ReceiptOutlined';
 import { PageHeader } from '../../../shared/components/index.js';
 import { formatInr } from '../../../lib/format/currency.js';
-import { BOOKS, MOCK_TRANSACTIONS } from '../data/mockNewTransaction.js';
+import { BOOKS } from '../data/mockNewTransaction.js';
+import { useTransaction } from '../hooks/useTransactions.js';
 
 function DetailField({ label, value, chip = null }) {
   return (
@@ -49,7 +50,37 @@ export function NewTransactionDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const tx = MOCK_TRANSACTIONS.find((t) => t.id === id) || MOCK_TRANSACTIONS[0];
+  const transactionQuery = useTransaction(id);
+  const tx = transactionQuery.data;
+
+  if (transactionQuery.isPending) {
+    return (
+      <Box>
+        <Typography variant="body2" color="text.secondary">
+          Loading transaction…
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (transactionQuery.isError || !tx) {
+    return (
+      <Box>
+        <PageHeader
+          title="Transaction not found"
+          actions={
+            <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/new-transaction')}>
+              Back to List
+            </Button>
+          }
+        />
+        <Typography variant="body2" color="text.secondary">
+          We couldn&apos;t find a transaction with ID &quot;{id}&quot;.
+        </Typography>
+      </Box>
+    );
+  }
+
   const isDebit = tx.type === 'DEBIT';
   const bookLabel = BOOKS.find((b) => b.value === tx.book)?.label || tx.book;
 

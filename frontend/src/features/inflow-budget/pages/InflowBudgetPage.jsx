@@ -5,10 +5,9 @@ import { DataTable, PageHeader, SearchField, StatCard, StatusChip } from '../../
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate } from '../../../lib/format/date.js';
 import { BOOK, BOOK_TONE } from '../../donation-management/constants.js';
-import { getInflowRows } from '../data/inflowRepository.js';
+import { useInflowRows } from '../hooks/useInflowRows.js';
 import { getRowStatus } from '../lib/status.js';
 import {
-  AS_AT_DATE,
   OVERDUE_THRESHOLD_DAYS,
   RECEIPT_STATUS,
   RECEIPT_STATUS_TONE,
@@ -62,12 +61,14 @@ function AgeingTile({ meta, amount, count }) {
 
 export function InflowBudgetPage() {
   const navigate = useNavigate();
-  const [rows] = useState(() => getInflowRows());
+  const rowsQuery = useInflowRows();
+  const rows = useMemo(() => rowsQuery.data || [], [rowsQuery.data]);
   const [searchQuery, setSearchQuery] = useState('');
   const [bookFilter, setBookFilter] = useState('All');
   const [restrictionFilter, setRestrictionFilter] = useState('All');
 
-  const asAt = useMemo(() => new Date(AS_AT_DATE), []);
+  const asAt = useMemo(() => new Date(), []);
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const rowsWithStatus = useMemo(
     () => rows.map((row) => ({ ...row, status: getRowStatus(row, asAt) })),
@@ -77,7 +78,8 @@ export function InflowBudgetPage() {
   const filteredRows = useMemo(() => {
     return rowsWithStatus.filter((row) => {
       const q = searchQuery.trim().toLowerCase();
-      const matchesSearch = !q || row.id.toLowerCase().includes(q) || row.donor.toLowerCase().includes(q);
+      const matchesSearch =
+        !q || (row.grantCode || '').toLowerCase().includes(q) || (row.donor || '').toLowerCase().includes(q);
       const matchesBook = bookFilter === 'All' || row.book === bookFilter;
       const matchesRestriction = restrictionFilter === 'All' || row.restriction === restrictionFilter;
       return matchesSearch && matchesBook && matchesRestriction;
@@ -114,11 +116,11 @@ export function InflowBudgetPage() {
   const columns = [
     {
       key: 'id',
-      header: 'Tranche / donation',
+      header: 'Tranche',
       render: (row) => (
         <Box>
           <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 12.5 }}>
-            {row.id}
+            {row.grantCode} · T{row.trancheNumber}
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.15 }}>
             {row.donor}
@@ -129,19 +131,22 @@ export function InflowBudgetPage() {
     {
       key: 'restriction',
       header: 'Restriction',
-      render: (row) => (
-        <StatusChip label={RESTRICTION_TYPE[row.restriction]} tone={RESTRICTION_TONE[row.restriction]} />
-      ),
+      render: (row) =>
+        row.restriction ? (
+          <StatusChip label={RESTRICTION_TYPE[row.restriction] || row.restriction} tone={RESTRICTION_TONE[row.restriction]} />
+        ) : (
+          '—'
+        ),
     },
     {
       key: 'book',
       header: 'Book',
-      render: (row) => <StatusChip label={row.book} tone={BOOK_TONE[row.book]} />,
+      render: (row) => (row.book ? <StatusChip label={row.book} tone={BOOK_TONE[row.book]} /> : '—'),
     },
     {
       key: 'expectedDate',
       header: 'Expected date',
-      render: (row) => formatDate(row.expectedDate),
+      render: (row) => (row.expectedDate ? formatDate(row.expectedDate) : '—'),
     },
     {
       key: 'expectedAmount',
@@ -187,18 +192,18 @@ export function InflowBudgetPage() {
     <Box sx={{ maxWidth: 1400 }}>
       <PageHeader
         title="Inflow Budget"
-        subtitle="Expected vs actual inflow across every donor and grant — fed automatically; you only record what arrives."
+        subtitle="Expected vs actual inflow across every donor grant tranche — fed automatically; you only record what arrives."
       />
 
       <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <StatCard label="Expected" value={formatInrExact(kpis.totalExpected)} hint={`${rows.length} tranches & donations`} />
+          <StatCard label="Expected" value={formatInrExact(kpis.totalExpected)} hint={`${rows.length} tranches`} />
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
           <StatCard
             label="Received"
             value={formatInrExact(kpis.totalReceived)}
-            hint={`${receivedPct}% of expected · as at ${formatDate(AS_AT_DATE)}`}
+            hint={`${receivedPct}% of expected · as at ${formatDate(todayIso)}`}
             accent
           />
         </Grid>
@@ -254,7 +259,7 @@ export function InflowBudgetPage() {
         sx={{ mb: 2 }}
       >
         <Box sx={{ width: { xs: '100%', sm: 340 } }}>
-          <SearchField placeholder="Search tranche ID or donor…" value={searchQuery} onChange={setSearchQuery} />
+          <SearchField placeholder="Search grant code or donor…" value={searchQuery} onChange={setSearchQuery} />
         </Box>
         <Stack direction="row" spacing={1.5}>
           <FormControl size="small" sx={{ minWidth: 130 }}>
@@ -280,6 +285,9 @@ export function InflowBudgetPage() {
         columns={columns}
         rows={filteredRows}
         getRowKey={(row) => row.id}
+        isLoading={rowsQuery.isPending}
+        error={rowsQuery.isError ? rowsQuery.error : null}
+        onRetry={rowsQuery.refetch}
         emptyTitle="No inflow rows found"
         emptyDescription="Try adjusting your search query or filters."
         onRowClick={(row) => navigate(`/inflow-budget/${row.id}`)}

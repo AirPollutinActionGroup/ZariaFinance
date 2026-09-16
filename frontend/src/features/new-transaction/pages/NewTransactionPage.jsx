@@ -17,18 +17,19 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../../shared/components/index.js';
 import { SearchableSelect } from '../../../components/SearchableSelect.jsx';
 import { formatInr } from '../../../lib/format/currency.js';
-import { MOCK_LEDGERS } from '../../transaction-entry/data/transactionData.js';
+import { usePaymentModes } from '../../payment-mode/hooks/usePaymentModes.js';
+import { usePaymentTypeGroups } from '../../payment-type/hooks/usePaymentTypeGroups.js';
+import { usePaymentTypeLedgers } from '../../payment-type/hooks/usePaymentTypeLedgers.js';
+import { useDonors } from '../../donor-management/hooks/useDonors.js';
+import { useFundProfilesByDonor } from '../../donor-management/hooks/useFundProfiles.js';
+import { useGrants } from '../../donor-management/hooks/useGrants.js';
+import { useCreateTransaction } from '../hooks/useTransactions.js';
 import {
-  ACCOUNT_GROUPS,
   BANK_ACCOUNTS,
   BOOKS,
-  CREDIT_GROUPS,
   DONOR_TYPES,
-  DONORS,
-  LEDGER_TYPES,
   PAYEE_CATEGORIES,
   PAYEES,
-  PAYMENT_MODES,
   TRANSACTION_TYPES,
 } from '../data/mockNewTransaction.js';
 
@@ -44,9 +45,9 @@ export function NewTransactionPage() {
   const [grantId, setGrantId] = useState('');
   const [amount, setAmount] = useState('');
   const [bankAccount, setBankAccount] = useState('');
-  const [paymentMode, setPaymentMode] = useState('CASH');
+  const [paymentMode, setPaymentMode] = useState('');
   const [reference, setReference] = useState('');
-  const [group, setGroup] = useState(ACCOUNT_GROUPS[0].value);
+  const [group, setGroup] = useState('');
   const [ledgerType, setLedgerType] = useState('');
   const [notes, setNotes] = useState('');
   const [attachment, setAttachment] = useState(null);
@@ -54,56 +55,91 @@ export function NewTransactionPage() {
 
   const isCredit = type === 'CREDIT';
 
+  // Payment mode, Group and Ledger are the real Payment Mode / Payment Type
+  // (Group ▸ Ledger) master data — server-backed, not mock — for both Debit
+  // (Out) and Credit (In) transactions; it's the same chart of accounts.
+  const paymentModesQuery = usePaymentModes();
+  const paymentModeOptions = useMemo(
+    () =>
+      (paymentModesQuery.data || [])
+        .filter((m) => m.status === 'ACTIVE')
+        .map((m) => ({ value: m.id, label: m.name })),
+    [paymentModesQuery.data]
+  );
+
+  const groupsQuery = usePaymentTypeGroups();
+  const groupOptions = useMemo(
+    () =>
+      (groupsQuery.data || [])
+        .filter((g) => g.status === 'ACTIVE')
+        .map((g) => ({ value: g.id, label: g.name })),
+    [groupsQuery.data]
+  );
+
+  const ledgersQuery = usePaymentTypeLedgers();
+
   const categoryOptions = isCredit ? DONOR_TYPES : PAYEE_CATEGORIES;
-  const groupOptions = isCredit ? CREDIT_GROUPS : ACCOUNT_GROUPS;
 
   // Ledger accounts cascade from the selected Group, same as the Transaction Entry page.
   const ledgerOptions = useMemo(() => {
-    if (isCredit) return LEDGER_TYPES;
-    return MOCK_LEDGERS.filter((l) => l.group === group).map((l) => ({
-      value: l.id,
-      label: `${l.name} (${l.code})`,
-    }));
-  }, [isCredit, group]);
+    return (ledgersQuery.data || [])
+      .filter((l) => l.status === 'ACTIVE' && l.groupId === group)
+      .map((l) => ({ value: l.id, label: l.name }));
+  }, [group, ledgersQuery.data]);
+
+  // Donor, Fund profile and Grant agreement are the real donor-management
+  // master data — server-backed, not mock — for both Debit and Credit.
+  const donorsQuery = useDonors();
+  const donors = useMemo(() => donorsQuery.data || [], [donorsQuery.data]);
 
   const partyOptions = useMemo(() => {
-    const source = isCredit ? DONORS : PAYEES;
-    return source
-      .filter((p) => p.category === category)
-      .map((p) => ({ value: p.id, label: p.name }));
-  }, [isCredit, category]);
+    if (!isCredit) {
+      return PAYEES.filter((p) => p.category === category).map((p) => ({ value: p.id, label: p.name }));
+    }
+    return donors.filter((d) => d.donorType === category).map((d) => ({ value: d.id, label: d.donorName }));
+  }, [isCredit, category, donors]);
 
   // The donor whose fund is being credited or debited — kept separate from the
   // Payee/Donor party field so a Debit (expense) can still be charged to a
   // specific donor's restricted fund.
-  const donorOptions = useMemo(() => DONORS.map((d) => ({ value: d.id, label: d.name })), []);
+  const donorOptions = useMemo(() => donors.map((d) => ({ value: d.id, label: d.donorName })), [donors]);
 
-  const currentFundDonor = useMemo(() => DONORS.find((d) => d.id === donorId) || null, [donorId]);
-
+  const fundProfilesQuery = useFundProfilesByDonor(donorId || undefined);
   const fundOptions = useMemo(() => {
-    return (currentFundDonor?.funds || []).map((f) => ({ value: f.id, label: f.name, balance: f.balance }));
-  }, [currentFundDonor]);
+    return (fundProfilesQuery.data || []).map((f) => {
+      const hasDisbursementData = (f.disbursementRules || []).length > 0;
+      const balance = hasDisbursementData
+        ? f.disbursementRules.reduce((sum, r) => sum + (Number(r.unallocatedAmount) || 0), 0)
+        : null;
+      return {
+        value: f.id,
+        label: f.purpose || `${f.fundClassLabel || 'Fund profile'} · #${f.id}`,
+        balance,
+      };
+    });
+  }, [fundProfilesQuery.data]);
 
   const currentFund = useMemo(
     () => fundOptions.find((f) => f.value === fundId) || null,
     [fundOptions, fundId]
   );
 
+  const grantsQuery = useGrants(donorId ? { donorId } : undefined);
   const grantOptions = useMemo(() => {
-    if (!fundId || !currentFundDonor) return [];
-    const fund = currentFundDonor.funds.find((f) => f.id === fundId);
-    if (!fund) return [];
-    return fund.grants.map((g) => ({ value: g, label: g }));
-  }, [currentFundDonor, fundId]);
+    if (!fundId) return [];
+    return (grantsQuery.data || [])
+      .filter((g) => g.fundProfileId === fundId)
+      .map((g) => ({ value: g.id, label: g.grantCode }));
+  }, [fundId, grantsQuery.data]);
 
   const projectedBalance = useMemo(() => {
-    if (!currentFund) return null;
+    if (!currentFund || currentFund.balance == null) return null;
     const amt = Number(amount) || 0;
     return type === 'DEBIT' ? currentFund.balance - amt : currentFund.balance + amt;
   }, [currentFund, amount, type]);
 
   const insufficientBalance =
-    type === 'DEBIT' && currentFund && projectedBalance !== null && projectedBalance < 0;
+    type === 'DEBIT' && currentFund && currentFund.balance != null && projectedBalance !== null && projectedBalance < 0;
 
   function handleTypeChange(_event, newType) {
     if (!newType) return;
@@ -114,7 +150,7 @@ export function NewTransactionPage() {
     setDonorId('');
     setFundId('');
     setGrantId('');
-    setGroup(newType === 'CREDIT' ? CREDIT_GROUPS[0].value : ACCOUNT_GROUPS[0].value);
+    setGroup('');
     setLedgerType('');
   }
 
@@ -161,7 +197,9 @@ export function NewTransactionPage() {
     setAttachment(file || null);
   }
 
-  function handleSubmit(e) {
+  const createTransaction = useCreateTransaction();
+
+  async function handleSubmit(e) {
     e.preventDefault();
 
     if (!amount || Number(amount) <= 0) {
@@ -182,6 +220,21 @@ export function NewTransactionPage() {
       return;
     }
 
+    if (!fundId) {
+      setToastMessage({ type: 'error', text: 'Please select a fund profile.' });
+      return;
+    }
+
+    if (!paymentMode) {
+      setToastMessage({ type: 'error', text: 'Please select a payment mode.' });
+      return;
+    }
+
+    if (!group || !ledgerType) {
+      setToastMessage({ type: 'error', text: 'Please select a Group and Ledger.' });
+      return;
+    }
+
     if (insufficientBalance) {
       setToastMessage({
         type: 'error',
@@ -190,12 +243,37 @@ export function NewTransactionPage() {
       return;
     }
 
-    setToastMessage({
-      type: 'success',
-      text: `Transaction of ${formatInr(amount)} (${type === 'DEBIT' ? 'Dr' : 'Cr'}) saved successfully.`,
-    });
+    const partyName = partyOptions.find((o) => o.value === partyId)?.label || '';
 
-    setTimeout(() => navigate('/new-transaction'), 1200);
+    try {
+      await createTransaction.mutateAsync({
+        type,
+        book,
+        date,
+        category,
+        partyId,
+        partyName,
+        donorId,
+        fundId,
+        grantId,
+        amount,
+        bankAccount,
+        paymentMode,
+        reference,
+        group,
+        ledgerType,
+        notes,
+      });
+
+      setToastMessage({
+        type: 'success',
+        text: `Transaction of ${formatInr(amount)} (${type === 'DEBIT' ? 'Dr' : 'Cr'}) saved successfully.`,
+      });
+
+      setTimeout(() => navigate('/new-transaction'), 1200);
+    } catch {
+      setToastMessage({ type: 'error', text: 'Failed to save transaction. Please try again.' });
+    }
   }
 
   function handleCancel() {
@@ -324,11 +402,13 @@ export function NewTransactionPage() {
                     sx={{ mt: 0.75, display: 'block', color: insufficientBalance ? 'error.main' : 'text.secondary' }}
                   >
                     {currentFund
-                      ? `Available: ${formatInr(currentFund.balance)}${
-                          amount
-                            ? ` → After this ${type === 'DEBIT' ? 'debit' : 'credit'}: ${formatInr(projectedBalance)}`
-                            : ''
-                        }`
+                      ? currentFund.balance != null
+                        ? `Available: ${formatInr(currentFund.balance)}${
+                            amount
+                              ? ` → After this ${type === 'DEBIT' ? 'debit' : 'credit'}: ${formatInr(projectedBalance)}`
+                              : ''
+                          }`
+                        : 'Balance not available for this fund profile'
                       : 'Select a fund to see available balance'}
                   </Typography>
                 </Grid>
@@ -376,9 +456,10 @@ export function NewTransactionPage() {
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <SearchableSelect
                     label="Payment mode *"
-                    options={PAYMENT_MODES}
-                    value={PAYMENT_MODES.find((o) => o.value === paymentMode) || null}
+                    options={paymentModeOptions}
+                    value={paymentModeOptions.find((o) => o.value === paymentMode) || null}
                     onChange={(newValue) => setPaymentMode(newValue?.value || '')}
+                    disabled={paymentModeOptions.length === 0}
                   />
                 </Grid>
 
@@ -452,6 +533,7 @@ export function NewTransactionPage() {
               <Button
                 type="submit"
                 variant="contained"
+                disabled={createTransaction.isPending}
                 sx={{
                   bgcolor: '#17191C',
                   color: '#FFFFFF',
@@ -460,7 +542,7 @@ export function NewTransactionPage() {
                   '&:hover': { bgcolor: '#232629' },
                 }}
               >
-                Save Transaction
+                {createTransaction.isPending ? 'Saving…' : 'Save Transaction'}
               </Button>
             </Stack>
           </Stack>

@@ -81,6 +81,14 @@ export const queryKeys = {
     all: () => ['designations'],
     list: (search) => ['designations', 'list', { search: search || '' }],
   },
+  paymentTypeGroups: {
+    all: () => ['paymentTypeGroups'],
+    list: (search) => ['paymentTypeGroups', 'list', { search: search || '' }],
+  },
+  paymentTypeLedgers: {
+    all: () => ['paymentTypeLedgers'],
+    list: (search) => ['paymentTypeLedgers', 'list', { search: search || '' }],
+  },
   financialYears: {
     all: () => ['financialYears'],
   },
@@ -96,5 +104,13 @@ export const queryKeys = {
   },
   employeeAllocations: {
     all: () => ['employeeAllocations'],
+  },
+  transactions: {
+    all: () => ['transactions'],
+    detail: (code) => ['transactions', 'detail', String(code)],
+  },
+  inflowTranches: {
+    all: () => ['inflowTranches'],
+    detail: (id) => ['inflowTranches', 'detail', String(id)],
   },
 };

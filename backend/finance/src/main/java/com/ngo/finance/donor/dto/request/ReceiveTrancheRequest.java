@@ -1,5 +1,6 @@
 package com.ngo.finance.donor.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
@@ -24,4 +25,14 @@ public class ReceiveTrancheRequest {
     private BigDecimal actualAmount;
 
     private LocalDate actualDate;
+
+    /** Only meaningful for an FC grant; ignored otherwise. */
+    private BigDecimal actualFxRate;
+
+    @NotBlank(message = "Bank reference is required")
+    private String bankReference;
+
+    private String receiptVoucherNo;
+
+    private String varianceReason;
 }

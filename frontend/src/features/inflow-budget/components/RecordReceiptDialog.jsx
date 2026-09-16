@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate } from '../../../lib/format/date.js';
-import { AS_AT_DATE } from '../constants.js';
 
 const emptyForm = { actualDate: '', actualAmount: '', actualFx: '', bankRef: '', voucherNo: '', varianceReason: '' };
 
 function initialFormFor(row) {
   if (!row) return emptyForm;
   return {
-    actualDate: AS_AT_DATE,
+    actualDate: new Date().toISOString().slice(0, 10),
     actualAmount: String(row.expectedAmount),
     actualFx: row.book === 'FC' ? String(row.expectedFx || '') : '',
     bankRef: '',
@@ -22,7 +21,7 @@ function initialFormFor(row) {
  * the donor module already scheduled; only asks for what it doesn't carry.
  * Callers should key this component by row.id so a new row remounts it with
  * fresh initial state instead of reusing a stale form. */
-export function RecordReceiptDialog({ row, onClose, onSave }) {
+export function RecordReceiptDialog({ row, saving = false, onClose, onSave }) {
   const [form, setForm] = useState(() => initialFormFor(row));
 
   const hasVariance = row && form.actualAmount !== '' && Number(form.actualAmount) !== row.expectedAmount;
@@ -37,14 +36,7 @@ export function RecordReceiptDialog({ row, onClose, onSave }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!row || !canSave) return;
-    onSave({
-      actualDate: form.actualDate,
-      actualAmount: Number(form.actualAmount),
-      actualFx: form.actualFx ? Number(form.actualFx) : row.actualFx,
-      bankRef: form.bankRef.trim(),
-      voucherNo: form.voucherNo.trim(),
-      varianceReason: form.varianceReason.trim(),
-    });
+    onSave(form);
   };
 
   return (
@@ -110,8 +102,8 @@ export function RecordReceiptDialog({ row, onClose, onSave }) {
           <Button variant="outlined" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" variant="contained" disabled={!canSave}>
-            Save Receipt
+          <Button type="submit" variant="contained" disabled={!canSave || saving}>
+            {saving ? 'Saving…' : 'Save Receipt'}
           </Button>
         </DialogActions>
       </form>

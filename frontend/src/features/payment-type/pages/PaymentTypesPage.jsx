@@ -19,13 +19,21 @@ import AddIcon from '@mui/icons-material/Add';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
 import { DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
-import { MOCK_GROUPS, MOCK_LEDGERS } from '../data/mockPaymentTypes.js';
+import {
+  useCreatePaymentTypeGroup,
+  usePaymentTypeGroupLifecycle,
+  usePaymentTypeGroups,
+} from '../hooks/usePaymentTypeGroups.js';
+import {
+  useCreatePaymentTypeLedger,
+  usePaymentTypeLedgerLifecycle,
+  usePaymentTypeLedgers,
+} from '../hooks/usePaymentTypeLedgers.js';
 
 export function PaymentTypesPage() {
   const [activeTab, setActiveTab] = useState(0);
 
   // Group State
-  const [groups, setGroups] = useState(MOCK_GROUPS);
   const [groupSearch, setGroupSearch] = useState('');
   const [groupStatusFilter, setGroupStatusFilter] = useState('All');
   const [openGroupDialog, setOpenGroupDialog] = useState(false);
@@ -33,84 +41,84 @@ export function PaymentTypesPage() {
   const [newGroupStatus, setNewGroupStatus] = useState('Active');
 
   // Ledger State
-  const [ledgers, setLedgers] = useState(MOCK_LEDGERS);
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [ledgerGroupFilter, setLedgerGroupFilter] = useState('All');
   const [ledgerStatusFilter, setLedgerStatusFilter] = useState('All');
   const [openLedgerDialog, setOpenLedgerDialog] = useState(false);
   const [newLedgerName, setNewLedgerName] = useState('');
-  const [newLedgerGroupName, setNewLedgerGroupName] = useState('Balance Sheet');
+  const [newLedgerGroupId, setNewLedgerGroupId] = useState('');
   const [newLedgerStatus, setNewLedgerStatus] = useState('Active');
+
+  const groupsQuery = usePaymentTypeGroups(groupSearch);
+  const createGroup = useCreatePaymentTypeGroup();
+  const groupLifecycle = usePaymentTypeGroupLifecycle();
+
+  // Full, unfiltered group list — feeds the "Group Name" dropdowns
+  // (ledger group filter + Add Ledger dialog), independent of the Group tab's search.
+  const allGroupsQuery = usePaymentTypeGroups();
+  const groups = allGroupsQuery.data || [];
+
+  const ledgersQuery = usePaymentTypeLedgers(ledgerSearch);
+  const createLedger = useCreatePaymentTypeLedger();
+  const ledgerLifecycle = usePaymentTypeLedgerLifecycle();
+
+  const selectedLedgerGroupId = newLedgerGroupId || groups[0]?.id || '';
 
   // Filtered Groups
   const filteredGroups = useMemo(() => {
-    return groups.filter((g) => {
-      const matchesSearch = g.name.toLowerCase().includes(groupSearch.toLowerCase());
-      const matchesStatus =
-        groupStatusFilter === 'All' || g.status.toLowerCase() === groupStatusFilter.toLowerCase();
-      return matchesSearch && matchesStatus;
+    const rows = groupsQuery.data || [];
+    const filtered = rows.filter((g) => {
+      return groupStatusFilter === 'All' || g.statusLabel === groupStatusFilter;
     });
-  }, [groups, groupSearch, groupStatusFilter]);
+    return filtered.map((g, index) => ({ ...g, srNo: index + 1 }));
+  }, [groupsQuery.data, groupStatusFilter]);
 
   // Filtered Ledgers
   const filteredLedgers = useMemo(() => {
-    return ledgers.filter((l) => {
-      const matchesSearch = l.name.toLowerCase().includes(ledgerSearch.toLowerCase());
-      const matchesGroup =
-        ledgerGroupFilter === 'All' || l.groupName.toLowerCase() === ledgerGroupFilter.toLowerCase();
-      const matchesStatus =
-        ledgerStatusFilter === 'All' || l.status.toLowerCase() === ledgerStatusFilter.toLowerCase();
-      return matchesSearch && matchesGroup && matchesStatus;
+    const rows = ledgersQuery.data || [];
+    const filtered = rows.filter((l) => {
+      const matchesGroup = ledgerGroupFilter === 'All' || l.groupName === ledgerGroupFilter;
+      const matchesStatus = ledgerStatusFilter === 'All' || l.statusLabel === ledgerStatusFilter;
+      return matchesGroup && matchesStatus;
     });
-  }, [ledgers, ledgerSearch, ledgerGroupFilter, ledgerStatusFilter]);
+    return filtered.map((l, index) => ({ ...l, srNo: index + 1 }));
+  }, [ledgersQuery.data, ledgerGroupFilter, ledgerStatusFilter]);
 
   // Group Status Change
-  const handleGroupStatusChange = (id, nextStatus) => {
-    setGroups((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, status: nextStatus } : g))
-    );
+  const handleGroupStatusChange = async (id, nextStatusLabel) => {
+    const action = nextStatusLabel === 'Active' ? 'activate' : 'deactivate';
+    await groupLifecycle.mutateAsync({ id, action });
   };
 
   // Ledger Status Change
-  const handleLedgerStatusChange = (id, nextStatus) => {
-    setLedgers((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, status: nextStatus } : l))
-    );
+  const handleLedgerStatusChange = async (id, nextStatusLabel) => {
+    const action = nextStatusLabel === 'Active' ? 'activate' : 'deactivate';
+    await ledgerLifecycle.mutateAsync({ id, action });
   };
 
   // Add Group
-  const handleAddGroupSubmit = (e) => {
+  const handleAddGroupSubmit = async (e) => {
     e.preventDefault();
     if (!newGroupName.trim()) return;
 
-    const newGroup = {
-      id: `grp-${Date.now()}`,
-      srNo: groups.length + 1,
-      name: newGroupName.trim(),
-      status: newGroupStatus,
-    };
-
-    setGroups((prev) => [...prev, newGroup]);
+    await createGroup.mutateAsync({ name: newGroupName, status: newGroupStatus });
     setNewGroupName('');
     setNewGroupStatus('Active');
     setOpenGroupDialog(false);
   };
 
   // Add Ledger
-  const handleAddLedgerSubmit = (e) => {
+  const handleAddLedgerSubmit = async (e) => {
     e.preventDefault();
-    if (!newLedgerName.trim()) return;
+    if (!newLedgerName.trim() || !selectedLedgerGroupId) return;
 
-    const newLedger = {
-      id: `led-${Date.now()}`,
-      srNo: ledgers.length + 1,
-      name: newLedgerName.trim(),
-      groupName: newLedgerGroupName,
+    await createLedger.mutateAsync({
+      name: newLedgerName,
+      groupId: selectedLedgerGroupId,
       status: newLedgerStatus,
-    };
-
-    setLedgers((prev) => [...prev, newLedger]);
+    });
     setNewLedgerName('');
+    setNewLedgerGroupId('');
     setNewLedgerStatus('Active');
     setOpenLedgerDialog(false);
   };
@@ -142,11 +150,11 @@ export function PaymentTypesPage() {
       header: 'STATUS',
       width: '30%',
       render: (row) => {
-        const isActive = row.status === 'Active';
+        const isActive = row.statusLabel === 'Active';
         return (
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <Select
-              value={row.status}
+              value={row.statusLabel}
               onChange={(e) => handleGroupStatusChange(row.id, e.target.value)}
               sx={{
                 height: 32,
@@ -213,11 +221,11 @@ export function PaymentTypesPage() {
       header: 'STATUS',
       width: '18%',
       render: (row) => {
-        const isActive = row.status === 'Active';
+        const isActive = row.statusLabel === 'Active';
         return (
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <Select
-              value={row.status}
+              value={row.statusLabel}
               onChange={(e) => handleLedgerStatusChange(row.id, e.target.value)}
               sx={{
                 height: 32,
@@ -344,6 +352,9 @@ export function PaymentTypesPage() {
             columns={groupColumns}
             rows={filteredGroups}
             getRowKey={(row) => row.id}
+            isLoading={groupsQuery.isPending}
+            error={groupsQuery.isError ? groupsQuery.error : null}
+            onRetry={groupsQuery.refetch}
             emptyTitle="No groups found"
             emptyDescription="Try adjusting your search query or filter."
           />
@@ -405,6 +416,9 @@ export function PaymentTypesPage() {
             columns={ledgerColumns}
             rows={filteredLedgers}
             getRowKey={(row) => row.id}
+            isLoading={ledgersQuery.isPending}
+            error={ledgersQuery.isError ? ledgersQuery.error : null}
+            onRetry={ledgersQuery.refetch}
             emptyTitle="No ledgers found"
             emptyDescription="Try adjusting your search query or group filter."
           />
@@ -459,7 +473,7 @@ export function PaymentTypesPage() {
             <Button
               type="submit"
               variant="contained"
-              disabled={!newGroupName.trim()}
+              disabled={!newGroupName.trim() || createGroup.isPending}
               sx={{
                 bgcolor: '#17191C',
                 color: '#FFFFFF',
@@ -502,11 +516,11 @@ export function PaymentTypesPage() {
                   select
                   fullWidth
                   label="Group Name *"
-                  value={newLedgerGroupName}
-                  onChange={(e) => setNewLedgerGroupName(e.target.value)}
+                  value={selectedLedgerGroupId}
+                  onChange={(e) => setNewLedgerGroupId(e.target.value)}
                 >
                   {groups.map((g) => (
-                    <MenuItem key={g.id} value={g.name}>
+                    <MenuItem key={g.id} value={g.id}>
                       {g.name}
                     </MenuItem>
                   ))}
@@ -538,7 +552,7 @@ export function PaymentTypesPage() {
             <Button
               type="submit"
               variant="contained"
-              disabled={!newLedgerName.trim()}
+              disabled={!newLedgerName.trim() || !selectedLedgerGroupId || createLedger.isPending}
               sx={{
                 bgcolor: '#17191C',
                 color: '#FFFFFF',
