@@ -6,10 +6,10 @@ import { ErrorState, PageHeader, StatusChip } from '../../../shared/components/i
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate } from '../../../lib/format/date.js';
 import { BOOK_TONE } from '../../donation-management/constants.js';
-import { getInflowRowById, recordInflowReceipt } from '../data/inflowRepository.js';
+import { useInflowRow, useRecordInflowReceipt } from '../hooks/useInflowRows.js';
 import { RecordReceiptDialog } from '../components/RecordReceiptDialog.jsx';
 import { getRowStatus } from '../lib/status.js';
-import { AS_AT_DATE, RECEIPT_STATUS, RECEIPT_STATUS_TONE, RESTRICTION_TONE, RESTRICTION_TYPE } from '../constants.js';
+import { RECEIPT_STATUS, RECEIPT_STATUS_TONE, RESTRICTION_TONE, RESTRICTION_TYPE } from '../constants.js';
 
 /** Label/value row in the "register" style used across donor & grant detail pages. */
 function TermRow({ label, children, last = false }) {
@@ -49,23 +49,33 @@ function SectionCard({ title, children }) {
   );
 }
 
-/** Single tranche / donation view — /inflow-budget/:id. */
+/** Single grant tranche view — /inflow-budget/:id. */
 export function InflowDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [row, setRow] = useState(() => getInflowRowById(id));
+  const rowQuery = useInflowRow(id);
+  const row = rowQuery.data;
+  const recordReceipt = useRecordInflowReceipt();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const asAt = useMemo(() => new Date(AS_AT_DATE), []);
+  const asAt = useMemo(() => new Date(), []);
   const status = row ? getRowStatus(row, asAt) : null;
 
-  if (!row) {
+  if (rowQuery.isPending) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        Loading tranche…
+      </Typography>
+    );
+  }
+
+  if (rowQuery.isError || !row) {
     return (
       <>
         <Button startIcon={<ArrowBackIcon />} size="small" sx={{ mb: 2, color: 'text.secondary' }} onClick={() => navigate('/inflow-budget')}>
           Inflow Budget
         </Button>
-        <ErrorState error={{ message: `No tranche or donation found for "${id}".` }} />
+        <ErrorState error={{ message: `No tranche found for "${id}".` }} />
       </>
     );
   }
@@ -73,9 +83,8 @@ export function InflowDetailPage() {
   const isReceived = status === RECEIPT_STATUS.RECEIVED;
   const isForeign = row.book === 'FC';
 
-  const handleSaveReceipt = (patch) => {
-    const updated = recordInflowReceipt(row.id, patch);
-    setRow(updated.find((r) => r.id === row.id));
+  const handleSaveReceipt = async (form) => {
+    await recordReceipt.mutateAsync({ id: row.id, form });
     setDialogOpen(false);
   };
 
@@ -86,7 +95,7 @@ export function InflowDetailPage() {
       </Button>
 
       <PageHeader
-        title={row.id}
+        title={`${row.grantCode} · T${row.trancheNumber}`}
         subtitle={row.donor}
         actions={
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
@@ -105,12 +114,16 @@ export function InflowDetailPage() {
           <SectionCard title="Schedule">
             <TermRow label="Donor">{row.donor}</TermRow>
             <TermRow label="Restriction">
-              <StatusChip label={RESTRICTION_TYPE[row.restriction]} tone={RESTRICTION_TONE[row.restriction]} />
+              {row.restriction ? (
+                <StatusChip label={RESTRICTION_TYPE[row.restriction] || row.restriction} tone={RESTRICTION_TONE[row.restriction]} />
+              ) : (
+                '—'
+              )}
             </TermRow>
             <TermRow label="Book">
-              <StatusChip label={row.book} tone={BOOK_TONE[row.book]} />
+              {row.book ? <StatusChip label={row.book} tone={BOOK_TONE[row.book]} /> : '—'}
             </TermRow>
-            <TermRow label="Expected date">{formatDate(row.expectedDate)}</TermRow>
+            <TermRow label="Expected date">{row.expectedDate ? formatDate(row.expectedDate) : '—'}</TermRow>
             <TermRow label="Expected amount">{formatInrExact(row.expectedAmount)}</TermRow>
             <TermRow label="Expected FX rate" last={!isForeign}>
               {isForeign ? row.expectedFx ?? '—' : 'N/A (LC)'}
@@ -151,6 +164,7 @@ export function InflowDetailPage() {
       <RecordReceiptDialog
         key={dialogOpen ? row.id : 'closed'}
         row={dialogOpen ? row : null}
+        saving={recordReceipt.isPending}
         onClose={() => setDialogOpen(false)}
         onSave={handleSaveReceipt}
       />

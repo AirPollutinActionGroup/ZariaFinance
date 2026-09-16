@@ -7,6 +7,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * date the "as at" reference has moved. */
 export function getRowStatus(row, asAt) {
   if (row.actualAmount != null) return RECEIPT_STATUS.RECEIVED;
+  if (!row.expectedDate) return RECEIPT_STATUS.AWAITED;
   const daysLate = Math.floor((asAt - new Date(row.expectedDate)) / DAY_MS);
   if (daysLate <= 0) return RECEIPT_STATUS.AWAITED;
   if (daysLate <= OVERDUE_THRESHOLD_DAYS) return RECEIPT_STATUS.SLIPPED;

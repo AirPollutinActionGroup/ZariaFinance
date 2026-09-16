@@ -82,6 +82,20 @@ public class GrantTranche extends AuditEntity {
     @Column(name = "utilisation_end_date")
     private LocalDate utilisationEndDate;
 
+    // Receipt detail (Inflow Budget): captured when the actual money lands
+    // alongside actualAmount/actualReleaseDate above.
+    @Column(name = "bank_reference", length = 100)
+    private String bankReference;
+
+    @Column(name = "receipt_voucher_no", length = 100)
+    private String receiptVoucherNo;
+
+    @Column(name = "variance_reason", length = 500)
+    private String varianceReason;
+
+    @Column(name = "actual_fx_rate", precision = 12, scale = 6)
+    private BigDecimal actualFxRate;
+
     // Structured release conditions (Disbursement Rules §4). A tranche's gate is
     // open only when every criterion is met.
     @OneToMany(mappedBy = "tranche", cascade = CascadeType.ALL, orphanRemoval = true)

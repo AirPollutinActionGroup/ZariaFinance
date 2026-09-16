@@ -32,4 +32,21 @@ public class TrancheResponse {
     private String trancheStatus;
     private BigDecimal utilisedAmount; // utilised up to the end of this tranche's period
     private LocalDate utilisationEndDate;
+
+    // Receipt detail (Inflow Budget)
+    private String bankReference;
+    private String receiptVoucherNo;
+    private String varianceReason;
+    private BigDecimal actualFxRate;
+
+    // Resolved from the owning grant/donor — not persisted on the entity.
+    private String grantCode;
+    private String grantCurrency;
+    private BigDecimal fxLockedRate; // expected FX rate
+    private Long donorId;
+    private String donorName;
+    /** LC | FC, from the donor's contribution type. */
+    private String book;
+    /** RESTRICTED | UNRESTRICTED, from the grant's fund profile. */
+    private String fundMode;
 }

@@ -41,6 +41,10 @@ public class TrancheMapper {
                 .trancheStatus(t.getTrancheStatus())
                 .utilisedAmount(t.getUtilisedAmount())
                 .utilisationEndDate(t.getUtilisationEndDate())
+                .bankReference(t.getBankReference())
+                .receiptVoucherNo(t.getReceiptVoucherNo())
+                .varianceReason(t.getVarianceReason())
+                .actualFxRate(t.getActualFxRate())
                 .build();
     }
 }
