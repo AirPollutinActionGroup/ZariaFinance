@@ -67,7 +67,6 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
   const selectedDonorType = donorTypes.find((dt) => String(dt.id) === String(donorTypeId));
   const donorTypeOptions = donorTypes.map((dt) => ({ value: dt.id, label: dt.name }));
   const isIndividual = (selectedDonorType?.name || '').toUpperCase() === 'INDIVIDUAL';
-  const isCorporate = (selectedDonorType?.name || '').toUpperCase().includes('CSR');
   const isForeign = fundSourceDomicile === 'FOREIGN';
 
   // Fund Source Domicile is constrained by the selected donor type's allowed

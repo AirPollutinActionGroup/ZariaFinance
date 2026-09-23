@@ -165,6 +165,7 @@ export function FundProfileFormPage() {
     if (!current) return;
     cascadeInitialised.current = true;
     if (current.type === 'Project') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time UI sync when async programme data first arrives
       setLinkType('PROJECT');
       setParentProgrammeId(String(current.parentProgrammeId || ''));
       setSelectedProjectId(String(current.id));
@@ -187,6 +188,7 @@ export function FundProfileFormPage() {
   useEffect(() => {
     if (!programmeTied && (linkType || parentProgrammeId || selectedProjectId)) {
       cascadeInitialised.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing the cascade in response to programmeTied turning off
       setLinkType('');
       setParentProgrammeId('');
       setSelectedProjectId('');

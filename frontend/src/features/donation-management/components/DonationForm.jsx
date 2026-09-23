@@ -100,7 +100,6 @@ export function DonationForm({
   const identification = useWatch({ control, name: 'identification' });
   const donorId = useWatch({ control, name: 'donorId' });
   const isConditionalGift = useWatch({ control, name: 'isConditionalGift' });
-  const programmeId = useWatch({ control, name: 'programmeId' });
   const employerMatchRouting = useWatch({ control, name: 'payrollBatch.employerMatchRouting' });
   const employerMoneyRouting = useWatch({ control, name: 'payrollBatch.employerMoneyRouting' });
   const sponsorshipTie = useWatch({ control, name: 'recurringMandate.sponsorshipTie' });
