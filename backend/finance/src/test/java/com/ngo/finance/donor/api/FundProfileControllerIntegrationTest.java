@@ -122,7 +122,7 @@ public class FundProfileControllerIntegrationTest {
                         .disbursementType(DisbursementType.TRANCHES)
                         .trancheCriteria(List.of(
                                 onSigningCriterion("150000.00", LocalDate.of(2026, 4, 1), false),
-                                onSigningCriterion("100000.00", null, true)))
+                                onSigningCriterion("100000.00", LocalDate.of(2026, 7, 1), true)))
                         .build()))
                 .build();
 
@@ -153,7 +153,8 @@ public class FundProfileControllerIntegrationTest {
                 .disbursementRules(List.of(DisbursementRuleItem.builder()
                         .totalAmount(new BigDecimal("400000.00"))
                         .disbursementType(DisbursementType.LUMP_SUM)
-                        .trancheCriteria(List.of(onSigningCriterion("400000.00", null, true)))
+                        .receivingDate(LocalDate.of(2026, 4, 1))
+                        .trancheCriteria(List.of(onSigningCriterion("400000.00", LocalDate.of(2026, 4, 1), true)))
                         .build()))
                 .build();
 
@@ -171,8 +172,8 @@ public class FundProfileControllerIntegrationTest {
                         .totalAmount(new BigDecimal("125000.00"))
                         .disbursementType(DisbursementType.TRANCHES)
                         .trancheCriteria(List.of(
-                                onSigningCriterion("50000.00", null, false),
-                                onSigningCriterion("75000.00", null, true)))
+                                onSigningCriterion("50000.00", LocalDate.of(2026, 8, 1), false),
+                                onSigningCriterion("75000.00", LocalDate.of(2026, 10, 1), true)))
                         .build()))
                 .build();
 
