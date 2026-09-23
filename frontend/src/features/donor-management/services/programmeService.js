@@ -1,10 +1,8 @@
 import { programmeApi } from '../api/programmeApi.js';
 
 /**
- * Programme domain service. Field names match the backend DTOs verbatim
- * (programmeCode/programmeName/description/isActive), so no mapper layer
- * is needed — components and hooks call this service, never the repository
- * directly.
+ * Programme domain service. Field names match the backend DTOs verbatim —
+ * components and hooks call this service, never the repository directly.
  */
 export const programmeService = {
   async listProgrammes() {
@@ -19,7 +17,13 @@ export const programmeService = {
     return programmeApi.create({
       programmeName: formValues.programmeName.trim(),
       description: formValues.description?.trim() || null,
-      isActive: formValues.isActive,
+      type: formValues.type,
+      parentProgrammeId: formValues.type === 'Project' ? formValues.parentProgrammeId : null,
+      startDate: formValues.startDate || null,
+      endDate: formValues.endDate || null,
+      stateIds: formValues.stateIds || [],
+      cityIds: formValues.cityIds || [],
+      status: formValues.status,
     });
   },
 
@@ -29,5 +33,9 @@ export const programmeService = {
 
   async deactivateProgramme(id) {
     await programmeApi.deactivate(id);
+  },
+
+  async updateProgrammeStatus(id, status) {
+    return programmeApi.updateStatus(id, status);
   },
 };

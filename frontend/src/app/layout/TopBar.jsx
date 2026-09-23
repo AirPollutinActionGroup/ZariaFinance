@@ -40,7 +40,7 @@ export function TopBar() {
     navigate('/login', { replace: true });
   };
 
-  const roleLabel = ROLE_LABELS[user?.role] || user?.role || 'Member';
+  const roleLabel = user?.roleName || ROLE_LABELS[user?.role] || user?.role || 'Member';
   const roleAccess = ROLE_ACCESS[user?.role] || null;
 
   return (
@@ -109,7 +109,7 @@ export function TopBar() {
             {roleLabel}
           </Typography>
           <Typography variant="caption" color="text.secondary" display="block" lineHeight={1.2}>
-            {roleAccess || user?.name}
+            {user?.name || roleAccess}
           </Typography>
         </Box>
       </Stack>

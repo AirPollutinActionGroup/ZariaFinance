@@ -22,6 +22,8 @@ public class GrantListResponse {
 
     private String grantCode;
 
+    private Long fundProfileId;
+
     private String donorName;
 
     private String programmeName;

@@ -12,7 +12,7 @@ import com.ngo.finance.donation.enums.RecognitionStatus;
 import com.ngo.finance.donation.enums.TenBeStatus;
 import com.ngo.finance.donation.enums.UtilisationPeriodType;
 import com.ngo.finance.donor.entity.DonorMaster;
-import com.ngo.finance.donor.entity.Programme;
+import com.ngo.finance.programme.entity.Programme;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

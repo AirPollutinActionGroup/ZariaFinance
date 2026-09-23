@@ -1,0 +1,176 @@
+@startuml ZariaFinance-Organisation-Sequence
+skinparam wrapWidth 200
+skinparam maxMessageSize 200
+autonumber "<b>[0]"
+
+' ============================================================
+' Organisation Register sequence diagram — reverse engineered
+' from OrganizationRegisterController / OrganizationRegisterServiceImpl
+' under backend/finance/src/main/java/com/ngo/finance/organizationRegister
+' and the frontend feature under
+' frontend/src/features/organisation-register.
+' Cross-check against component-diagram.puml (module boundaries)
+' and er-diagram.puml (organisation_register table).
+' ============================================================
+
+actor "User (Browser)" as user
+participant "OrganisationRegistrationCreatePage\n(React form)" as page
+participant "organisationApi\n(axios client)" as api
+participant "nginx\n(reverse proxy)" as nginx
+participant "OrganizationRegisterController" as controller
+participant "OrganizationRegisterServiceImpl" as service
+participant "OrganizationMapper" as mapper
+participant "OrganizationRegisterRepository" as orgRepo
+participant "StateRepository /\nCityRepository" as locationRepo
+database "PostgreSQL\n(organisation_register)" as db
+
+== Short name availability check (on blur / debounced) ==
+
+user -> page : type short name
+page -> api : verifyShortName(shortName)
+api -> nginx : GET /api/v1/organisations/verify-short-name?shortName=...
+nginx -> controller : proxy /api
+controller -> service : shortNameExists(shortName)
+service -> service : normalizeShortName()\n(trim + lowercase)
+service -> orgRepo : existsByShortName(shortName)
+orgRepo -> db : SELECT ... WHERE short_name = ?
+db --> orgRepo : boolean
+orgRepo --> service : exists
+service --> controller : exists
+controller --> nginx : 200 { shortName, exists }
+nginx --> api : 200 OK
+api --> page : { shortName, exists }
+page -> user : show inline availability hint
+
+== Register a new organisation (happy path) ==
+
+user -> page : submit registration form
+page -> api : create(payload)
+api -> nginx : POST /api/v1/organisations
+nginx -> controller : proxy /api
+controller -> controller : @Valid CreateOrganizationRequest
+controller -> service : createOrganisation(request)
+
+service -> orgRepo : existsByEmail(request.email)
+orgRepo -> db : SELECT ... WHERE email = ?
+db --> orgRepo : false
+orgRepo --> service : false
+
+service -> service : normalizeShortName(request.shortName)
+service -> orgRepo : existsByShortName(shortName)
+orgRepo -> db : SELECT ... WHERE short_name = ?
+db --> orgRepo : false
+orgRepo --> service : false
+
+service -> mapper : toEntity(request)
+mapper --> service : OrganizationRegister (transient)
+service -> service : entity.setShortName(shortName)
+
+service -> locationRepo : StateRepository.findById(stateId)
+locationRepo -> db : SELECT ... FROM states WHERE id = ?
+db --> locationRepo : State
+locationRepo --> service : State
+
+service -> locationRepo : CityRepository.findById(cityId)
+locationRepo -> db : SELECT ... FROM cities WHERE id = ?
+db --> locationRepo : City
+locationRepo --> service : City
+
+service -> service : entity.setStatus(PENDING)
+service -> orgRepo : save(entity)
+orgRepo -> db : INSERT INTO organisation_register ...
+db --> orgRepo : persisted row (id, audit columns)
+orgRepo --> service : OrganizationRegister (persisted)
+
+service -> mapper : toResponse(saved)
+mapper --> service : OrganizationResponse
+service --> controller : OrganizationResponse
+controller --> nginx : 201 Created + body
+nginx --> api : 201 Created
+api --> page : OrganizationResponse
+page -> user : show success, navigate to list
+
+== Register — validation failure (duplicate email or short name) ==
+
+user -> page : submit registration form
+page -> api : create(payload)
+api -> nginx : POST /api/v1/organisations
+nginx -> controller : proxy /api
+controller -> service : createOrganisation(request)
+service -> orgRepo : existsByEmail(request.email)
+orgRepo -> db : SELECT ... WHERE email = ?
+db --> orgRepo : true
+orgRepo --> service : true
+service -> service : throw ValidationException\n("organisation with email ... already exists")
+service --> controller : ValidationException
+controller --> nginx : 400 Bad Request (GlobalExceptionHandler)
+nginx --> api : 400 Bad Request
+api --> page : error
+page -> user : show field-level error
+
+== Update an organisation ==
+
+user -> page : edit organisation details
+page -> api : update(id, payload)
+api -> nginx : PUT /api/v1/organisations/{id}
+nginx -> controller : proxy /api
+controller -> service : updateOrganisation(id, request)
+service -> orgRepo : findById(id)
+orgRepo -> db : SELECT ... WHERE id = ?
+db --> orgRepo : OrganizationRegister
+orgRepo --> service : entity
+alt stateId provided
+  service -> locationRepo : StateRepository.findById(stateId)
+  locationRepo --> service : State
+end
+alt cityId provided
+  service -> locationRepo : CityRepository.findById(cityId)
+  locationRepo --> service : City
+end
+alt shortName provided and changed
+  service -> orgRepo : existsByShortName(newShortName)
+  orgRepo --> service : false
+end
+service -> mapper : updateEntity(request, entity)
+service -> orgRepo : save(entity)
+orgRepo -> db : UPDATE organisation_register ...
+db --> orgRepo : updated row
+orgRepo --> service : entity
+service -> mapper : toResponse(entity)
+mapper --> service : OrganizationResponse
+service --> controller : OrganizationResponse
+controller --> nginx : 200 OK
+nginx --> api : 200 OK
+api --> page : OrganizationResponse
+page -> user : show updated details
+
+== Activate / deactivate lifecycle ==
+
+user -> page : click Activate / Deactivate
+page -> api : activate(id) / deactivate(id)
+api -> nginx : PATCH /api/v1/organisations/{id}/activate|deactivate
+nginx -> controller : proxy /api
+controller -> service : activateOrganisation(id) / deactivateOrganisation(id)
+service -> orgRepo : findById(id)
+orgRepo -> db : SELECT ... WHERE id = ?
+db --> orgRepo : OrganizationRegister
+orgRepo --> service : entity
+service -> service : entity.setStatus(ACTIVE | INACTIVE)
+service -> orgRepo : save(entity)
+orgRepo -> db : UPDATE organisation_register SET status = ...
+db --> orgRepo : updated row
+service --> controller : void
+controller --> nginx : 204 No Content
+nginx --> api : 204 No Content
+api --> page : success
+page -> user : refresh list (status badge)
+
+note over service
+  userRegisterNew registers new users under an
+  OrganizationRegister (see component-diagram.puml:
+  "userRegNewModule ..> orgModule : registers under organization").
+  That flow is not shown here — see a future
+  user-registration sequence diagram for it.
+end note
+
+@enduml

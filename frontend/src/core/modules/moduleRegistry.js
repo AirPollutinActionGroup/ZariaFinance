@@ -5,8 +5,9 @@
  *   {
  *     id:        'donor-management'      // permission + registry key
  *     title:     'Donor Management'
- *     navSection:'CORE LAYERS'           // sidebar group label
- *     navItems:  [{ label, path, icon }] // entries shown in the sidebar
+ *     navSection:'CORE LAYERS'           // default sidebar group label
+ *     navItems:  [{ label, path, icon, section }] // entries shown in the sidebar;
+ *                                         // `section` overrides navSection per item
  *     routes:    [{ path, element }]     // mounted under the app shell
  *   }
  *
@@ -44,7 +45,7 @@ export function getNavSections(user, canView) {
   for (const mod of getModules()) {
     if (!canView(user, mod.id)) continue;
     for (const item of mod.navItems) {
-      const label = mod.navSection || '';
+      const label = item.section || mod.navSection || '';
       if (!byLabel.has(label)) {
         const section = { label, items: [] };
         byLabel.set(label, section);

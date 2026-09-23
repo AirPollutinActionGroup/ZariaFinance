@@ -1,0 +1,12 @@
+-- V58: Rename organisation_register to organization_register and align
+-- its constraint/index names with the new spelling.
+ALTER TABLE organisation_register RENAME TO organization_register;
+
+ALTER TABLE organization_register RENAME CONSTRAINT fk_organisation_city TO fk_organization_city;
+ALTER TABLE organization_register RENAME CONSTRAINT fk_organisation_state TO fk_organization_state;
+ALTER TABLE organization_register RENAME CONSTRAINT uk_organisation_register_short_name TO uk_organization_register_short_name;
+
+ALTER INDEX idx_organisation_register_email RENAME TO idx_organization_register_email;
+ALTER INDEX idx_organisation_register_status RENAME TO idx_organization_register_status;
+ALTER INDEX idx_organisation_register_city_id RENAME TO idx_organization_register_city_id;
+ALTER INDEX idx_organisation_register_state_id RENAME TO idx_organization_register_state_id;

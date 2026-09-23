@@ -1,0 +1,165 @@
+@startuml ZariaFinance-Component
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam wrapWidth 200
+
+' ============================================================
+' ZariaFinance component diagram — reverse engineered from
+' docker-compose.yml (deployment topology) and the Spring Boot
+' package layout under backend/finance/src/main/java/com/ngo/finance
+' (module/layer boundaries). Cross-check against er-diagram.puml
+' for the persistence model these modules own.
+' ============================================================
+
+actor "User (Browser)" as user
+
+package "zariya-network (docker-compose)" {
+
+  component "nginx\n(reverse proxy / gateway)" as nginx <<container>>
+
+  component "frontend\n(Vite dev server, :5173)" as frontend <<container>>
+
+  package "backend\n(Spring Boot, :5174)" as backendApp <<container>> {
+
+    component "REST API Layer" as api {
+      [MessageController]
+      [DashboardController]
+      [DocumentController]
+      [FundProfileController]
+      [ReportsController]
+      [TrancheController]
+      [RoleController]
+      [UserRegisterController]
+      [OrganizationRegister API]
+      [RoleDirectory API]
+      [Notification API]
+      [Fx API]
+    }
+
+    component "Security & Config" as security {
+      [SecurityConfig]
+      [SchedulingConfig]
+      [DataInitializer]
+    }
+
+    package "Domain Modules" {
+
+      component "Donor & Grant\n(donor)" as donorModule {
+        [Donor Service]
+        [FundProfile Service]
+        [Tranche Service]
+        [GrantDocument Service]
+        [Dashboard / Reports Service]
+        [Donor Validators]
+      }
+
+      component "Donations\n(donation)" as donationModule {
+        [Donation Service]
+        [GIK / Corpus / Payroll / \nRecurring / Legacy handlers]
+      }
+
+      component "FX & Tax\n(fx)" as fxModule {
+        [FxRate Service]
+      }
+
+      component "Notifications\n(notification)" as notificationModule {
+        [Notification Service]
+        [Reminder Scheduler]
+      }
+
+      component "Organization\n(organizationRegister)" as orgModule {
+        [OrganizationRegister Service]
+      }
+
+      component "Role Directory\n(roleDirectory)" as roleDirModule {
+        [RoleDirectory Service]
+      }
+
+      component "User Registration (new)\n(userRegisterNew)" as userRegNewModule {
+        [UserRegisterNew Service]
+        [RoleMaster / RoleMasterUser Service]
+      }
+
+      component "User Registration (legacy)\n(userRegister)" as userRegLegacyModule {
+        [UserRegisterService]
+        [RoleService]
+      }
+
+      component "Legacy Demo\n(entity/controller/repository)" as legacyModule {
+        [MessageService]
+      }
+    }
+
+    component "common\n(AuditEntity, DomainEvent,\nGlobalExceptionHandler)" as common
+
+    component "Persistence Layer\n(Spring Data JPA Repositories)" as repoLayer
+  }
+
+  database "PostgreSQL\n(finance db)" as db <<container>>
+
+  component "adminer\n(DB admin UI, :8080)" as adminer <<container>>
+}
+
+' ============================================================
+' Relationships — request flow
+' ============================================================
+
+user --> nginx : HTTPS :83
+nginx --> frontend : proxies /
+nginx --> api : proxies /api
+
+frontend ..> api : REST/JSON (axios/fetch)
+
+api --> security : authenticates via
+api --> donorModule
+api --> donationModule
+api --> fxModule
+api --> notificationModule
+api --> orgModule
+api --> roleDirModule
+api --> userRegNewModule
+api --> userRegLegacyModule
+api --> legacyModule
+
+donorModule --> repoLayer
+donationModule --> repoLayer
+fxModule --> repoLayer
+notificationModule --> repoLayer
+orgModule --> repoLayer
+roleDirModule --> repoLayer
+userRegNewModule --> repoLayer
+userRegLegacyModule --> repoLayer
+legacyModule --> repoLayer
+
+donorModule ..> common : extends AuditEntity /\nraises DomainEvent
+donationModule ..> common
+fxModule ..> common
+notificationModule ..> common
+orgModule ..> common
+roleDirModule ..> common
+userRegNewModule ..> common
+userRegLegacyModule ..> common
+
+donationModule ..> donorModule : links donor_id / programme_id
+notificationModule ..> roleDirModule : escalates to deputy
+roleDirModule ..> userRegLegacyModule : primary/deputy FK -> users
+userRegNewModule ..> orgModule : registers under organization
+userRegNewModule ..> userRegNewModule : role_master assigns role
+
+repoLayer --> db : JDBC (Hibernate,\nddl-auto=validate)
+adminer --> db : JDBC (admin access)
+
+note bottom of legacyModule
+  Orphaned demo/health-check module (V1),
+  unrelated to the finance domain.
+  See messages table note in er-diagram.puml.
+end note
+
+note bottom of roleDirModule
+  primary_user_id / deputy_user_id still FK the
+  legacy `users` table (userRegister), not
+  userRegisterNew — a lingering inconsistency
+  also flagged in er-diagram.puml.
+end note
+
+@enduml

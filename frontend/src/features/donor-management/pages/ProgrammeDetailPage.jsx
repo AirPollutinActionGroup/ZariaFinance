@@ -1,17 +1,12 @@
 import { useState } from 'react';
-import { Button, Card, CardContent, Grid, Stack, Typography } from '@mui/material';
+import { Card, CardContent, Grid, Stack, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import { ACTIONS, PermissionGate } from '../../../core/permissions/index.js';
-import {
-  ConfirmDialog,
-  ErrorState,
-  LoadingState,
-  PageHeader,
-  StatusChip,
-} from '../../../shared/components/index.js';
+import { ConfirmDialog, ErrorState, LoadingState, PageHeader, StatusChip } from '../../../shared/components/index.js';
 import { formatDateTime } from '../../../lib/format/date.js';
-import { useProgramme, useProgrammeLifecycle } from '../hooks/useProgrammes.js';
-import { MODULE_ID } from '../constants.js';
+import { useProgramme, useUpdateProgrammeStatus } from '../hooks/useProgrammes.js';
+import { MODULE_ID, PROGRAMME_STATUS_TONE } from '../constants.js';
+import { ProgrammeStatusBar } from '../components/ProgrammeStatusBar.jsx';
 
 function Field({ label, value }) {
   return (
@@ -28,8 +23,8 @@ function Field({ label, value }) {
 export function ProgrammeDetailPage() {
   const { id } = useParams();
   const programmeQuery = useProgramme(id);
-  const lifecycle = useProgrammeLifecycle(id);
-  const [pendingAction, setPendingAction] = useState(null);
+  const updateStatus = useUpdateProgrammeStatus(id);
+  const [pendingStatus, setPendingStatus] = useState(null);
 
   if (programmeQuery.isPending) return <LoadingState label="Loading programme…" />;
   if (programmeQuery.isError) {
@@ -38,43 +33,39 @@ export function ProgrammeDetailPage() {
 
   const programme = programmeQuery.data;
 
-  const runLifecycle = async () => {
-    await lifecycle.mutateAsync(pendingAction);
-    setPendingAction(null);
+  const requestStatusChange = (status) => {
+    if (status !== programme.status) setPendingStatus(status);
+  };
+
+  const confirmStatusChange = async () => {
+    await updateStatus.mutateAsync(pendingStatus);
+    setPendingStatus(null);
   };
 
   return (
     <>
-      <PageHeader
-        title={programme.programmeName}
-        subtitle={`Programme ${programme.programmeCode}`}
-        actions={
-          <PermissionGate action={ACTIONS.EDIT} moduleId={MODULE_ID}>
-            {programme.isActive ? (
-              <Button color="inherit" onClick={() => setPendingAction('deactivate')}>
-                Deactivate
-              </Button>
-            ) : (
-              <Button color="inherit" onClick={() => setPendingAction('activate')}>
-                Activate
-              </Button>
-            )}
-          </PermissionGate>
-        }
-      />
+      <PageHeader title={programme.programmeName} subtitle={`Programme ${programme.programmeCode}`} />
 
       <Stack spacing={3}>
         <Card>
           <CardContent sx={{ p: 3 }}>
             <Stack direction="row" spacing={1} sx={{ mb: 2.5 }}>
+              <StatusChip label={programme.type || 'Programme'} tone="graphite" />
               <StatusChip
-                label={programme.isActive ? 'Active' : 'Inactive'}
-                tone={programme.isActive ? 'success' : 'neutral'}
+                label={programme.status || (programme.isActive ? 'Active' : 'Inactive')}
+                tone={PROGRAMME_STATUS_TONE[programme.status] || (programme.isActive ? 'success' : 'neutral')}
               />
             </Stack>
             <Grid container spacing={2.5}>
               <Field label="Programme code" value={programme.programmeCode} />
               <Field label="Programme name" value={programme.programmeName} />
+              {programme.parentProgrammeName ? (
+                <Field label="Parent programme" value={programme.parentProgrammeName} />
+              ) : null}
+              <Field label="Start date" value={programme.startDate} />
+              <Field label="End date" value={programme.endDate} />
+              <Field label="State" value={programme.stateNames?.join(', ')} />
+              <Field label="City" value={programme.cityNames?.join(', ')} />
               <Field label="Created" value={formatDateTime(programme.createdAt)} />
               <Grid size={12}>
                 <Typography variant="caption" component="p">
@@ -83,23 +74,26 @@ export function ProgrammeDetailPage() {
                 <Typography variant="body1">{programme.description || '—'}</Typography>
               </Grid>
             </Grid>
+
+            <PermissionGate action={ACTIONS.EDIT} moduleId={MODULE_ID}>
+              <Typography variant="caption" component="p" sx={{ mt: 3, mb: 1 }}>
+                Status
+              </Typography>
+              <ProgrammeStatusBar value={programme.status} onChange={requestStatusChange} />
+            </PermissionGate>
           </CardContent>
         </Card>
       </Stack>
 
       <ConfirmDialog
-        open={Boolean(pendingAction)}
-        title={pendingAction === 'activate' ? 'Activate programme' : 'Deactivate programme'}
-        description={
-          pendingAction === 'activate'
-            ? `Reactivate ${programme.programmeName}? It becomes available for new donations and grants again.`
-            : `Deactivate ${programme.programmeName}? Existing donations and grants remain tied to it, but it is excluded from new selections.`
-        }
-        confirmLabel={pendingAction === 'activate' ? 'Activate' : 'Deactivate'}
-        confirmColor={pendingAction === 'activate' ? 'primary' : 'error'}
-        busy={lifecycle.isPending}
-        onConfirm={runLifecycle}
-        onClose={() => setPendingAction(null)}
+        open={Boolean(pendingStatus)}
+        title="Change status"
+        description={`Change ${programme.programmeName}'s status from "${programme.status}" to "${pendingStatus}"?`}
+        confirmLabel="Change status"
+        confirmColor="primary"
+        busy={updateStatus.isPending}
+        onConfirm={confirmStatusChange}
+        onClose={() => setPendingStatus(null)}
       />
     </>
   );

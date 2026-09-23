@@ -45,6 +45,20 @@ public class TrancheController {
         return ResponseEntity.ok(trancheService.getTranchesByGrant(grantId));
     }
 
+    @GetMapping("/tranches")
+    @Operation(summary = "List all tranches across every grant — feeds the Inflow Budget schedule")
+    public ResponseEntity<List<TrancheResponse>> getAllTranches() {
+        log.info("GET /api/v1/tranches");
+        return ResponseEntity.ok(trancheService.getAllTranches());
+    }
+
+    @GetMapping("/tranches/{id}")
+    @Operation(summary = "Get a single tranche by id")
+    public ResponseEntity<TrancheResponse> getTranche(@PathVariable Long id) {
+        log.info("GET /api/v1/tranches/{}", id);
+        return ResponseEntity.ok(trancheService.getTrancheById(id));
+    }
+
     @PostMapping("/grants/{grantId}/tranches")
     @Operation(summary = "Schedule a tranche for a grant")
     public ResponseEntity<TrancheResponse> scheduleTranche(

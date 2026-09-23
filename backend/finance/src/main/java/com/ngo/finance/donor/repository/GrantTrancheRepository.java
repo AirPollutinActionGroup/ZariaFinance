@@ -18,6 +18,9 @@ public interface GrantTrancheRepository extends JpaRepository<GrantTranche, Long
     @Query("SELECT gt FROM GrantTranche gt WHERE gt.grant.id = :grantId ORDER BY gt.trancheNumber ASC")
     List<GrantTranche> findTranchesByGrantIdOrderedByNumber(@Param("grantId") Long grantId);
 
+    @Query("SELECT gt FROM GrantTranche gt ORDER BY gt.plannedReleaseDate ASC, gt.id ASC")
+    List<GrantTranche> findAllOrderedByPlannedReleaseDate();
+
     @Query("SELECT gt FROM GrantTranche gt WHERE gt.grant.id = :grantId AND gt.trancheStatus = :status")
     List<GrantTranche> findByGrantIdAndStatus(@Param("grantId") Long grantId, @Param("status") String status);
 }

@@ -49,4 +49,68 @@ export const queryKeys = {
   users: {
     all: () => ['users'],
   },
+  organisations: {
+    all: () => ['organisations'],
+    list: (search) => ['organisations', 'list', { search: search || '' }],
+    detail: (id) => ['organisations', 'detail', String(id)],
+  },
+  roles: {
+    all: () => ['roles'],
+    list: (search) => ['roles', 'list', { search: search || '' }],
+    detail: (id) => ['roles', 'detail', String(id)],
+    assignedUsers: (id) => ['roles', 'assignedUsers', String(id)],
+  },
+  userRequests: {
+    all: () => ['userRequests'],
+    detail: (id) => ['userRequests', 'detail', String(id)],
+  },
+  paymentModes: {
+    all: () => ['paymentModes'],
+    list: (search) => ['paymentModes', 'list', { search: search || '' }],
+  },
+  vendors: {
+    all: () => ['vendors'],
+    list: (search) => ['vendors', 'list', { search: search || '' }],
+    detail: (id) => ['vendors', 'detail', String(id)],
+  },
+  departments: {
+    all: () => ['departments'],
+    list: (search) => ['departments', 'list', { search: search || '' }],
+  },
+  designations: {
+    all: () => ['designations'],
+    list: (search) => ['designations', 'list', { search: search || '' }],
+  },
+  paymentTypeGroups: {
+    all: () => ['paymentTypeGroups'],
+    list: (search) => ['paymentTypeGroups', 'list', { search: search || '' }],
+  },
+  paymentTypeLedgers: {
+    all: () => ['paymentTypeLedgers'],
+    list: (search) => ['paymentTypeLedgers', 'list', { search: search || '' }],
+  },
+  financialYears: {
+    all: () => ['financialYears'],
+  },
+  bankDetails: {
+    all: () => ['bankDetails'],
+    list: (search) => ['bankDetails', 'list', { search: search || '' }],
+  },
+  employees: {
+    all: () => ['employees'],
+    list: (search) => ['employees', 'list', { search: search || '' }],
+    detail: (id) => ['employees', 'detail', String(id)],
+    updateLogs: (id) => ['employees', 'updateLogs', String(id)],
+  },
+  employeeAllocations: {
+    all: () => ['employeeAllocations'],
+  },
+  transactions: {
+    all: () => ['transactions'],
+    detail: (code) => ['transactions', 'detail', String(code)],
+  },
+  inflowTranches: {
+    all: () => ['inflowTranches'],
+    detail: (id) => ['inflowTranches', 'detail', String(id)],
+  },
 };

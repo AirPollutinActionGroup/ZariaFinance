@@ -1,3 +1,5 @@
+import { Button } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../../shared/components/index.js';
 import { useCreateProgramme } from '../hooks/useProgrammes.js';
@@ -15,7 +17,15 @@ export function ProgrammeCreatePage() {
 
   return (
     <>
-      <PageHeader title="New programme" subtitle="Add a programme donations and grants can be tied to" />
+      <PageHeader
+        title="Add a programme or project"
+        subtitle="Programmes are the parent record; projects sit underneath one and need a parent programme."
+        actions={
+          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/programmes')}>
+            Back to List
+          </Button>
+        }
+      />
       <ProgrammeForm
         onSubmit={handleSubmit}
         submitting={createProgramme.isPending}

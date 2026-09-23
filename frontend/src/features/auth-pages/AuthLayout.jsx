@@ -29,8 +29,8 @@ export function AuthLayout({ children, maxWidth = 440 }) {
       </Box>
 
       <Box sx={{ width: '100%', maxWidth }}>
-        <Card sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 12 }}>
-          <CardContent sx={{ p: 4 }}>{children}</CardContent>
+        <Card sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)' }}>
+          <CardContent sx={{ p: { xs: 3, sm: 4.5 } }}>{children}</CardContent>
         </Card>
       </Box>
 

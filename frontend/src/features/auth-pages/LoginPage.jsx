@@ -84,7 +84,7 @@ export function LoginPage() {
         </Button>
         <Typography variant="body2" color="text.secondary" align="center">
           New here?{' '}
-          <Link component={RouterLink} to="/register">
+          <Link component={RouterLink} to="/register-extended">
             Request an account
           </Link>
         </Typography>

@@ -103,3 +103,22 @@ export const UTILISATION_RULE_TYPES = [
   { value: 'NOT_APPLICABLE', label: 'Not applicable', requiresLimit: false },
   { value: 'OTHER_CUSTOM', label: 'Other (Custom rule)', requiresLimit: true },
 ];
+
+export const ROLE_STATUSES = ['Active', 'Inactive'];
+
+/**
+ * Programme classification and lifecycle status shown on the Programme
+ * create form. isActive stays in sync with status as a derived flag
+ * (Active → true, everything else → false) — see ProgrammeStatuses.java.
+ */
+export const PROGRAMME_TYPES = ['Programme', 'Project'];
+
+export const PROGRAMME_STATUSES = ['Planned', 'Active', 'On Hold', 'Complete', 'Close'];
+
+export const PROGRAMME_STATUS_TONE = Object.freeze({
+  Planned: 'neutral',
+  Active: 'success',
+  'On Hold': 'warning',
+  Complete: 'info',
+  Close: 'graphite',
+});

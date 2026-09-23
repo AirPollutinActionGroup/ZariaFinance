@@ -52,6 +52,12 @@ const POLICY = Object.freeze({
   [ROLES.FUNDRAISING_LEAD]: {
     'donor-management': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
     'donation-management': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
+    'user-requests': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
+    'organisation-register': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
+    'role-directory': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
+    'employee-list': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
+    'vendor-registration': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
+    'masters': new Set([ACTIONS.VIEW, ACTIONS.EDIT, ACTIONS.COMMENT]),
   },
 });
 
