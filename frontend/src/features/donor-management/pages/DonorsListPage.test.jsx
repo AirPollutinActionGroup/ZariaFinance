@@ -37,7 +37,7 @@ describe('DonorsListPage', () => {
         id: 1,
         donorCode: 'DNR-001',
         donorName: 'Tata Foundation',
-        donorType: 'FOUNDATION',
+        donorTypeId: 3,
         donorTypeLabel: 'Foundation',
         fundSourceDomicile: 'DOMESTIC',
         fundSourceDomicileLabel: 'Domestic',

@@ -12,13 +12,14 @@ describe('donorMapper', () => {
       id: 1,
       donorCode: 'DNR-001',
       donorName: 'Tata Foundation',
-      donorType: 'FOUNDATION',
+      donorTypeId: 3,
+      donorTypeName: 'Foundation',
       fundSourceDomicile: 'DOMESTIC',
       isActive: true,
     };
     const model = fromDonorResponse(dto);
     expect(model.donorCode).toBe('DNR-001');
-    expect(model.donorType).toBe('FOUNDATION');
+    expect(model.donorTypeId).toBe(3);
     expect(model.donorTypeLabel).toBe('Foundation');
     expect(model.fundSourceDomicileLabel).toBe('Domestic');
     expect(model.contacts).toEqual([]);
@@ -28,7 +29,7 @@ describe('donorMapper', () => {
     const request = toCreateDonorRequest({
       donorCode: ' DNR-002 ',
       donorName: 'Gates Foundation',
-      donorType: 'FOUNDATION',
+      donorType: 3,
       fundSourceDomicile: 'FOREIGN',
       email: 'grants@gates.org',
       phoneNumber: '',
@@ -43,6 +44,7 @@ describe('donorMapper', () => {
       postalCode: '',
     });
     expect(request.donorCode).toBe('DNR-002');
+    expect(request.donorTypeId).toBe(3);
     expect(request.phoneNumber).toBeNull();
     expect(request.cityId).toBeNull();
     expect(request.stateId).toBe(4);
@@ -54,7 +56,7 @@ describe('donorMapper', () => {
     const request = toUpdateDonorRequest({
       donorCode: 'DNR-002',
       donorName: 'Gates Foundation',
-      donorType: 'FOUNDATION',
+      donorType: 3,
       fundSourceDomicile: 'FOREIGN',
       email: 'grants@gates.org',
       spocNameOfThePerson: 'Jane Doe',

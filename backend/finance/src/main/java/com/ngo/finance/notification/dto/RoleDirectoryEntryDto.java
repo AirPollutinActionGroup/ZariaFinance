@@ -1,7 +1,6 @@
 package com.ngo.finance.notification.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.ngo.finance.donor.enums.ResponsibleRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,7 +17,8 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class RoleDirectoryEntryDto {
 
-    private ResponsibleRole role;
+    /** Id of the Designation row this directory entry is for. */
+    private Long designationId;
 
     private String roleLabel;
 

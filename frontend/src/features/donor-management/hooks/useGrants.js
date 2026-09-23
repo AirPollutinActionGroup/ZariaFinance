@@ -17,6 +17,15 @@ export function useGrant(id) {
   });
 }
 
+/** The single grant agreement backed by a fund profile, or null if none exists yet. */
+export function useGrantByFundProfileId(fundProfileId) {
+  return useQuery({
+    queryKey: queryKeys.grants.byFundProfile(fundProfileId),
+    queryFn: () => grantService.getGrantByFundProfileId(fundProfileId),
+    enabled: fundProfileId != null && fundProfileId !== '',
+  });
+}
+
 export function useCreateGrant() {
   const queryClient = useQueryClient();
   return useMutation({

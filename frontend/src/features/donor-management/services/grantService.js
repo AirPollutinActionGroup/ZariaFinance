@@ -17,6 +17,16 @@ export const grantService = {
     return fromGrantDetailsResponse(await grantApi.getById(id));
   },
 
+  /** The single grant agreement backed by a fund profile, or null if none exists yet. */
+  async getGrantByFundProfileId(fundProfileId) {
+    try {
+      return fromGrantDetailsResponse(await grantApi.getByFundProfileId(fundProfileId));
+    } catch (error) {
+      if (error.isNotFound) return null;
+      throw error;
+    }
+  },
+
   async createGrant(formValues) {
     return fromGrantDetailsResponse(await grantApi.create(toCreateGrantRequest(formValues)));
   },

@@ -1,5 +1,7 @@
 package com.ngo.finance.transaction.dto.request;
 
+import com.ngo.finance.common.enums.ContributionType;
+import com.ngo.finance.common.enums.TransactionType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -19,11 +21,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateTransactionRequest {
 
-    @NotBlank(message = "Type is required")
-    private String type;
+    @NotNull(message = "Type is required")
+    private TransactionType type;
 
-    @NotBlank(message = "Book is required")
-    private String book;
+    @NotNull(message = "Book is required")
+    private ContributionType book;
 
     @NotNull(message = "Date is required")
     private LocalDate transactionDate;
@@ -46,11 +48,15 @@ public class CreateTransactionRequest {
     /** Optional — an untied disbursement may have no grant agreement. */
     private Long grantId;
 
+    /** Optional — set on a CREDIT to receipt it against a tranched Inflow Budget line. */
+    private Long inflowBudgetLineId;
+
     @NotNull(message = "Amount is required")
     @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
     private BigDecimal amount;
 
-    private String bankAccount;
+    /** Optional — the statutory bank account (Bank Details master) this receipt/payment moved through. */
+    private Long bankAccountId;
 
     @NotNull(message = "Payment mode is required")
     private Long paymentModeId;

@@ -30,5 +30,6 @@ public interface TransactionMapper {
     @Mapping(target = "paymentModeName", ignore = true)
     @Mapping(target = "groupName", ignore = true)
     @Mapping(target = "ledgerName", ignore = true)
+    @Mapping(target = "bankAccountLabel", ignore = true)
     TransactionResponse toResponse(Transaction entity);
 }

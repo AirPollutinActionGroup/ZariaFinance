@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ngo.finance.donation.enums.FundMode;
+import com.ngo.finance.donor.enums.FundMode;
 import com.ngo.finance.donor.dto.request.ApproveGrantRequest;
 import com.ngo.finance.donor.dto.request.CreateGrantRequest;
 import com.ngo.finance.donor.dto.request.GrantRemarksRequest;
@@ -22,11 +22,11 @@ import com.ngo.finance.donor.entity.DonorReleaseCriteria;
 import com.ngo.finance.donor.entity.DonorTrancheCriterion;
 import com.ngo.finance.donor.enums.CriterionType;
 import com.ngo.finance.donor.enums.DisbursementType;
-import com.ngo.finance.donor.enums.DonorType;
 import com.ngo.finance.donor.enums.FundClass;
 import com.ngo.finance.donor.enums.GrantStatus;
 import com.ngo.finance.donor.repository.DonorFundProfileRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
+import com.ngo.finance.masters.donortype.repository.DonorTypeMasterRepository;
 import com.ngo.finance.programme.entity.Programme;
 import com.ngo.finance.programme.repository.ProgrammeRepository;
 import java.math.BigDecimal;
@@ -72,6 +72,9 @@ public class GrantControllerIntegrationTest {
     @Autowired
     private DonorFundProfileRepository fundProfileRepository;
 
+    @Autowired
+    private DonorTypeMasterRepository donorTypeMasterRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     /** Seeds a donor + programme + fund profile that grants can be created from. */
@@ -79,7 +82,7 @@ public class GrantControllerIntegrationTest {
         DonorMaster donor = donorRepository.save(DonorMaster.builder()
                 .donorCode("DN-TEST-" + suffix)
                 .donorName("Test Donor " + suffix)
-                .donorType(DonorType.CORPORATE)
+                .donorType(donorTypeMasterRepository.searchByName("Corporate CSR").get(0))
                 .email("donor" + suffix + "@example.com")
                 .spocNameOfThePerson("Test POC")
                 .spocEmail("poc" + suffix + "@example.com")
@@ -139,9 +142,7 @@ public class GrantControllerIntegrationTest {
                 .startDate(LocalDate.of(2026, 1, 2))
                 .endDate(LocalDate.of(2026, 12, 31))
                 // No totalGrantAmount: it is inherited from the fund profile.
-                .status(GrantStatus.ACTIVE)
-                .grantCurrency("INR")
-                .fxLockedRate(BigDecimal.ONE);
+                .status(GrantStatus.ACTIVE);
     }
 
     private long createGrant(String code, Long fundProfileId) throws Exception {
@@ -173,7 +174,6 @@ public class GrantControllerIntegrationTest {
                 .andExpect(jsonPath("$.fundClassCode").value("CLASS_A_RESTRICTED"))
                 // Total is inherited: Σ of the profile's tranche plan (150k + 100k).
                 .andExpect(jsonPath("$.totalGrantAmount").value(250000.00))
-                .andExpect(jsonPath("$.reportingAmountInr").value(250000.00))
                 // New grants start pending approval and active — no more DRAFT status.
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.isApproved").value(2))
@@ -327,15 +327,11 @@ public class GrantControllerIntegrationTest {
 
     @Test
     @WithMockUser
-    void testListGrants_FiltersByDonorProgrammeAndSearch() throws Exception {
+    void testListGrants_FiltersByDonorAndSearch() throws Exception {
         DonorFundProfile profile = seedFundProfile("C4");
         createGrant("GR-TEST-C4", profile.getId());
 
         mockMvc.perform(get("/api/v1/grants").param("donorId", profile.getDonor().getId().toString()))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("GR-TEST-C4")));
-
-        mockMvc.perform(get("/api/v1/grants").param("programmeId", profile.getProgramme().getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("GR-TEST-C4")));
 

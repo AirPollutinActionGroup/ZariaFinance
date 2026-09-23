@@ -30,6 +30,9 @@ public class FundProfileResponse {
     private Boolean programmeTied;
     private Long programmeId;
     private String programmeName;
+    private String programmeType;
+    private Long parentProgrammeId;
+    private String parentProgrammeName;
     private String reportingFrequency;
     private String reportingFrequencyLabel;
     private Boolean movementAllowed;
@@ -40,6 +43,9 @@ public class FundProfileResponse {
     private List<DisbursementRuleItem> disbursementRules;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    /** Grant code of the grant agreement this profile already backs, if any (a profile backs at most one). */
+    private String assignedGrantCode;
 
     @Data
     @Builder
@@ -74,6 +80,8 @@ public class FundProfileResponse {
         private BigDecimal totalAmount;
         private String disbursementType;
         private String disbursementTypeLabel;
+        /** Lump sum only — the single date the whole committed amount is released on. */
+        private LocalDate receivingDate;
         private List<TrancheCriterionItem> trancheCriteria;
         /** Sigma of trancheCriteria.amountCriteria. */
         private BigDecimal allocatedAmount;
@@ -106,7 +114,7 @@ public class FundProfileResponse {
         private String releaseCriteriaLabel;
         private LocalDate releaseDate;
         private String milestoneName;
-        private String verificationSignOffRole;
+        private Long verificationSignOffRoleId;
         private String verificationSignOffRoleLabel;
         private String otherVerificationSignOffRole;
         private LocalDate targetDate;
@@ -115,7 +123,7 @@ public class FundProfileResponse {
         private String triggerBasisLabel;
         private String description;
         private Boolean remindSomeone;
-        private String responsibleRole;
+        private Long responsibleRoleId;
         private String responsibleRoleLabel;
         private String otherResponsibleRole;
         private Integer reminderLeadTime;

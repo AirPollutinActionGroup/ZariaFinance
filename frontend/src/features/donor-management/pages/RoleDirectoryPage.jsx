@@ -43,10 +43,10 @@ function RoleDirectoryEditor({ entries }) {
   const userOptions = usersQuery.data || [];
   const unassigned = draft.filter((entry) => entry.primaryUserId == null);
 
-  const update = (role, field, value) => {
+  const update = (designationId, field, value) => {
     setDraft((prev) =>
       prev.map((entry) =>
-        entry.role === role ? { ...entry, [field]: value === '' ? null : Number(value) } : entry,
+        entry.designationId === designationId ? { ...entry, [field]: value === '' ? null : Number(value) } : entry,
       ),
     );
   };
@@ -54,7 +54,7 @@ function RoleDirectoryEditor({ entries }) {
   const submit = () => {
     save.mutate(
       draft.map((entry) => ({
-        role: entry.role,
+        designationId: entry.designationId,
         primaryUserId: entry.primaryUserId,
         deputyUserId: entry.deputyUserId,
       })),
@@ -93,7 +93,7 @@ function RoleDirectoryEditor({ entries }) {
 
             <Stack spacing={2}>
               {draft.map((entry) => (
-                <Grid container spacing={2} key={entry.role} sx={{ alignItems: 'center' }}>
+                <Grid container spacing={2} key={entry.designationId} sx={{ alignItems: 'center' }}>
                   <Grid size={{ xs: 12, sm: 4 }}>
                     <Typography variant="subtitle2">{entry.roleLabel}</Typography>
                   </Grid>
@@ -103,7 +103,7 @@ function RoleDirectoryEditor({ entries }) {
                       fullWidth
                       label="Holder"
                       value={entry.primaryUserId ?? ''}
-                      onChange={(e) => update(entry.role, 'primaryUserId', e.target.value)}
+                      onChange={(e) => update(entry.designationId, 'primaryUserId', e.target.value)}
                       disabled={usersQuery.isPending}
                     >
                       <MenuItem value="">— unassigned —</MenuItem>
@@ -120,7 +120,7 @@ function RoleDirectoryEditor({ entries }) {
                       fullWidth
                       label="Deputy (notified only)"
                       value={entry.deputyUserId ?? ''}
-                      onChange={(e) => update(entry.role, 'deputyUserId', e.target.value)}
+                      onChange={(e) => update(entry.designationId, 'deputyUserId', e.target.value)}
                       disabled={usersQuery.isPending}
                     >
                       <MenuItem value="">— none —</MenuItem>

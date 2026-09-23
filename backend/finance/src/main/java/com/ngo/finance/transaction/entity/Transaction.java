@@ -1,8 +1,12 @@
 package com.ngo.finance.transaction.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
+import com.ngo.finance.common.enums.ContributionType;
+import com.ngo.finance.common.enums.TransactionType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,13 +32,13 @@ public class Transaction extends AuditEntity {
     @Column(name = "transaction_code", nullable = false, unique = true, length = 32)
     private String transactionCode;
 
-    /** DEBIT | CREDIT */
     @Column(nullable = false, length = 10)
-    private String type;
+    @Enumerated(EnumType.STRING)
+    private TransactionType type;
 
-    /** LC | FC */
     @Column(nullable = false, length = 10)
-    private String book;
+    @Enumerated(EnumType.STRING)
+    private ContributionType book;
 
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
@@ -58,12 +62,15 @@ public class Transaction extends AuditEntity {
     @Column(name = "grant_id")
     private Long grantId;
 
+    /** The donor tranche criterion (Inflow Budget line) a CREDIT receipts against, if any. */
+    @Column(name = "inflow_budget_line_id")
+    private Long inflowBudgetLineId;
+
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
 
-    /** Mock bank-account enum value — no backend master yet. */
-    @Column(name = "bank_account", length = 50)
-    private String bankAccount;
+    @Column(name = "bank_account_id")
+    private Long bankAccountId;
 
     @Column(name = "payment_mode_id", nullable = false)
     private Long paymentModeId;

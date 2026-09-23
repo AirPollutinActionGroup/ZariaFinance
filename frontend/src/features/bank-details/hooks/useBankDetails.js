@@ -9,6 +9,14 @@ export function useBankDetails(search) {
   });
 }
 
+export function useBankDetail(id) {
+  return useQuery({
+    queryKey: queryKeys.bankDetails.detail(id),
+    queryFn: () => bankDetailService.getBankDetail(id),
+    enabled: id != null,
+  });
+}
+
 export function useCreateBankDetail() {
   const queryClient = useQueryClient();
   return useMutation({

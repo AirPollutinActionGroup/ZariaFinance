@@ -1,7 +1,7 @@
 package com.ngo.finance.donor;
 
 import com.ngo.finance.donor.entity.DonorMaster;
-import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.common.enums.FundSourceDomicile;
 import com.ngo.finance.donor.enums.FundingBucket;
 
 /**
@@ -31,7 +31,7 @@ public final class FundingClassifier {
         if (donor == null) {
             return FundingBucket.DC;
         }
-        String donorType = donor.getDonorType() != null ? donor.getDonorType().getLabel() : null;
-        return FundingBucket.classify(isForeign(donor), donorType, null);
+        String donorTypeName = donor.getDonorType() != null ? donor.getDonorType().getName() : null;
+        return FundingBucket.classify(isForeign(donor), donorTypeName, null);
     }
 }

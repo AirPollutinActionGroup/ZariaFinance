@@ -6,7 +6,7 @@ import com.ngo.finance.common.entity.AuditEntity;
 import com.ngo.finance.donor.enums.CriterionType;
 import com.ngo.finance.donor.enums.RepeatReminder;
 import com.ngo.finance.donor.enums.TriggerBasis;
-import com.ngo.finance.donor.enums.VerificationRole;
+import com.ngo.finance.masters.designation.entity.Designation;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -51,9 +51,10 @@ public class DonorReleaseCriteria extends AuditEntity {
     @Column(name = "milestone_name", length = 100)
     private String milestoneName;
 
-    @Column(name = "verification_sign_off_role", length = 50)
-    @Enumerated(EnumType.STRING)
-    private VerificationRole verificationSignOffRole;
+    @ManyToOne
+    @JoinColumn(name = "verification_designation_id",
+            foreignKey = @ForeignKey(name = "fk_release_criteria_verification_designation"))
+    private Designation verificationSignOffRole;
 
     @Column(name = "other_verification_sign_off_role", length = 100)
     private String otherVerificationSignOffRole;
@@ -64,9 +65,10 @@ public class DonorReleaseCriteria extends AuditEntity {
     @Column(name = "remind_someone")
     private Boolean remindSomeone = false;
 
-    @Column(name = "responsible_role", length = 50)
-    @Enumerated(EnumType.STRING)
-    private VerificationRole responsibleRole;
+    @ManyToOne
+    @JoinColumn(name = "responsible_designation_id",
+            foreignKey = @ForeignKey(name = "fk_release_criteria_responsible_designation"))
+    private Designation responsibleRole;
 
     @Column(name = "other_responsible_role", length = 100)
     private String otherResponsibleRole;

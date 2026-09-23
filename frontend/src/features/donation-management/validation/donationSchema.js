@@ -81,8 +81,6 @@ const legacyDetailSchema = z.object({
 export const donationSchema = z
   .object({
     donationType: z.string().min(1, 'Donation type is required'),
-    receiptDate: z.string().min(1, 'Receipt date is required'),
-    channel: z.string().min(1, 'Channel is required'),
     identification: z.string().min(1, 'Donor identification is required'),
     donorId: z.string().optional().or(z.literal('')),
     idType: z.string().optional().or(z.literal('')),
@@ -90,21 +88,15 @@ export const donationSchema = z
     anonymousCollectionSource: z.string().optional().or(z.literal('')),
     anonymousSourceReference: z.string().optional().or(z.literal('')),
     fundMode: z.string().min(1, 'Fund mode is required'),
-    fundClassCode: z.string().optional().or(z.literal('')),
+    fundClass: z.string().optional().or(z.literal('')),
     programmeId: z.string().optional().or(z.literal('')),
-    otherProgramme: z.string().optional().or(z.literal('')),
     stateIds: z.array(z.union([z.string(), z.number()])).min(1, 'At least one location/state is required'),
     utilisationPeriodType: z.string().min(1, 'Utilisation period is required'),
     utilisationStartDate: z.string().optional().or(z.literal('')),
     utilisationEndDate: z.string().optional().or(z.literal('')),
     isConditionalGift: z.union([z.boolean(), z.string()]).optional(),
     conditionDescription: z.string().optional().or(z.literal('')),
-    currency: z.string().trim().min(1, 'Currency is required'),
     amount: z.string().trim().min(1, 'Amount is required').refine((v) => Number(v) > 0, 'Amount must be positive'),
-    fxRate: z.string().optional().or(z.literal('')),
-    bankAccountType: z.string().min(1, 'Bank account type is required'),
-    transactionRef: z.string().optional().or(z.literal('')),
-    tallyVoucherRef: z.string().optional().or(z.literal('')),
     gikItems: z.array(gikItemSchema),
     corpusDetail: corpusDetailSchema,
     recurringMandate: recurringMandateSchema,
@@ -215,19 +207,10 @@ export const donationSchema = z
         });
       }
     }
-    if (values.programmeId === 'OTHER' && (!values.otherProgramme || !values.otherProgramme.trim())) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['otherProgramme'],
-        message: 'Please specify the other programme / purpose',
-      });
-    }
   });
 
 export const donationFormDefaults = {
   donationType: '',
-  receiptDate: new Date().toISOString().split('T')[0],
-  channel: 'BANK_TRANSFER',
   identification: 'NAMED',
   donorId: '',
   idType: '',
@@ -235,21 +218,15 @@ export const donationFormDefaults = {
   anonymousCollectionSource: '',
   anonymousSourceReference: '',
   fundMode: 'UNRESTRICTED',
-  fundClassCode: '',
+  fundClass: '',
   programmeId: '',
-  otherProgramme: '',
   stateIds: [],
   utilisationPeriodType: 'SINGLE_FY',
   utilisationStartDate: '',
   utilisationEndDate: '',
   isConditionalGift: false,
   conditionDescription: '',
-  currency: 'INR',
   amount: '',
-  fxRate: '1',
-  bankAccountType: 'DOMESTIC_CURRENT',
-  transactionRef: '',
-  tallyVoucherRef: '',
   gikItems: [],
   corpusDetail: {
     writtenDirectionRef: '',

@@ -1,8 +1,7 @@
 package com.ngo.finance.donor.dto.request;
 
-import com.ngo.finance.donor.enums.ContributionType;
-import com.ngo.finance.donor.enums.DonorType;
-import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.common.enums.ContributionType;
+import com.ngo.finance.common.enums.FundSourceDomicile;
 import com.ngo.finance.donor.enums.IdentityDocumentType;
 import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
@@ -21,7 +20,7 @@ public class UpdateDonorRequest {
 
     private String donorName;
 
-    private DonorType donorType;
+    private Long donorTypeId;
 
     private FundSourceDomicile fundSourceDomicile;
 
