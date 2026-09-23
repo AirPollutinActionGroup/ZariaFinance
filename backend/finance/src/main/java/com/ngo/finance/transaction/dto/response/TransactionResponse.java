@@ -1,6 +1,8 @@
 package com.ngo.finance.transaction.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.ngo.finance.common.enums.ContributionType;
+import com.ngo.finance.common.enums.TransactionType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,8 +23,8 @@ public class TransactionResponse {
 
     private Long id;
     private String transactionCode;
-    private String type;
-    private String book;
+    private TransactionType type;
+    private ContributionType book;
     private LocalDate transactionDate;
     private String category;
 
@@ -38,8 +40,12 @@ public class TransactionResponse {
     private Long grantId;
     private String grantCode;
 
+    private Long inflowBudgetLineId;
+
     private BigDecimal amount;
-    private String bankAccount;
+
+    private Long bankAccountId;
+    private String bankAccountLabel;
 
     private Long paymentModeId;
     private String paymentModeName;

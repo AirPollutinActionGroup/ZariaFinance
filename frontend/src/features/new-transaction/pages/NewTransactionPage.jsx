@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -22,16 +22,13 @@ import { usePaymentTypeGroups } from '../../payment-type/hooks/usePaymentTypeGro
 import { usePaymentTypeLedgers } from '../../payment-type/hooks/usePaymentTypeLedgers.js';
 import { useDonors } from '../../donor-management/hooks/useDonors.js';
 import { useFundProfilesByDonor } from '../../donor-management/hooks/useFundProfiles.js';
-import { useGrants } from '../../donor-management/hooks/useGrants.js';
+import { useGrantByFundProfileId } from '../../donor-management/hooks/useGrants.js';
+import { deriveDisbursementType } from '../../donor-management/lib/disbursement.js';
+import { donorTypeService } from '../../donor-management/services/donorTypeService.js';
 import { useCreateTransaction } from '../hooks/useTransactions.js';
-import {
-  BANK_ACCOUNTS,
-  BOOKS,
-  DONOR_TYPES,
-  PAYEE_CATEGORIES,
-  PAYEES,
-  TRANSACTION_TYPES,
-} from '../data/mockNewTransaction.js';
+import { useInflowBudgetLine, useInflowBudgetLines } from '../../inflow-budget/hooks/useInflowBudget.js';
+import { useBankDetails } from '../../bank-details/hooks/useBankDetails.js';
+import { BOOKS, PAYEE_CATEGORIES, PAYEES, TRANSACTION_TYPES } from '../data/mockNewTransaction.js';
 
 export function NewTransactionPage() {
   const navigate = useNavigate();
@@ -42,7 +39,7 @@ export function NewTransactionPage() {
   const [partyId, setPartyId] = useState('');
   const [donorId, setDonorId] = useState('');
   const [fundId, setFundId] = useState('');
-  const [grantId, setGrantId] = useState('');
+  const [trancheId, setTrancheId] = useState('');
   const [amount, setAmount] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [paymentMode, setPaymentMode] = useState('');
@@ -54,6 +51,20 @@ export function NewTransactionPage() {
   const [toastMessage, setToastMessage] = useState(null);
 
   const isCredit = type === 'CREDIT';
+
+  // Donor type is a manageable master (see Master Configuration → Donor Type)
+  // — load the active ones instead of a hardcoded list.
+  const [donorTypes, setDonorTypes] = useState([]);
+  useEffect(() => {
+    donorTypeService
+      .listActiveDonorTypes()
+      .then(setDonorTypes)
+      .catch((err) => console.error('Error loading donor types', err));
+  }, []);
+  const donorTypeOptions = useMemo(
+    () => donorTypes.map((dt) => ({ value: dt.id, label: dt.name })),
+    [donorTypes]
+  );
 
   // Payment mode, Group and Ledger are the real Payment Mode / Payment Type
   // (Group ▸ Ledger) master data — server-backed, not mock — for both Debit
@@ -78,7 +89,21 @@ export function NewTransactionPage() {
 
   const ledgersQuery = usePaymentTypeLedgers();
 
-  const categoryOptions = isCredit ? DONOR_TYPES : PAYEE_CATEGORIES;
+  // Bank Details master — each statutory account is booked LC or FC, so only
+  // offer accounts matching the transaction's own Book.
+  const bankDetailsQuery = useBankDetails();
+  const bankAccountOptions = useMemo(
+    () =>
+      (bankDetailsQuery.data || [])
+        .filter((b) => b.status === 'ACTIVE' && b.book === book)
+        .map((b) => ({
+          value: b.id,
+          label: `${b.bankName} — ****${String(b.accountNumber).slice(-4)}`,
+        })),
+    [bankDetailsQuery.data, book]
+  );
+
+  const categoryOptions = isCredit ? donorTypeOptions : PAYEE_CATEGORIES;
 
   // Ledger accounts cascade from the selected Group, same as the Transaction Entry page.
   const ledgerOptions = useMemo(() => {
@@ -92,45 +117,138 @@ export function NewTransactionPage() {
   const donorsQuery = useDonors();
   const donors = useMemo(() => donorsQuery.data || [], [donorsQuery.data]);
 
+  // A donor is booked as LC (local) or FC (foreign) contribution — a Credit
+  // receipt against a given Book should only offer donors booked the same way.
   const partyOptions = useMemo(() => {
     if (!isCredit) {
       return PAYEES.filter((p) => p.category === category).map((p) => ({ value: p.id, label: p.name }));
     }
-    return donors.filter((d) => d.donorType === category).map((d) => ({ value: d.id, label: d.donorName }));
-  }, [isCredit, category, donors]);
+    return donors
+      .filter((d) => String(d.donorTypeId) === String(category) && d.book === book)
+      .map((d) => ({ value: d.id, label: d.donorName }));
+  }, [isCredit, category, donors, book]);
 
   // The donor whose fund is being credited or debited — kept separate from the
   // Payee/Donor party field so a Debit (expense) can still be charged to a
   // specific donor's restricted fund.
-  const donorOptions = useMemo(() => donors.map((d) => ({ value: d.id, label: d.donorName })), [donors]);
+  const donorOptions = useMemo(
+    () => donors.filter((d) => d.book === book).map((d) => ({ value: d.id, label: d.donorName })),
+    [donors, book]
+  );
 
   const fundProfilesQuery = useFundProfilesByDonor(donorId || undefined);
+
+  // A fund profile's "unallocatedAmount" is a budget-planning figure (total
+  // committed minus what's been scheduled across tranches) — it's usually
+  // ₹0 once the schedule is fully planned, so it's the wrong number for
+  // "how much is still owed from the donor". The Inflow Budget line for each
+  // tranche criterion tracks what's actually been received, so the true
+  // outstanding balance is the sum of (expected − received) across the
+  // fund's tranche criteria.
+  const inflowLinesQuery = useInflowBudgetLines();
+  const inflowLinesById = useMemo(() => {
+    const map = new Map();
+    (inflowLinesQuery.data || []).forEach((line) => map.set(Number(line.id), line));
+    return map;
+  }, [inflowLinesQuery.data]);
+
   const fundOptions = useMemo(() => {
     return (fundProfilesQuery.data || []).map((f) => {
-      const hasDisbursementData = (f.disbursementRules || []).length > 0;
-      const balance = hasDisbursementData
-        ? f.disbursementRules.reduce((sum, r) => sum + (Number(r.unallocatedAmount) || 0), 0)
-        : null;
+      const trancheIds = (f.disbursementRules || [])
+        .flatMap((r) => (r.trancheCriteria || []).map((t) => t.id))
+        .filter((id) => id != null);
+      let balance = null;
+      if (trancheIds.length) {
+        balance = trancheIds.reduce((sum, id) => {
+          const line = inflowLinesById.get(Number(id));
+          if (!line) return sum;
+          const expected = Number(line.expectedAmount) || 0;
+          const received = Number(line.actualAmount) || 0;
+          return sum + Math.max(expected - received, 0);
+        }, 0);
+      }
       return {
         value: f.id,
         label: f.purpose || `${f.fundClassLabel || 'Fund profile'} · #${f.id}`,
         balance,
       };
     });
-  }, [fundProfilesQuery.data]);
+  }, [fundProfilesQuery.data, inflowLinesById]);
 
   const currentFund = useMemo(
     () => fundOptions.find((f) => f.value === fundId) || null,
     [fundOptions, fundId]
   );
 
-  const grantsQuery = useGrants(donorId ? { donorId } : undefined);
-  const grantOptions = useMemo(() => {
-    if (!fundId) return [];
-    return (grantsQuery.data || [])
-      .filter((g) => g.fundProfileId === fundId)
-      .map((g) => ({ value: g.id, label: g.grantCode }));
-  }, [fundId, grantsQuery.data]);
+  // A fund profile backs at most one grant agreement — fetch and auto-fill it
+  // read-only rather than making the user pick among options.
+  const grantQuery = useGrantByFundProfileId(fundId || undefined);
+  const assignedGrant = grantQuery.data || null;
+  const grantId = assignedGrant?.id ?? '';
+
+  // Disbursement type/tranches are configured on the fund profile's
+  // disbursement rule, not chosen per-transaction — once the assigned grant
+  // agreement is known we show that inherited type, and for TRANCHES let the
+  // user record which tranche this receipt is against.
+  const currentFundProfile = useMemo(
+    () => (fundProfilesQuery.data || []).find((f) => f.id === fundId) || null,
+    [fundProfilesQuery.data, fundId]
+  );
+  const disbursementRule = currentFundProfile?.disbursementRules?.[0] || null;
+  const disbursementTypeLabel = assignedGrant ? deriveDisbursementType(disbursementRule) : '';
+  const isTranched = disbursementTypeLabel === 'Tranches';
+  // A Lump Sum rule still has exactly one tranche criterion behind it — the
+  // Inflow Budget line the whole committed amount is receipted against. There's
+  // no tranche picker for it, but the transaction still needs to post to it,
+  // otherwise the fund's balance never reflects what's actually been received.
+  const lumpSumCriterionId =
+    disbursementTypeLabel === 'Lump Sum' ? disbursementRule?.trancheCriteria?.[0]?.id ?? null : null;
+  const trancheOptions = useMemo(() => {
+    if (!isTranched) return [];
+    return (disbursementRule?.trancheCriteria || []).map((t, i) => ({
+      value: t.id ?? i,
+      label: `Tranche ${i + 1}${t.isFinalTranche ? ' (final)' : ''} — ${formatInr(t.amountCriteria)}`,
+    }));
+  }, [isTranched, disbursementRule]);
+
+  // What's still owed against the selected tranche (or, for a lump sum, the
+  // fund's unallocated balance) — the Amount field is checked against this
+  // rather than accepting whatever the user types.
+  const selectedTranche = useMemo(() => {
+    if (!isTranched) return null;
+    return (disbursementRule?.trancheCriteria || []).find((t, i) => (t.id ?? i) === trancheId) || null;
+  }, [isTranched, disbursementRule, trancheId]);
+
+  // The tranche's committed amount (amountCriteria) is what's expected in
+  // total — it doesn't account for amounts already received against it. The
+  // Inflow Budget line for the same tranche criterion tracks that actual
+  // receipt, so the true outstanding balance is expected minus already received.
+  const inflowLineQuery = useInflowBudgetLine(isTranched && trancheId !== '' ? trancheId : undefined);
+
+  const outstandingAmount = useMemo(() => {
+    if (isTranched) {
+      const line = inflowLineQuery.data;
+      if (line) {
+        const expected = Number(line.expectedAmount) || 0;
+        const received = Number(line.actualAmount) || 0;
+        return Math.max(expected - received, 0);
+      }
+      // Fall back to the tranche's full committed amount while the line is loading.
+      return selectedTranche ? Number(selectedTranche.amountCriteria) || 0 : null;
+    }
+    if (disbursementTypeLabel === 'Lump Sum') {
+      return currentFund?.balance != null ? Number(currentFund.balance) : null;
+    }
+    return null;
+  }, [isTranched, selectedTranche, inflowLineQuery.data, disbursementTypeLabel, currentFund]);
+
+  const amountExceedsOutstanding =
+    outstandingAmount != null && Number(amount) > outstandingAmount;
+  // Live remaining balance as the user types, rather than the static
+  // outstanding amount — updates on every keystroke.
+  const remainingAfterAmount = outstandingAmount != null ? Math.max(outstandingAmount - (Number(amount) || 0), 0) : null;
+  const fullAmountReceived =
+    outstandingAmount != null && Number(amount) > 0 && Number(amount) === outstandingAmount;
 
   const projectedBalance = useMemo(() => {
     if (!currentFund || currentFund.balance == null) return null;
@@ -144,14 +262,25 @@ export function NewTransactionPage() {
   function handleTypeChange(_event, newType) {
     if (!newType) return;
     setType(newType);
-    const nextCategory = newType === 'CREDIT' ? DONOR_TYPES[0].value : PAYEE_CATEGORIES[0].value;
+    const nextCategory = newType === 'CREDIT' ? (donorTypeOptions[0]?.value ?? '') : PAYEE_CATEGORIES[0].value;
     setCategory(nextCategory);
     setPartyId('');
     setDonorId('');
     setFundId('');
-    setGrantId('');
+    setTrancheId('');
     setGroup('');
     setLedgerType('');
+  }
+
+  function handleBookChange(newValue) {
+    setBook(newValue?.value || '');
+    // Donor/party and bank account options are booked LC or FC — switching
+    // the book invalidates whichever book-dependent selections were already made.
+    setPartyId('');
+    setDonorId('');
+    setFundId('');
+    setTrancheId('');
+    setBankAccount('');
   }
 
   function handleGroupChange(newValue) {
@@ -163,7 +292,7 @@ export function NewTransactionPage() {
     setCategory(newValue?.value || '');
     setPartyId('');
     setFundId('');
-    setGrantId('');
+    setTrancheId('');
   }
 
   function handlePartyChange(newValue) {
@@ -173,7 +302,7 @@ export function NewTransactionPage() {
     if (isCredit) {
       setDonorId(newPartyId);
       setFundId('');
-      setGrantId('');
+      setTrancheId('');
     }
   }
 
@@ -184,12 +313,12 @@ export function NewTransactionPage() {
       setPartyId(newDonorId);
     }
     setFundId('');
-    setGrantId('');
+    setTrancheId('');
   }
 
   function handleFundChange(newValue) {
     setFundId(newValue?.value || '');
-    setGrantId('');
+    setTrancheId('');
   }
 
   function handleFileChange(e) {
@@ -243,6 +372,21 @@ export function NewTransactionPage() {
       return;
     }
 
+    if (isTranched && !trancheId) {
+      setToastMessage({ type: 'error', text: 'Please select which tranche this receipt is against.' });
+      return;
+    }
+
+    if (amountExceedsOutstanding) {
+      setToastMessage({
+        type: 'error',
+        text: `Amount exceeds the outstanding ${formatInr(outstandingAmount)} for this ${
+          isTranched ? 'tranche' : 'lump sum'
+        }.`,
+      });
+      return;
+    }
+
     const partyName = partyOptions.find((o) => o.value === partyId)?.label || '';
 
     try {
@@ -256,6 +400,7 @@ export function NewTransactionPage() {
         donorId,
         fundId,
         grantId,
+        trancheId: isTranched ? trancheId : lumpSumCriterionId,
         amount,
         bankAccount,
         paymentMode,
@@ -330,7 +475,7 @@ export function NewTransactionPage() {
                     label="Book *"
                     options={BOOKS}
                     value={BOOKS.find((o) => o.value === book) || null}
-                    onChange={(newValue) => setBook(newValue?.value || '')}
+                    onChange={handleBookChange}
                   />
                 </Grid>
 
@@ -414,15 +559,41 @@ export function NewTransactionPage() {
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <SearchableSelect
+                  <TextField
+                    fullWidth
                     label="Grant agreement"
-                    options={grantOptions}
-                    value={grantOptions.find((o) => o.value === grantId) || null}
-                    onChange={(newValue) => setGrantId(newValue?.value || '')}
-                    disabled={grantOptions.length === 0}
-                    placeholder={!fundId ? 'Select fund first' : undefined}
+                    value={
+                      assignedGrant ? assignedGrant.grantCode : fundId && !grantQuery.isPending ? 'No grant agreement yet' : ''
+                    }
+                    disabled
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    helperText={!fundId ? 'Select a fund profile first' : 'Inherited from the fund profile'}
                   />
                 </Grid>
+
+                {grantId ? (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      fullWidth
+                      label="Disbursement type"
+                      value={disbursementTypeLabel}
+                      disabled
+                    />
+                  </Grid>
+                ) : null}
+
+                {isTranched ? (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <SearchableSelect
+                      label="Tranche *"
+                      options={trancheOptions}
+                      value={trancheOptions.find((o) => o.value === trancheId) || null}
+                      onChange={(newValue) => setTrancheId(newValue?.value || '')}
+                      disabled={trancheOptions.length === 0}
+                      placeholder={trancheOptions.length === 0 ? 'No tranches configured' : undefined}
+                    />
+                  </Grid>
+                ) : null}
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
@@ -432,16 +603,38 @@ export function NewTransactionPage() {
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    error={insufficientBalance}
+                    error={insufficientBalance || amountExceedsOutstanding}
                   />
+                  {outstandingAmount != null ? (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        mt: 0.75,
+                        display: 'block',
+                        color: amountExceedsOutstanding
+                          ? 'error.main'
+                          : fullAmountReceived
+                          ? 'success.main'
+                          : 'text.secondary',
+                      }}
+                    >
+                      {fullAmountReceived
+                        ? `Full amount received for this ${isTranched ? 'tranche' : 'lump sum'}.`
+                        : `Outstanding amount: ${formatInr(outstandingAmount)}${
+                            Number(amount) > 0 ? ` → After this receipt: ${formatInr(remainingAfterAmount)}` : ''
+                          }`}
+                    </Typography>
+                  ) : null}
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <SearchableSelect
                     label="Bank account"
-                    options={BANK_ACCOUNTS}
-                    value={BANK_ACCOUNTS.find((o) => o.value === bankAccount) || null}
+                    options={bankAccountOptions}
+                    value={bankAccountOptions.find((o) => o.value === bankAccount) || null}
                     onChange={(newValue) => setBankAccount(newValue?.value || '')}
+                    disabled={bankAccountOptions.length === 0}
+                    placeholder={bankAccountOptions.length === 0 ? `No active ${book} accounts` : undefined}
                   />
                 </Grid>
               </Grid>

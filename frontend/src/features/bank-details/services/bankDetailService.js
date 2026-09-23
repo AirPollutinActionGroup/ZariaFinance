@@ -11,6 +11,10 @@ export const bankDetailService = {
     return dtos.map(fromBankDetailResponse);
   },
 
+  async getBankDetail(id) {
+    return fromBankDetailResponse(await bankDetailApi.getById(id));
+  },
+
   async createBankDetail(formValues) {
     return fromBankDetailResponse(await bankDetailApi.create(toCreateBankDetailRequest(formValues)));
   },

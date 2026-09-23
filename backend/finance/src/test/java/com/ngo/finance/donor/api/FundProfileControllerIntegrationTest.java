@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ngo.finance.donation.enums.FundMode;
+import com.ngo.finance.donor.enums.FundMode;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.DisbursementRuleItem;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.GeographyItem;
@@ -17,12 +17,12 @@ import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.UtilisationRul
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.enums.CriterionType;
 import com.ngo.finance.donor.enums.DisbursementType;
-import com.ngo.finance.donor.enums.DonorType;
 import com.ngo.finance.donor.enums.FundClass;
 import com.ngo.finance.donor.enums.RestrictionRuleType;
-import com.ngo.finance.donor.enums.VerificationRole;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.StateRepository;
+import com.ngo.finance.masters.designation.repository.DesignationRepository;
+import com.ngo.finance.masters.donortype.repository.DonorTypeMasterRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -55,13 +55,25 @@ public class FundProfileControllerIntegrationTest {
     @Autowired
     private StateRepository stateRepository;
 
+    @Autowired
+    private DonorTypeMasterRepository donorTypeMasterRepository;
+
+    @Autowired
+    private DesignationRepository designationRepository;
+
+    private Long designationIdFor(String name) {
+        return designationRepository.findByName(name)
+                .orElseThrow(() -> new IllegalStateException("No designation named " + name))
+                .getId();
+    }
+
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     private DonorMaster seedDonor(String suffix) {
         return donorRepository.save(DonorMaster.builder()
                 .donorCode("DN-FP-" + suffix)
                 .donorName("Fund Profile Donor " + suffix)
-                .donorType(DonorType.CORPORATE)
+                .donorType(donorTypeMasterRepository.searchByName("Corporate CSR").get(0))
                 .email("fundprofile" + suffix + "@example.com")
                 .spocNameOfThePerson("Test POC")
                 .spocEmail("poc-fp-" + suffix + "@example.com")
@@ -178,16 +190,15 @@ public class FundProfileControllerIntegrationTest {
 
     @Test
     @WithMockUser
-    void testProfileWithNoDisbursementRuleHasEmptyLists() throws Exception {
+    void testRejectsAProfileWithNoDisbursementRule() throws Exception {
         DonorMaster donor = seedDonor("T3");
 
         mockMvc.perform(post("/api/v1/donors/{donorId}/fund-profiles", donor.getId())
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(baseProfile().build())))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.geographies.length()").value(0))
-                .andExpect(jsonPath("$.disbursementRules.length()").value(0));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors['disbursementRules']").exists());
     }
 
     @Test
@@ -276,7 +287,7 @@ public class FundProfileControllerIntegrationTest {
                                 .criteria(List.of(ReleaseCriterionItem.builder()
                                         .releaseCriteria(CriterionType.ON_SIGNING)
                                         .remindSomeone(true)
-                                        .responsibleRole(VerificationRole.CFO)
+                                        .responsibleRoleId(designationIdFor("CFO"))
                                         .reminderLeadTime(7)
                                         .build()))
                                 .build()))

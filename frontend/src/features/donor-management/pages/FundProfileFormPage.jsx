@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -12,6 +12,7 @@ import {
   Grid,
   IconButton,
   InputAdornment,
+  MenuItem,
   Stack,
   Switch,
   TextField,
@@ -41,14 +42,14 @@ import { fundProfileSchema, fundProfileFormDefaults } from '../validation/fundPr
 import { toFundProfileFormValues } from '../mappers/fundProfileMapper.js';
 import { TrancheCard } from '../components/TrancheCard.jsx';
 import { UtilisationRuleRow } from '../components/UtilisationRuleRow.jsx';
-import { emptyCriterion, VERIFICATION_ROLES } from '../mappers/disbursementMapper.js';
+import { emptyCriterion } from '../mappers/disbursementMapper.js';
+import { useRoleDesignations } from '../hooks/useRoleDesignations.js';
 
 const FUND_MODE_OPTIONS = [
   { value: 'RESTRICTED', label: 'Restricted' },
   { value: 'UNRESTRICTED', label: 'Unrestricted' },
 ];
 const FUND_CLASS_OPTIONS = [
-  { value: '', label: '— none (edge / pending) —' },
   { value: 'CLASS_A_RESTRICTED', label: 'Class A · Fully restricted' },
   { value: 'CLASS_B_UNRESTRICTED', label: 'Class B · Unrestricted w/ explanation' },
   { value: 'CLASS_C_UNRESTRICTED', label: 'Class C · Fully unrestricted' },
@@ -65,16 +66,29 @@ const SCHEDULE_FREQUENCY_OPTIONS = [
   { value: 'HALF_YEARLY', label: 'Half-Yearly' },
   { value: 'YEARLY', label: 'Yearly' },
 ];
+const LINK_TYPE_OPTIONS = [
+  { value: '', label: 'Untied (no programme)' },
+  { value: 'PROGRAMME', label: 'Programme' },
+  { value: 'PROJECT', label: 'Project' },
+];
 
 /** Inline RHF-bound switch (booleans aren't covered by the shared form components). */
-function RhfSwitch({ name, control, label }) {
+function RhfSwitch({ name, control, label, onChangeExtra }) {
   return (
     <Controller
       name={name}
       control={control}
       render={({ field }) => (
         <FormControlLabel
-          control={<Switch checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} />}
+          control={
+            <Switch
+              checked={Boolean(field.value)}
+              onChange={(e) => {
+                field.onChange(e.target.checked);
+                onChangeExtra?.(e.target.checked);
+              }}
+            />
+          }
           label={label}
         />
       )}
@@ -92,6 +106,7 @@ export function FundProfileFormPage() {
 
   const profileQuery = useFundProfile(isEdit ? id : null);
   const programmesQuery = useProgrammes();
+  const { options: roleOptions } = useRoleDesignations();
   const donorId = isEdit ? profileQuery.data?.donorId : Number(donorIdParam);
   const donorQuery = useDonor(donorId);
   const isForeign = donorQuery.data?.fundSourceDomicile === 'FOREIGN';
@@ -106,7 +121,13 @@ export function FundProfileFormPage() {
   const [geographiesOpen, setGeographiesOpen] = useState(false);
   const [utilisationRulesOpen, setUtilisationRulesOpen] = useState(false);
 
-  const { control, handleSubmit, reset, setValue } = useForm({
+  const {
+    control,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors },
+  } = useForm({
     resolver: zodResolver(fundProfileSchema),
     defaultValues: fundProfileFormDefaults,
   });
@@ -120,7 +141,70 @@ export function FundProfileFormPage() {
   const hasFinalTranche = (trancheValues || []).some((t) => Boolean(t?.isFinal));
   const programmeTied = useWatch({ control, name: 'programmeTied' });
   const movementAllowed = useWatch({ control, name: 'movementAllowed' });
+  const explanationRequired = useWatch({ control, name: 'explanationRequired' });
   const isPurposeRequired = movementAllowed && !programmeTied;
+  const watchedProgrammeId = useWatch({ control, name: 'programmeId' });
+
+  // A Project is a Programme row with type='Project' and a parentProgrammeId
+  // — there's no separate Project entity (see Programme.java). A "Type"
+  // picker decides which pickers are visible: Untied hides both, Programme
+  // shows only the Programme picker, Project shows Programme (to narrow
+  // down) followed by Project. Whichever is most specific is what's
+  // submitted as programmeId. All three are local UI state, not RHF fields.
+  const [linkType, setLinkType] = useState('');
+  const [parentProgrammeId, setParentProgrammeId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const cascadeInitialised = useRef(false);
+
+  // Initialise the cascade once from whatever programmeId the form already
+  // holds (edit mode) — runs once the programme list has loaded.
+  useEffect(() => {
+    if (cascadeInitialised.current) return;
+    if (!watchedProgrammeId || !(programmesQuery.data || []).length) return;
+    const current = (programmesQuery.data || []).find((p) => String(p.id) === String(watchedProgrammeId));
+    if (!current) return;
+    cascadeInitialised.current = true;
+    if (current.type === 'Project') {
+      setLinkType('PROJECT');
+      setParentProgrammeId(String(current.parentProgrammeId || ''));
+      setSelectedProjectId(String(current.id));
+    } else {
+      setLinkType('PROGRAMME');
+      setParentProgrammeId(String(current.id));
+      setSelectedProjectId('');
+    }
+  }, [watchedProgrammeId, programmesQuery.data]);
+
+  // Whichever level is most specific (Project, else Programme, else untied)
+  // is what actually gets submitted.
+  useEffect(() => {
+    const effective = selectedProjectId || parentProgrammeId || '';
+    setValue('programmeId', effective, { shouldValidate: true });
+  }, [selectedProjectId, parentProgrammeId, setValue]);
+
+  // Type/Programme/Project only make sense while Programme-tied is on —
+  // switching it off clears the selection so the profile goes back to untied.
+  useEffect(() => {
+    if (!programmeTied && (linkType || parentProgrammeId || selectedProjectId)) {
+      cascadeInitialised.current = true;
+      setLinkType('');
+      setParentProgrammeId('');
+      setSelectedProjectId('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to programmeTied turning off; the other values are what gets cleared, not triggers
+  }, [programmeTied]);
+
+  const handleLinkTypeChange = (newType) => {
+    cascadeInitialised.current = true;
+    setLinkType(newType);
+    setParentProgrammeId('');
+    setSelectedProjectId('');
+  };
+  const handleParentProgrammeChange = (newParentId) => {
+    cascadeInitialised.current = true;
+    setParentProgrammeId(newParentId);
+    setSelectedProjectId('');
+  };
   const selectedGeographies = useWatch({ control, name: 'selectedGeographies' }) || [];
   const statesQuery = useQuery({
     queryKey: ['geography', 'states'],
@@ -133,11 +217,16 @@ export function FundProfileFormPage() {
       ? 'No geographies — spendable anywhere'
       : selectedGeographies.map((id) => stateNameById.get(String(id)) || id).join(', ');
 
+  // Movement allowed and Explanation required always move together — flipping
+  // either one flips the other to match (see the two RhfSwitch handlers below
+  // for the live user-driven side of this; this covers values loaded from an
+  // existing fund profile that predates the pairing).
   useEffect(() => {
-    if (movementAllowed && !programmeTied) {
-      setValue('explanationRequired', true);
+    if (movementAllowed !== explanationRequired) {
+      setValue('explanationRequired', movementAllowed);
     }
-  }, [movementAllowed, programmeTied, setValue]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to movementAllowed changing; explanationRequired is the target, not a trigger
+  }, [movementAllowed, setValue]);
 
   const handleToggleUtilisationRules = () => {
     const nextState = !utilisationRulesOpen;
@@ -163,19 +252,45 @@ export function FundProfileFormPage() {
     return <ErrorState error={profileQuery.error} onRetry={profileQuery.refetch} />;
   }
 
-  const programmeOptions = [
-    { value: '', label: 'Untied (no programme)' },
+  const parentProgrammeOptions = [
+    { value: '', label: 'Select a programme…' },
     ...(programmesQuery.data || [])
       .filter((p) => p.type !== 'Project')
-      .map((p) => ({ value: p.id, label: p.programmeName })),
+      .map((p) => ({ value: String(p.id), label: p.programmeName })),
+  ];
+
+  const projectOptions = [
+    { value: '', label: parentProgrammeId ? 'Select a project…' : 'Select a programme first' },
+    ...(programmesQuery.data || [])
+      .filter((p) => p.type === 'Project' && parentProgrammeId && String(p.parentProgrammeId) === parentProgrammeId)
+      .map((p) => ({ value: String(p.id), label: p.programmeName })),
   ];
 
   const backTo = donorId ? `/donors/${donorId}` : '/donors';
 
-  const submit = handleSubmit(async (values) => {
-    await mutation.mutateAsync(values);
-    navigate(backTo, { replace: true });
-  });
+  const DISBURSEMENT_ERROR_FIELDS = ['totalAmount', 'disbursementType', 'receivingDate', 'frequency', 'tranches'];
+
+  const submit = handleSubmit(
+    async (values) => {
+      await mutation.mutateAsync(values);
+      navigate(backTo, { replace: true });
+    },
+    (formErrors) => {
+      // The required fields live inside a collapsible section that starts
+      // closed on a new profile — open it so a validation failure there is
+      // actually visible instead of silently blocking the submit.
+      if (DISBURSEMENT_ERROR_FIELDS.some((field) => formErrors[field])) {
+        setDisbursementScheduleOpen(true);
+      }
+    },
+  );
+
+  const errorMessages = Object.values(errors)
+    .map((error) => (Array.isArray(error) ? null : error?.message))
+    .filter(Boolean)
+    .concat(errors.tranches ? ['One or more tranches have missing or invalid fields'] : []);
+
+  const hasDisbursementError = DISBURSEMENT_ERROR_FIELDS.some((field) => errors[field]);
 
   return (
     <>
@@ -187,6 +302,17 @@ export function FundProfileFormPage() {
       <Box component="form" onSubmit={submit} noValidate>
         <Stack spacing={3}>
           {mutation.error ? <Alert severity="error">{mutation.error.message}</Alert> : null}
+          {errorMessages.length > 0 ? (
+            <Alert severity="error">
+              <Stack spacing={0.25}>
+                {errorMessages.map((message) => (
+                  <Typography key={message} variant="body2">
+                    {message}
+                  </Typography>
+                ))}
+              </Stack>
+            </Alert>
+          ) : null}
 
           {/* Behaviour */}
           <Card>
@@ -199,7 +325,7 @@ export function FundProfileFormPage() {
                   <RhfSelect name="fundMode" control={control} label="Fund mode" options={FUND_MODE_OPTIONS} required />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <RhfSelect name="fundClass" control={control} label="Fund class (A/B/C)" options={FUND_CLASS_OPTIONS} />
+                  <RhfSelect name="fundClass" control={control} label="Fund class (A/B/C)" options={FUND_CLASS_OPTIONS} required />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <RhfSelect name="reportingFrequency" control={control} label="Reporting frequency" options={REPORTING_OPTIONS} />
@@ -213,30 +339,85 @@ export function FundProfileFormPage() {
                     helperText="Derived from donor fund source domicile"
                   />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 8 }}>
+                <Grid size={{ xs: 12 }}>
+                  <Stack direction="row" flexWrap="wrap" sx={{ gap: 1 }}>
+                    <RhfSwitch name="programmeTied" control={control} label="Programme-tied" />
+                    <RhfSwitch
+                      name="movementAllowed"
+                      control={control}
+                      label="Movement allowed"
+                      onChangeExtra={(checked) => setValue('explanationRequired', checked)}
+                    />
+                    <RhfSwitch
+                      name="explanationRequired"
+                      control={control}
+                      label="Explanation required"
+                      onChangeExtra={(checked) => setValue('movementAllowed', checked)}
+                    />
+                  </Stack>
+                </Grid>
+                {programmeTied ? (
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                      select
+                      fullWidth
+                      label="Type"
+                      value={linkType}
+                      onChange={(e) => handleLinkTypeChange(e.target.value)}
+                      helperText="Choose whether this profile ties to a Programme, a Project, or nothing"
+                    >
+                      {LINK_TYPE_OPTIONS.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+                ) : null}
+                {programmeTied && linkType ? (
+                  <Grid size={{ xs: 12, sm: linkType === 'PROJECT' ? 4 : 8 }}>
+                    <TextField
+                      select
+                      fullWidth
+                      label="Programme *"
+                      required
+                      value={parentProgrammeId}
+                      onChange={(e) => handleParentProgrammeChange(e.target.value)}
+                    >
+                      {parentProgrammeOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+                ) : null}
+                {programmeTied && linkType === 'PROJECT' ? (
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                      select
+                      fullWidth
+                      label="Project"
+                      disabled={!parentProgrammeId}
+                      value={selectedProjectId}
+                      onChange={(e) => setSelectedProjectId(e.target.value)}
+                      helperText={parentProgrammeId ? 'Narrow to a specific project' : 'Select a programme first'}
+                    >
+                      {projectOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+                ) : null}
+                <Grid size={{ xs: 12 }}>
                   <RhfTextField
                     name="purpose"
                     control={control}
                     label={isPurposeRequired ? 'Purpose *' : 'Purpose'}
                     required={Boolean(isPurposeRequired)}
                   />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <RhfSelect
-                    name="programmeId"
-                    control={control}
-                    label={programmeTied ? 'Programme *' : 'Programme'}
-                    required={Boolean(programmeTied)}
-                    options={programmeOptions}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12 }}>
-                  <Stack direction="row" flexWrap="wrap" sx={{ gap: 1 }}>
-                    <RhfSwitch name="programmeTied" control={control} label="Programme-tied" />
-                    <RhfSwitch name="movementAllowed" control={control} label="Movement allowed" />
-                    <RhfSwitch name="explanationRequired" control={control} label="Explanation required" />
-                    <RhfSwitch name="onboardingComplete" control={control} label="Onboarding complete" />
-                  </Stack>
                 </Grid>
               </Grid>
             </CardContent>
@@ -316,7 +497,9 @@ export function FundProfileFormPage() {
             <CardContent sx={{ p: 3 }}>
               <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, cursor: 'pointer' }} onClick={() => setDisbursementScheduleOpen((prev) => !prev)}>
                 <Box>
-                  <Typography variant="h4" component="h2">Disbursement Schedule</Typography>
+                  <Typography variant="h4" component="h2" color={hasDisbursementError ? 'error' : 'inherit'}>
+                    Disbursement Schedule {hasDisbursementError ? '— required' : ''}
+                  </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Set how this grant is released. Choose a single payment or a series of tranches, then attach the conditions that must be met before each release.
                   </Typography>
@@ -370,8 +553,13 @@ export function FundProfileFormPage() {
                         />
                       )}
                     />
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                      Total committed for this profile. All tranches must add up to this figure.
+                    <Typography
+                      variant="caption"
+                      color={errors.totalAmount ? 'error' : 'text.secondary'}
+                      sx={{ display: 'block', mt: 0.75 }}
+                    >
+                      {errors.totalAmount?.message ||
+                        'Total committed for this profile. All tranches must add up to this figure.'}
                     </Typography>
                   </Grid>
 
@@ -443,23 +631,28 @@ export function FundProfileFormPage() {
                 {disbursementType === 'LUMP_SUM' ? (
                   <Box sx={{ maxWidth: 360, mt: 2.5 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, mb: 0.75 }}>
-                      Receiving date *
+                      Expected Release date *
                     </Typography>
                     <Controller
                       name="receivingDate"
                       control={control}
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <TextField
                           type="date"
                           value={field.value ?? ''}
                           onChange={(e) => field.onChange(e.target.value)}
                           fullWidth
+                          error={Boolean(fieldState.error)}
                           slotProps={{ inputLabel: { shrink: true } }}
                         />
                       )}
                     />
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                      The full committed amount is released on this date.
+                    <Typography
+                      variant="caption"
+                      color={errors.receivingDate ? 'error' : 'text.secondary'}
+                      sx={{ display: 'block', mt: 0.75 }}
+                    >
+                      {errors.receivingDate?.message || 'The full committed amount is released on this date.'}
                     </Typography>
                   </Box>
                 ) : (
@@ -562,7 +755,8 @@ export function FundProfileFormPage() {
                         frequencyLabel={SCHEDULE_FREQUENCY_OPTIONS.find((o) => o.value === frequency)?.label}
                         lumpSum={false}
                         isFinal={Boolean(f.isFinal)}
-                        responsibleRoleOptions={VERIFICATION_ROLES}
+                        verificationRoleOptions={roleOptions}
+                        responsibleRoleOptions={roleOptions}
                       />
                     ))}
 

@@ -21,6 +21,10 @@ export function useCreateTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (formValues) => transactionService.createTransaction(formValues),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
+      // A Credit may have receipted a tranched Inflow Budget line — refresh it too.
+      queryClient.invalidateQueries({ queryKey: queryKeys.inflowBudgetLines.all() });
+    },
   });
 }

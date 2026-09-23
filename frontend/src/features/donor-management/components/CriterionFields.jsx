@@ -5,9 +5,7 @@ import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
 import {
   CRITERION_TYPES,
   REPEAT_REMINDERS,
-  RESPONSIBLE_ROLES,
   TRIGGER_BASES,
-  VERIFICATION_ROLES,
   isHumanActioned,
 } from '../mappers/disbursementMapper.js';
 
@@ -15,6 +13,10 @@ const CRITERION_OPTIONS = CRITERION_TYPES.map(({ value, label }) => ({ value, la
 
 /**
  * Single Criterion Box component matching the exact prototype HTML/UI spec.
+ *
+ * verificationRoleOptions / responsibleRoleOptions are the "who" — org-level
+ * Designation rows (CFO, Programme Manager, …), fetched by the parent form via
+ * useRoleDesignations() and managed from Master Configuration → Designation.
  */
 export function CriterionFields({
   control,
@@ -22,13 +24,12 @@ export function CriterionFields({
   index,
   onRemove,
   canRemove = true,
-  responsibleRoleOptions = RESPONSIBLE_ROLES,
+  verificationRoleOptions = [],
+  responsibleRoleOptions = [],
 }) {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
   const criterionType = useWatch({ control, name: `${path}.criterionType` });
-  const verificationRole = useWatch({ control, name: `${path}.verificationRole` });
-  const responsibleRole = useWatch({ control, name: `${path}.reminder.responsibleRole` });
   const hasReminder = useWatch({ control, name: `${path}.hasReminder` });
   const humanActioned = isHumanActioned(criterionType);
   const numStr = String(index + 1).padStart(2, '0');
@@ -137,24 +138,13 @@ export function CriterionFields({
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <RhfSelect
-                name={`${path}.verificationRole`}
+                name={`${path}.verificationRoleId`}
                 control={control}
                 label="Verification sign-off role *"
                 required
-                options={VERIFICATION_ROLES}
+                options={verificationRoleOptions}
               />
             </Grid>
-            {verificationRole === 'OTHER' ? (
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <RhfTextField
-                  name={`${path}.otherVerificationRole`}
-                  control={control}
-                  label="Specify verification role *"
-                  placeholder="e.g. Independent Auditor"
-                  required
-                />
-              </Grid>
-            ) : null}
             <Grid size={{ xs: 12, sm: 6 }}>
               <RhfTextField
                 name={`${path}.targetDate`}
@@ -252,24 +242,13 @@ export function CriterionFields({
               <Grid container spacing={1.5} sx={{ alignItems: 'flex-start' }}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <RhfSelect
-                    name={`${path}.reminder.responsibleRole`}
+                    name={`${path}.reminder.responsibleRoleId`}
                     control={control}
                     label="Responsible role *"
                     required
                     options={responsibleRoleOptions}
                   />
                 </Grid>
-                {responsibleRole === 'OTHER' ? (
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <RhfTextField
-                      name={`${path}.reminder.otherResponsibleRole`}
-                      control={control}
-                      label="Specify responsible role *"
-                      placeholder="e.g. Field Officer"
-                      required
-                    />
-                  </Grid>
-                ) : null}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <RhfTextField
                     name={`${path}.reminder.reminderLeadDays`}

@@ -8,8 +8,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngo.finance.donor.dto.request.CreateDonorRequest;
-import com.ngo.finance.donor.enums.DonorType;
-import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.common.enums.FundSourceDomicile;
+import com.ngo.finance.masters.donortype.repository.DonorTypeMasterRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -27,15 +27,21 @@ public class DonorControllerIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private DonorTypeMasterRepository donorTypeMasterRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     @WithMockUser
     public void testCreateDonor_Success() throws Exception {
+        Long corporateDonorTypeId = donorTypeMasterRepository.searchByName("Corporate CSR")
+                .get(0).getId();
+
         CreateDonorRequest request = new CreateDonorRequest();
         request.setDonorCode("DN-999");
         request.setDonorName("Integration Test Donor");
-        request.setDonorType(DonorType.CORPORATE);
+        request.setDonorTypeId(corporateDonorTypeId);
         request.setFundSourceDomicile(FundSourceDomicile.DOMESTIC);
         request.setEmail("test@example.com");
         request.setSpocNameOfThePerson("Test SPOC");

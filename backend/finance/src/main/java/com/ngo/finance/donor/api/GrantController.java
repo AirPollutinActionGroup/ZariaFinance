@@ -56,19 +56,24 @@ public class GrantController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/by-fund-profile/{fundProfileId}")
+    @Operation(summary = "Get the grant agreement backed by a fund profile (a profile backs at most one)")
+    public ResponseEntity<GrantDetailsResponse> getGrantByFundProfile(@PathVariable Long fundProfileId) {
+        log.info("GET /api/v1/grants/by-fund-profile/{} - Fetching grant", fundProfileId);
+        GrantDetailsResponse response = grantService.getGrantByFundProfileId(fundProfileId);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping
-    @Operation(summary = "Get all grants or filter by donor/programme")
+    @Operation(summary = "Get all grants or filter by donor")
     public ResponseEntity<List<GrantListResponse>> getAllGrants(
             @RequestParam(required = false) Long donorId,
-            @RequestParam(required = false) Long programmeId,
             @RequestParam(required = false) String search) {
         log.info("GET /api/v1/grants - Fetching grants");
         List<GrantListResponse> response;
 
         if (donorId != null) {
             response = grantService.getGrantsByDonorId(donorId);
-        } else if (programmeId != null) {
-            response = grantService.getGrantsByProgrammeId(programmeId);
         } else if (search != null && !search.isBlank()) {
             response = grantService.searchGrants(search);
         } else {
