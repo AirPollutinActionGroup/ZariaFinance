@@ -1,5 +1,3 @@
-import { BANK_ACCOUNTS } from '../data/mockNewTransaction.js';
-
 /**
  * TransactionMapper — translates between backend DTOs (TransactionResponse,
  * CreateTransactionRequest) and the frontend view/form model. View-model
@@ -15,7 +13,7 @@ export function fromTransactionResponse(dto) {
     date: dto.transactionDate,
     fundName: dto.fundProfileLabel,
     paymentModeLabel: dto.paymentModeName,
-    bankAccountLabel: BANK_ACCOUNTS.find((o) => o.value === dto.bankAccount)?.label || dto.bankAccount || '—',
+    bankAccountLabel: dto.bankAccountLabel || '—',
     groupLabel: dto.groupName,
     ledgerLabel: dto.ledgerName,
   };
@@ -33,8 +31,9 @@ export function toCreateTransactionRequest(values) {
     donorId: Number(values.donorId),
     fundProfileId: Number(values.fundId),
     grantId: values.grantId ? Number(values.grantId) : null,
+    inflowBudgetLineId: values.trancheId ? Number(values.trancheId) : null,
     amount: Number(values.amount),
-    bankAccount: values.bankAccount || null,
+    bankAccountId: values.bankAccount ? Number(values.bankAccount) : null,
     paymentModeId: Number(values.paymentMode),
     reference: values.reference?.trim() || null,
     groupId: Number(values.group),

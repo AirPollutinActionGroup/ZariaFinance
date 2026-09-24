@@ -1,5 +1,8 @@
 package com.ngo.finance.transaction.service.impl;
 
+import com.ngo.finance.bankDetails.entity.BankDetail;
+import com.ngo.finance.bankDetails.repository.BankDetailRepository;
+import com.ngo.finance.common.enums.TransactionType;
 import com.ngo.finance.common.exception.ResourceNotFoundException;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
@@ -7,6 +10,8 @@ import com.ngo.finance.donor.entity.GrantAgreement;
 import com.ngo.finance.donor.repository.DonorFundProfileRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.GrantRepository;
+import com.ngo.finance.inflowbudget.dto.request.RecordInflowReceiptRequest;
+import com.ngo.finance.inflowbudget.service.InflowBudgetService;
 import com.ngo.finance.paymentMode.entity.PaymentMode;
 import com.ngo.finance.paymentMode.repository.PaymentModeRepository;
 import com.ngo.finance.paymentType.group.entity.PaymentTypeGroup;
@@ -48,6 +53,8 @@ public class TransactionServiceImpl implements TransactionService {
     private final PaymentModeRepository paymentModeRepository;
     private final PaymentTypeGroupRepository groupRepository;
     private final PaymentTypeLedgerRepository ledgerRepository;
+    private final BankDetailRepository bankDetailRepository;
+    private final InflowBudgetService inflowBudgetService;
 
     @Override
     public TransactionResponse createTransaction(CreateTransactionRequest request) {
@@ -68,6 +75,11 @@ public class TransactionServiceImpl implements TransactionService {
                 .orElseThrow(() -> new ResourceNotFoundException("PaymentTypeGroup", request.getGroupId()));
         PaymentTypeLedger ledger = ledgerRepository.findById(request.getLedgerId())
                 .orElseThrow(() -> new ResourceNotFoundException("PaymentTypeLedger", request.getLedgerId()));
+        BankDetail bankDetail = null;
+        if (request.getBankAccountId() != null) {
+            bankDetail = bankDetailRepository.findById(request.getBankAccountId())
+                    .orElseThrow(() -> new ResourceNotFoundException("BankDetail", request.getBankAccountId()));
+        }
 
         Transaction transaction = transactionMapper.toEntity(request);
         transaction.setTransactionCode(generateTransactionCode());
@@ -75,7 +87,33 @@ public class TransactionServiceImpl implements TransactionService {
         Transaction saved = transactionRepository.save(transaction);
         log.info("Transaction {} recorded successfully with id: {}", saved.getTransactionCode(), saved.getId());
 
-        return toResponse(saved, donor, fundProfile, grant, paymentMode, group, ledger);
+        if (saved.getType() == TransactionType.CREDIT && saved.getInflowBudgetLineId() != null) {
+            inflowBudgetService.recordReceipt(saved.getInflowBudgetLineId(), RecordInflowReceiptRequest.builder()
+                    .actualDate(saved.getTransactionDate())
+                    .actualAmount(saved.getAmount())
+                    .receiptRef(saved.getReference())
+                    .receiptNo(saved.getTransactionCode())
+                    .transactionId(saved.getId())
+                    .build());
+            log.info("Inflow budget line {} receipted by transaction {}", saved.getInflowBudgetLineId(), saved.getTransactionCode());
+        }
+
+        return toResponse(saved, donor, fundProfile, grant, paymentMode, group, ledger, bankDetail);
+    }
+
+    @Override
+    public void deleteTransaction(Long id) {
+        Transaction transaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction", id));
+
+        if (transaction.getType() == TransactionType.CREDIT && transaction.getInflowBudgetLineId() != null) {
+            inflowBudgetService.reverseReceipt(transaction.getInflowBudgetLineId(), transaction.getId());
+            log.info("Reversed inflow budget line {} for deleted transaction {}",
+                    transaction.getInflowBudgetLineId(), transaction.getTransactionCode());
+        }
+
+        transactionRepository.delete(transaction);
+        log.info("Deleted transaction {}", transaction.getTransactionCode());
     }
 
     @Override
@@ -93,8 +131,11 @@ public class TransactionServiceImpl implements TransactionService {
         PaymentMode paymentMode = requirePaymentMode(transaction.getPaymentModeId());
         PaymentTypeGroup group = requireGroup(transaction.getGroupId());
         PaymentTypeLedger ledger = requireLedger(transaction.getLedgerId());
+        BankDetail bankDetail = transaction.getBankAccountId() != null
+                ? bankDetailRepository.findById(transaction.getBankAccountId()).orElse(null)
+                : null;
 
-        return toResponse(transaction, donor, fundProfile, grant, paymentMode, group, ledger);
+        return toResponse(transaction, donor, fundProfile, grant, paymentMode, group, ledger, bankDetail);
     }
 
     @Override
@@ -128,6 +169,11 @@ public class TransactionServiceImpl implements TransactionService {
                 .findAllById(transactions.stream().map(Transaction::getLedgerId).distinct().toList())
                 .stream().collect(Collectors.toMap(PaymentTypeLedger::getId, Function.identity()));
 
+        List<Long> bankAccountIds = transactions.stream().map(Transaction::getBankAccountId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, BankDetail> bankDetailsById = bankDetailRepository.findAllById(bankAccountIds).stream()
+                .collect(Collectors.toMap(BankDetail::getId, Function.identity()));
+
         return transactions.stream()
                 .map(t -> toResponse(
                         t,
@@ -136,7 +182,8 @@ public class TransactionServiceImpl implements TransactionService {
                         t.getGrantId() != null ? grantsById.get(t.getGrantId()) : null,
                         paymentModesById.get(t.getPaymentModeId()),
                         groupsById.get(t.getGroupId()),
-                        ledgersById.get(t.getLedgerId())))
+                        ledgersById.get(t.getLedgerId()),
+                        t.getBankAccountId() != null ? bankDetailsById.get(t.getBankAccountId()) : null))
                 .toList();
     }
 
@@ -167,7 +214,8 @@ public class TransactionServiceImpl implements TransactionService {
             GrantAgreement grant,
             PaymentMode paymentMode,
             PaymentTypeGroup group,
-            PaymentTypeLedger ledger) {
+            PaymentTypeLedger ledger,
+            BankDetail bankDetail) {
         TransactionResponse response = transactionMapper.toResponse(transaction);
         response.setDonorName(donor != null ? donor.getDonorName() : null);
         response.setFundProfileLabel(fundProfile != null ? fundProfileLabel(fundProfile) : null);
@@ -175,6 +223,7 @@ public class TransactionServiceImpl implements TransactionService {
         response.setPaymentModeName(paymentMode != null ? paymentMode.getName() : null);
         response.setGroupName(group != null ? group.getName() : null);
         response.setLedgerName(ledger != null ? ledger.getName() : null);
+        response.setBankAccountLabel(bankDetail != null ? bankAccountLabel(bankDetail) : null);
         return response;
     }
 
@@ -182,6 +231,14 @@ public class TransactionServiceImpl implements TransactionService {
         return (fundProfile.getPurpose() != null && !fundProfile.getPurpose().isBlank())
                 ? fundProfile.getPurpose()
                 : "Fund profile #" + fundProfile.getId();
+    }
+
+    private String bankAccountLabel(BankDetail bankDetail) {
+        String accountNumber = bankDetail.getAccountNumber();
+        String last4 = accountNumber != null && accountNumber.length() >= 4
+                ? accountNumber.substring(accountNumber.length() - 4)
+                : accountNumber;
+        return bankDetail.getBankName() + " — ****" + last4;
     }
 
     /** Sequential ZAR-000001 style code — no external gaps expected at this scale. */

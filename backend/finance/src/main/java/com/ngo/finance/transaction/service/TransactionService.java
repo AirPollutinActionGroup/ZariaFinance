@@ -14,4 +14,6 @@ public interface TransactionService {
     TransactionResponse getTransactionByCode(String transactionCode);
 
     List<TransactionResponse> getAllTransactions();
+
+    void deleteTransaction(Long id);
 }

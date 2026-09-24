@@ -16,8 +16,10 @@ import com.ngo.finance.donation.entity.DonationLocation;
 import com.ngo.finance.donation.entity.DonationPayrollBatch;
 import com.ngo.finance.donation.entity.DonationPayrollEmployee;
 import com.ngo.finance.donation.entity.DonationRecurringMandate;
+import com.ngo.finance.common.enums.ContributionType;
 import com.ngo.finance.donation.enums.Citizenship;
 import com.ngo.finance.donation.enums.GikRealisationStatus;
+import com.ngo.finance.common.enums.FundSourceDomicile;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -37,6 +39,9 @@ public interface DonationMapper {
     @Mapping(target = "donorId", expression = "java(entity.getDonor() != null ? entity.getDonor().getId() : null)")
     @Mapping(target = "donorName",
             expression = "java(entity.getDonor() != null ? entity.getDonor().getDonorName() : \"Anonymous\")")
+    @Mapping(target = "receiptDate",
+            expression = "java(entity.getCreatedAt() != null ? entity.getCreatedAt().toLocalDate() : null)")
+    @Mapping(target = "book", expression = "java(toBook(entity.getDonor()))")
     @Mapping(target = "stateNames", expression = "java(toStateNames(entity.getLocations()))")
     DonationListResponse toListResponse(Donation entity);
 
@@ -47,6 +52,9 @@ public interface DonationMapper {
             expression = "java(entity.getDonor() != null ? entity.getDonor().getDocumentNumber() : null)")
     @Mapping(target = "donorAddress",
             expression = "java(entity.getDonor() != null ? entity.getDonor().getAddress() : null)")
+    @Mapping(target = "receiptDate",
+            expression = "java(entity.getCreatedAt() != null ? entity.getCreatedAt().toLocalDate() : null)")
+    @Mapping(target = "book", expression = "java(toBook(entity.getDonor()))")
     @Mapping(source = "programme.id", target = "programmeId")
     @Mapping(source = "programme.programmeName", target = "programmeName")
     @Mapping(target = "stateNames", expression = "java(toStateNames(entity.getLocations()))")
@@ -56,9 +64,14 @@ public interface DonationMapper {
             expression = "java(toRecurringMandateResponse(entity.getRecurringMandate()))")
     @Mapping(target = "payrollBatch", expression = "java(toPayrollBatchResponse(entity.getPayrollBatch()))")
     @Mapping(target = "legacyDetail", expression = "java(toLegacyDetailResponse(entity.getLegacyDetail()))")
-    @Mapping(target = "anonymousFyRunningTotal", ignore = true)
-    @Mapping(target = "anonymousFyLimit", ignore = true)
     DonationDetailResponse toDetailResponse(Donation entity);
+
+    default ContributionType toBook(com.ngo.finance.donor.entity.DonorMaster donor) {
+        if (donor == null) {
+            return ContributionType.LC;
+        }
+        return donor.getFundSourceDomicile() == FundSourceDomicile.FOREIGN ? ContributionType.FC : ContributionType.LC;
+    }
 
     default List<String> toStateNames(List<DonationLocation> locations) {
         if (locations == null) {

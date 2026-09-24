@@ -5,6 +5,7 @@ import AddIcon from '@mui/icons-material/Add';
 import { DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
 import { formatInr } from '../../../lib/format/currency.js';
 import { useTransactions } from '../hooks/useTransactions.js';
+import { useFinancialYears } from '../../financial-year/hooks/useFinancialYears.js';
 
 export function NewTransactionListPage() {
   const navigate = useNavigate();
@@ -13,8 +14,19 @@ export function NewTransactionListPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
   const [bookFilter, setBookFilter] = useState('All');
+  const [partyFilter, setPartyFilter] = useState('All');
+  // null = user hasn't touched the FY filter yet, so it defaults to whichever
+  // financial year is marked current; 'All'/an id means the user picked it.
+  const [fyFilter, setFyFilter] = useState(null);
 
   const books = Array.from(new Set(transactions.map((t) => t.book))).filter(Boolean);
+  const parties = Array.from(new Set(transactions.map((t) => t.partyName))).filter(Boolean).sort();
+
+  const financialYearsQuery = useFinancialYears();
+  const financialYears = financialYearsQuery.data || [];
+  const currentFy = financialYears.find((fy) => fy.current) || null;
+  const effectiveFyFilter = fyFilter ?? (currentFy ? String(currentFy.id) : 'All');
+  const selectedFy = financialYears.find((fy) => String(fy.id) === effectiveFyFilter) || null;
 
   const filteredTransactions = transactions.filter((tx) => {
     const query = search.toLowerCase();
@@ -26,8 +38,11 @@ export function NewTransactionListPage() {
 
     const matchesType = typeFilter === 'All' || tx.type === typeFilter;
     const matchesBook = bookFilter === 'All' || tx.book === bookFilter;
+    const matchesParty = partyFilter === 'All' || tx.partyName === partyFilter;
+    const matchesFy =
+      !selectedFy || (tx.date >= selectedFy.startDate && tx.date <= selectedFy.endDate);
 
-    return matchesSearch && matchesType && matchesBook;
+    return matchesSearch && matchesType && matchesBook && matchesParty && matchesFy;
   });
 
   const columns = [
@@ -148,6 +163,34 @@ export function NewTransactionListPage() {
           {books.map((book) => (
             <MenuItem key={book} value={book}>
               {book}
+            </MenuItem>
+          ))}
+        </Select>
+
+        <Select
+          size="small"
+          value={partyFilter}
+          onChange={(e) => setPartyFilter(e.target.value)}
+          sx={{ minWidth: 180, borderRadius: 2 }}
+        >
+          <MenuItem value="All">All Payees / Donors</MenuItem>
+          {parties.map((party) => (
+            <MenuItem key={party} value={party}>
+              {party}
+            </MenuItem>
+          ))}
+        </Select>
+
+        <Select
+          size="small"
+          value={effectiveFyFilter}
+          onChange={(e) => setFyFilter(e.target.value)}
+          sx={{ minWidth: 150, borderRadius: 2 }}
+        >
+          <MenuItem value="All">All Financial Years</MenuItem>
+          {financialYears.map((fy) => (
+            <MenuItem key={fy.id} value={String(fy.id)}>
+              {fy.code}
             </MenuItem>
           ))}
         </Select>

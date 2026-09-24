@@ -6,30 +6,24 @@ const STROKE = 18;
 const CIRC = 2 * Math.PI * R;
 
 /**
- * Funding-position donut: the committed total split into how much has been
- * utilised, what is available (received − utilised) and what is still awaiting
- * receipt (committed − received). These three sum to committed, so a donut is
- * the right form (parts of one whole); committed-vs-received sequential stages
- * are left to the table above (see design guidance, §7).
+ * Funding-position donut: the committed total split into what has been
+ * received and what is still awaiting receipt (committed − received). These
+ * two sum to committed, so a donut is the right form (parts of one whole).
  *
  * Identity is carried by the legend labels + values, never colour alone; colours
  * are the theme's semantic tokens so it adapts to light/dark.
  */
-export function FundingDonut({ committed, received, utilised }) {
+export function FundingDonut({ committed, received }) {
   const safeCommitted = Math.max(0, Number(committed) || 0);
   const safeReceived = Math.min(safeCommitted, Math.max(0, Number(received) || 0));
-  const safeUtilised = Math.min(safeReceived, Math.max(0, Number(utilised) || 0));
-  const available = safeReceived - safeUtilised;
   const awaiting = safeCommitted - safeReceived;
 
   const denom = safeCommitted || 1;
-  const utilisedPct = Math.round((100 * safeUtilised) / denom);
-  const availablePct = Math.round((100 * available) / denom);
+  const receivedPct = Math.round((100 * safeReceived) / denom);
   const awaitingPct = Math.round((100 * awaiting) / denom);
 
   const segments = [
-    { label: 'Utilised', value: safeUtilised, pct: utilisedPct, color: '#F57C00' },
-    { label: 'Available', value: available, pct: availablePct, color: '#00ACC1' },
+    { label: 'Received', value: safeReceived, pct: receivedPct, color: '#00E676' },
     { label: 'Awaiting receipt', value: awaiting, pct: awaitingPct, color: '#1E88E5' },
   ];
 

@@ -2,7 +2,8 @@ package com.ngo.finance.notification.service.impl;
 
 import com.ngo.finance.common.exception.ResourceNotFoundException;
 import com.ngo.finance.common.exception.ValidationException;
-import com.ngo.finance.donor.enums.ResponsibleRole;
+import com.ngo.finance.masters.designation.entity.Designation;
+import com.ngo.finance.masters.designation.repository.DesignationRepository;
 import com.ngo.finance.notification.dto.RoleDirectoryEntryDto;
 import com.ngo.finance.notification.entity.RoleDirectoryEntry;
 import com.ngo.finance.notification.repository.RoleDirectoryRepository;
@@ -26,13 +27,16 @@ public class RoleDirectoryServiceImpl implements RoleDirectoryService {
     private RoleDirectoryRepository directoryRepository;
 
     @Autowired
+    private DesignationRepository designationRepository;
+
+    @Autowired
     private UserRegisterRepo userRepository;
 
     @Override
     @Transactional(readOnly = true)
     public List<RoleDirectoryEntryDto> getDirectory() {
         return directoryRepository.findAll().stream()
-                .sorted(Comparator.comparing(e -> e.getRole().ordinal()))
+                .sorted(Comparator.comparing(e -> e.getDesignation().getName()))
                 .map(this::toDto)
                 .toList();
     }
@@ -41,17 +45,19 @@ public class RoleDirectoryServiceImpl implements RoleDirectoryService {
     public List<RoleDirectoryEntryDto> updateDirectory(List<RoleDirectoryEntryDto> entries) {
         if (entries != null) {
             for (RoleDirectoryEntryDto dto : entries) {
-                if (dto.getRole() == null) {
+                if (dto.getDesignationId() == null) {
                     throw new ValidationException("Role is required for every directory entry");
                 }
-                RoleDirectoryEntry entry = directoryRepository.findByRole(dto.getRole())
-                        .orElseGet(() -> RoleDirectoryEntry.builder().role(dto.getRole()).build());
+                Designation designation = designationRepository.findById(dto.getDesignationId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Designation", dto.getDesignationId()));
+                RoleDirectoryEntry entry = directoryRepository.findByDesignationId(dto.getDesignationId())
+                        .orElseGet(() -> RoleDirectoryEntry.builder().designation(designation).build());
 
                 validateUsers(dto);
                 entry.setPrimaryUserId(dto.getPrimaryUserId());
                 entry.setDeputyUserId(dto.getDeputyUserId());
                 directoryRepository.save(entry);
-                log.info("Role directory updated for {}", dto.getRole());
+                log.info("Role directory updated for {}", designation.getName());
             }
         }
         return getDirectory();
@@ -59,8 +65,8 @@ public class RoleDirectoryServiceImpl implements RoleDirectoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<RoleDirectoryEntryDto> findByRole(ResponsibleRole role) {
-        return directoryRepository.findByRole(role).map(this::toDto);
+    public Optional<RoleDirectoryEntryDto> findByDesignationId(Long designationId) {
+        return directoryRepository.findByDesignationId(designationId).map(this::toDto);
     }
 
     private void validateUsers(RoleDirectoryEntryDto dto) {
@@ -80,8 +86,8 @@ public class RoleDirectoryServiceImpl implements RoleDirectoryService {
 
     private RoleDirectoryEntryDto toDto(RoleDirectoryEntry entry) {
         return RoleDirectoryEntryDto.builder()
-                .role(entry.getRole())
-                .roleLabel(entry.getRole().getLabel())
+                .designationId(entry.getDesignation().getId())
+                .roleLabel(entry.getDesignation().getName())
                 .primaryUserId(entry.getPrimaryUserId())
                 .primaryUserName(displayName(entry.getPrimaryUserId()))
                 .deputyUserId(entry.getDeputyUserId())

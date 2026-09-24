@@ -11,7 +11,6 @@ import { GrantsListPage } from './pages/GrantsListPage.jsx';
 import { GrantCreatePage } from './pages/GrantCreatePage.jsx';
 import { GrantDetailPage } from './pages/GrantDetailPage.jsx';
 import { GrantEditPage } from './pages/GrantEditPage.jsx';
-import { GrantDisbursementPage } from './pages/GrantDisbursementPage.jsx';
 import { FundProfileFormPage } from './pages/FundProfileFormPage.jsx';
 import { ReportsPage } from './pages/ReportsPage.jsx';
 import { ProgrammesListPage } from './pages/ProgrammesListPage.jsx';
@@ -31,7 +30,6 @@ import BusinessIcon from '@mui/icons-material/Business';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
-import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import PaymentOutlinedIcon from '@mui/icons-material/PaymentOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
@@ -47,22 +45,22 @@ import { VendorListPage } from '../vendor-registration/pages/VendorListPage.jsx'
 import { VendorCreatePage } from '../vendor-registration/pages/VendorCreatePage.jsx';
 import { VendorDetailPage } from '../vendor-registration/pages/VendorDetailPage.jsx';
 import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
-import { TransactionEntryPage } from '../transaction-entry/pages/TransactionEntryPage.jsx';
 import { PaymentModesPage } from '../payment-mode/pages/PaymentModesPage.jsx';
 import { PaymentTypesPage } from '../payment-type/pages/PaymentTypesPage.jsx';
 import { BankDetailsPage } from '../bank-details/pages/BankDetailsPage.jsx';
+import { BankDetailDetailPage } from '../bank-details/pages/BankDetailDetailPage.jsx';
 import { NewTransactionPage } from '../new-transaction/pages/NewTransactionPage.jsx';
 import { NewTransactionListPage } from '../new-transaction/pages/NewTransactionListPage.jsx';
 import { NewTransactionDetailPage } from '../new-transaction/pages/NewTransactionDetailPage.jsx';
 import ReceiptOutlinedIcon from '@mui/icons-material/ReceiptOutlined';
 import { FinancialYearsPage } from '../financial-year/pages/FinancialYearsPage.jsx';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
-import { InflowBudgetPage } from '../inflow-budget/pages/InflowBudgetPage.jsx';
-import { InflowDetailPage } from '../inflow-budget/pages/InflowDetailPage.jsx';
-import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import { OutflowBudgetPage } from '../outflow-budget/pages/OutflowBudgetPage.jsx';
 import { OutflowDetailPage } from '../outflow-budget/pages/OutflowDetailPage.jsx';
 import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
+import { InflowBudgetPage } from '../inflow-budget/pages/InflowBudgetPage.jsx';
+import { InflowDetailPage } from '../inflow-budget/pages/InflowDetailPage.jsx';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 
 /**
  * Donor Management module definition — registered in app/modules.js.
@@ -74,7 +72,7 @@ export const donorManagementModule = {
   navItems: [
     { label: 'Donors Registry', path: '/donors', icon: VolunteerActivismOutlinedIcon, section: 'DONOR & GRANTS' },
     { label: 'Grants Agreements', path: '/grants', icon: HandshakeOutlinedIcon, section: 'DONOR & GRANTS' },
-    { label: 'Donations', path: '/donations', icon: VolunteerActivismOutlinedIcon, section: 'DONOR & GRANTS' },
+    //{ label: 'Donations', path: '/donations', icon: VolunteerActivismOutlinedIcon, section: 'DONOR & GRANTS' },
     { label: 'Programmes', path: '/programmes', icon: CategoryOutlinedIcon, section: 'DONOR & GRANTS' },
     //{ label: 'User Requests', path: '/user-requests', icon: PersonAddOutlinedIcon, section: 'DONOR & GRANTS' },
     //{ label: 'organization Register', path: '/organisation-register', icon: BusinessIcon, section: 'MASTERS' },
@@ -84,15 +82,13 @@ export const donorManagementModule = {
     { label: 'Master', path: '/masters', icon: StorageOutlinedIcon, section: 'MASTERS' },
     { label: 'Vendor Registration', path: '/vendor-registration', icon: StorefrontOutlinedIcon, section: 'MASTERS' },
 
-    //{ label: 'Transaction Entry', path: '/transaction-entry', icon: ReceiptLongOutlinedIcon, section: 'FINANCE & PAYMENTS' },
-
-    //{ label: 'Payment Mode', path: '/payment-modes', icon: PaymentOutlinedIcon, section: 'FINANCE & PAYMENTS' },
+    { label: 'Payment Mode', path: '/payment-modes', icon: PaymentOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Bank Details', path: '/bank-details', icon: AccountBalanceOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Financial Year', path: '/financial-years', icon: CalendarMonthOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Payment Type', path: '/payment-types', icon: AccountTreeOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Payment Window(Cr/Dr)', path: '/new-transaction', icon: ReceiptOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Inflow Budget', path: '/inflow-budget', icon: TrendingUpOutlinedIcon, section: 'FINANCE & PAYMENTS' },
-    //{ label: 'Outflow Budget', path: '/outflow-budget', icon: TrendingDownOutlinedIcon, section: 'FINANCE & PAYMENTS' },
+    { label: 'Outflow Budget', path: '/outflow-budget', icon: TrendingDownOutlinedIcon, section: 'FINANCE & PAYMENTS' },
   ],
   routes: [
     { path: '/donors', element: <DonorsListPage /> },
@@ -105,7 +101,6 @@ export const donorManagementModule = {
     { path: '/grants/new', element: <GrantCreatePage /> },
     { path: '/grants/:id', element: <GrantDetailPage /> },
     { path: '/grants/:id/edit', element: <GrantEditPage /> },
-    { path: '/grants/:id/disbursement', element: <GrantDisbursementPage /> },
     { path: '/donations', element: <DonationsListPage /> },
     { path: '/donations/new', element: <DonationCreatePage /> },
     { path: '/donations/:id', element: <DonationDetailPage /> },
@@ -131,13 +126,13 @@ export const donorManagementModule = {
     { path: '/vendor-registration', element: <VendorListPage /> },
     { path: '/vendor-registration/new', element: <VendorCreatePage /> },
     { path: '/vendor-registration/:id', element: <VendorDetailPage /> },
-    { path: '/transaction-entry', element: <TransactionEntryPage /> },
     { path: '/new-transaction', element: <NewTransactionListPage /> },
     { path: '/new-transaction/new', element: <NewTransactionPage /> },
     { path: '/new-transaction/:id', element: <NewTransactionDetailPage /> },
     { path: '/payment-modes', element: <PaymentModesPage /> },
     { path: '/payment-types', element: <PaymentTypesPage /> },
     { path: '/bank-details', element: <BankDetailsPage /> },
+    { path: '/bank-details/:id', element: <BankDetailDetailPage /> },
     { path: '/financial-years', element: <FinancialYearsPage /> },
     { path: '/inflow-budget', element: <InflowBudgetPage /> },
     { path: '/inflow-budget/:id', element: <InflowDetailPage /> },

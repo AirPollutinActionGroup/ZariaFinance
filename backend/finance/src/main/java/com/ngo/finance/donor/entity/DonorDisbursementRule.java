@@ -13,6 +13,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -41,12 +42,15 @@ public class DonorDisbursementRule extends AuditEntity {
     @JoinColumn(name = "fund_profile_id", nullable = false, foreignKey = @ForeignKey(name = "fk_disb_profile"))
     private DonorFundProfile fundProfile;
 
-    @Column(name = "total_amount", precision = 19, scale = 2)
+    @Column(name = "total_amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal totalAmount;
 
     @Column(name = "disbursement_type", nullable = false, length = 50)
     @Enumerated(EnumType.STRING)
     private DisbursementType disbursementType;
+
+    @Column(name = "receiving_date")
+    private LocalDate receivingDate;
 
     @OneToMany(mappedBy = "donorDisbursementRule", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

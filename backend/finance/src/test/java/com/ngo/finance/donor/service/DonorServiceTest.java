@@ -15,6 +15,9 @@ import com.ngo.finance.donor.repository.CountryRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.StateRepository;
 import com.ngo.finance.donor.service.impl.DonorServiceImpl;
+import com.ngo.finance.masters.donortype.entity.DonorTypeMaster;
+import com.ngo.finance.masters.donortype.repository.DonorTypeMasterRepository;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,6 +42,9 @@ public class DonorServiceTest {
     @Mock
     private DonorMapper donorMapper;
 
+    @Mock
+    private DonorTypeMasterRepository donorTypeMasterRepository;
+
     @InjectMocks
     private DonorServiceImpl donorService;
 
@@ -48,6 +54,10 @@ public class DonorServiceTest {
         CreateDonorRequest request = new CreateDonorRequest();
         request.setDonorCode("D001");
         request.setDonorName("Test Donor");
+        request.setDonorTypeId(1L);
+
+        DonorTypeMaster donorType = DonorTypeMaster.builder().name("Corporate CSR").status(true).build();
+        donorType.setId(1L);
 
         DonorMaster donorEntity = new DonorMaster();
         donorEntity.setDonorCode("D001");
@@ -63,6 +73,7 @@ public class DonorServiceTest {
         expectedResponse.setDonorCode("D001");
         expectedResponse.setDonorName("Test Donor");
 
+        when(donorTypeMasterRepository.findById(1L)).thenReturn(Optional.of(donorType));
         when(donorMapper.toEntity(request)).thenReturn(donorEntity);
         when(donorRepository.save(any(DonorMaster.class))).thenReturn(savedEntity);
         when(donorMapper.toResponse(savedEntity)).thenReturn(expectedResponse);

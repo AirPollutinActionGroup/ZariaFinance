@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * One row of the FCRA / foreign-contribution register (FC-4 style) — a foreign
- * donor's grant, its designated receiving account and the realised INR value.
+ * donor's grant and its designated receiving account.
  */
 @Data
 @Builder
@@ -24,8 +24,5 @@ public class FcraRegisterEntry {
     private String foreignCountryName;
     private String bankAccountRef;
     private String grantCode;
-    private String grantCurrency;
-    private BigDecimal totalGrantAmount;    // in donor currency
-    private BigDecimal reportingAmountInr;  // locked INR value
-    private BigDecimal receivedInr;         // realised so far
+    private BigDecimal totalGrantAmount;    // always INR
 }

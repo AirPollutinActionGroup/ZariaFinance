@@ -1,10 +1,6 @@
 export const MODULE_ID = 'outflow-budget';
 
-/**
- * Funding-source language mirrors the Inflow Budget layer (see
- * inflow-budget/constants.js RESTRICTION_TYPE) so a budget line reads the
- * same way on both sides of the ledger.
- */
+/** Funding-source language for a budget line. */
 export const FUNDING_SOURCE_TYPE = Object.freeze({
   RESTRICTED: 'Restricted',
   UNRESTRICTED: 'Unrestricted',

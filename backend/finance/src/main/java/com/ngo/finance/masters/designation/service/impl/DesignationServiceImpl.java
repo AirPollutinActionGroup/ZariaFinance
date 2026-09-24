@@ -39,12 +39,17 @@ public class DesignationServiceImpl implements DesignationService {
     public DesignationResponse createDesignation(CreateDesignationRequest request) {
         log.info("Registering new designation: {}", request.getName());
 
-        Department department = departmentRepository.findById(request.getDepartmentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Department", request.getDepartmentId()));
-
-        if (designationRepository.existsByNameAndDepartmentId(request.getName(), request.getDepartmentId())) {
+        Department department = null;
+        if (request.getDepartmentId() != null) {
+            department = departmentRepository.findById(request.getDepartmentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Department", request.getDepartmentId()));
+            if (designationRepository.existsByNameAndDepartmentId(request.getName(), request.getDepartmentId())) {
+                throw new ValidationException(
+                        "A designation with name '" + request.getName() + "' already exists in this department");
+            }
+        } else if (designationRepository.existsByNameAndDepartmentIdIsNull(request.getName())) {
             throw new ValidationException(
-                    "A designation with name '" + request.getName() + "' already exists in this department");
+                    "A designation with name '" + request.getName() + "' already exists");
         }
 
         Designation designation = designationMapper.toEntity(request);
@@ -62,7 +67,8 @@ public class DesignationServiceImpl implements DesignationService {
         log.debug("Fetching designation with id: {}", id);
         Designation designation = designationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Designation", id));
-        return toResponseWithDepartment(designation, requireDepartment(designation.getDepartmentId()));
+        return toResponseWithDepartment(designation,
+                designation.getDepartmentId() != null ? requireDepartment(designation.getDepartmentId()) : null);
     }
 
     @Override
@@ -89,15 +95,23 @@ public class DesignationServiceImpl implements DesignationService {
         Long targetDepartmentId = request.getDepartmentId() != null
                 ? request.getDepartmentId()
                 : designation.getDepartmentId();
-        Department department = departmentRepository.findById(targetDepartmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Department", targetDepartmentId));
+        Department department = targetDepartmentId != null
+                ? departmentRepository.findById(targetDepartmentId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Department", targetDepartmentId))
+                : null;
 
         String targetName = request.getName() != null ? request.getName() : designation.getName();
         boolean nameOrDeptChanged = !targetName.equals(designation.getName())
-                || !targetDepartmentId.equals(designation.getDepartmentId());
-        if (nameOrDeptChanged && designationRepository.existsByNameAndDepartmentId(targetName, targetDepartmentId)) {
-            throw new ValidationException(
-                    "A designation with name '" + targetName + "' already exists in this department");
+                || !java.util.Objects.equals(targetDepartmentId, designation.getDepartmentId());
+        if (nameOrDeptChanged) {
+            boolean duplicate = targetDepartmentId != null
+                    ? designationRepository.existsByNameAndDepartmentId(targetName, targetDepartmentId)
+                    : designationRepository.existsByNameAndDepartmentIdIsNull(targetName);
+            if (duplicate) {
+                throw new ValidationException(
+                        "A designation with name '" + targetName + "' already exists"
+                                + (targetDepartmentId != null ? " in this department" : ""));
+            }
         }
 
         designationMapper.updateEntity(request, designation);
@@ -141,13 +155,18 @@ public class DesignationServiceImpl implements DesignationService {
 
     private DesignationResponse toResponseWithDepartment(Designation designation, Department department) {
         DesignationResponse response = designationMapper.toResponse(designation);
-        response.setDepartmentName(department.getName());
+        response.setDepartmentName(department != null ? department.getName() : null);
         return response;
     }
 
     private List<DesignationResponse> toResponsesWithDepartments(List<Designation> designations) {
+        List<Long> departmentIds = designations.stream()
+                .map(Designation::getDepartmentId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
         Map<Long, Department> departmentsById = departmentRepository
-                .findAllById(designations.stream().map(Designation::getDepartmentId).distinct().toList())
+                .findAllById(departmentIds)
                 .stream()
                 .collect(Collectors.toMap(Department::getId, Function.identity()));
 

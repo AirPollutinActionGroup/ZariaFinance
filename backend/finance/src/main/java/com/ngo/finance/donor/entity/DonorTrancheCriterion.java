@@ -43,6 +43,10 @@ public class DonorTrancheCriterion extends AuditEntity {
     @Column(name = "is_final_tranche")
     private Boolean isFinalTranche = false;
 
+    // Inflow Budget receipt detail lives on InflowReceipt (one row per
+    // instalment) rather than on this criterion — a tranche can be received
+    // in more than one payment.
+
     @OneToMany(mappedBy = "donorTrancheCriterion", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id ASC")
     private List<DonorReleaseCriteria> donorReleaseCriteria = new ArrayList();

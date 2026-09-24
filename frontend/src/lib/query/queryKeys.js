@@ -14,6 +14,7 @@ export const queryKeys = {
     all: () => ['grants'],
     list: (filters) => ['grants', 'list', filters || {}],
     detail: (id) => ['grants', 'detail', String(id)],
+    byFundProfile: (fundProfileId) => ['grants', 'byFundProfile', String(fundProfileId)],
   },
   programmes: {
     all: () => ['programmes'],
@@ -23,16 +24,6 @@ export const queryKeys = {
     all: () => ['fundProfiles'],
     byDonor: (donorId) => ['fundProfiles', 'byDonor', String(donorId)],
     detail: (id) => ['fundProfiles', 'detail', String(id)],
-  },
-  documents: {
-    all: () => ['documents'],
-    byGrant: (grantId, documentName) => [
-      'documents',
-      'byGrant',
-      String(grantId),
-      { documentName: documentName || '' },
-    ],
-    detail: (id) => ['documents', 'detail', String(id)],
   },
   donations: {
     all: () => ['donations'],
@@ -81,6 +72,10 @@ export const queryKeys = {
     all: () => ['designations'],
     list: (search) => ['designations', 'list', { search: search || '' }],
   },
+  donorTypes: {
+    all: () => ['donorTypes'],
+    list: (search) => ['donorTypes', 'list', { search: search || '' }],
+  },
   paymentTypeGroups: {
     all: () => ['paymentTypeGroups'],
     list: (search) => ['paymentTypeGroups', 'list', { search: search || '' }],
@@ -95,6 +90,7 @@ export const queryKeys = {
   bankDetails: {
     all: () => ['bankDetails'],
     list: (search) => ['bankDetails', 'list', { search: search || '' }],
+    detail: (id) => ['bankDetails', 'detail', id],
   },
   employees: {
     all: () => ['employees'],
@@ -108,9 +104,11 @@ export const queryKeys = {
   transactions: {
     all: () => ['transactions'],
     detail: (code) => ['transactions', 'detail', String(code)],
+    /** Raw (unmapped) TransactionResponse[] — used where a numeric `id` is needed, since the mapped view model overwrites `id` with `transactionCode`. */
+    rawAll: () => ['transactions', 'raw'],
   },
-  inflowTranches: {
-    all: () => ['inflowTranches'],
-    detail: (id) => ['inflowTranches', 'detail', String(id)],
+  inflowBudgetLines: {
+    all: () => ['inflowBudgetLines'],
+    detail: (id) => ['inflowBudgetLines', 'detail', String(id)],
   },
 };

@@ -7,10 +7,3 @@ export function useFcraRegister() {
     queryFn: () => reportsApi.fcraRegister(),
   });
 }
-
-export function useUtilisationCompliance() {
-  return useQuery({
-    queryKey: ['reports', 'utilisation-compliance'],
-    queryFn: () => reportsApi.utilisationCompliance(),
-  });
-}

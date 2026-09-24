@@ -26,8 +26,6 @@ public class GrantListResponse {
 
     private String donorName;
 
-    private String programmeName;
-
     private String agreementName;
 
     private LocalDate startDate;
@@ -37,10 +35,6 @@ public class GrantListResponse {
     private BigDecimal totalGrantAmount;
 
     private String fundClassCode;
-
-    private String grantCurrency;
-
-    private BigDecimal reportingAmountInr;
 
     /** ACTIVE | COMPLETED | CANCELLED; isActive is the legacy boolean mirror. */
     private String status;

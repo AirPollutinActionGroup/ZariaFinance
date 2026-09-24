@@ -43,10 +43,6 @@ public class SecurityConfig {
                                                 "/api/v1/grants/**",
                                                 "/api/v1/fund-profiles",
                                                 "/api/v1/fund-profiles/**",
-                                                "/api/v1/tranches",
-                                                "/api/v1/tranches/**",
-                                                "/api/v1/documents",
-                                                "/api/v1/documents/**",
                                                 "/api/v1/dashboard/**",
                                                 "/api/v1/reports/**",
                                                 "/api/v1/programmes",
@@ -56,7 +52,6 @@ public class SecurityConfig {
                                                 "/api/v1/tenant/**",
                                                 "/api/v1/geography",
                                                 "/api/v1/geography/**",
-                                                "/api/v1/disbursement/**",
                                                 "/api/v1/notifications",
                                                 "/api/v1/notifications/**",
                                                 "/api/v1/role-directory",
@@ -74,6 +69,8 @@ public class SecurityConfig {
                                                 "/api/v1/departments/**",
                                                 "/api/v1/designations",
                                                 "/api/v1/designations/**",
+                                                "/api/v1/donor-types",
+                                                "/api/v1/donor-types/**",
                                                 "/api/v1/payment-type-groups",
                                                 "/api/v1/payment-type-groups/**",
                                                 "/api/v1/payment-type-ledgers",
@@ -87,7 +84,9 @@ public class SecurityConfig {
                                                 "/api/v1/employees",
                                                 "/api/v1/employees/**",
                                                 "/api/v1/employee-allocations",
-                                                "/api/v1/employee-allocations/**"))
+                                                "/api/v1/employee-allocations/**",
+                                                "/api/v1/inflow-budget",
+                                                "/api/v1/inflow-budget/**"))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                                 .requestMatchers(
@@ -105,10 +104,6 @@ public class SecurityConfig {
                                                                 "/api/v1/grants/**",
                                                                 "/api/v1/fund-profiles",
                                                                 "/api/v1/fund-profiles/**",
-                                                                "/api/v1/tranches",
-                                                                "/api/v1/tranches/**",
-                                                                "/api/v1/documents",
-                                                                "/api/v1/documents/**",
                                                                 "/api/v1/dashboard/**",
                                                                 "/api/v1/reports/**",
                                                                 "/api/v1/programmes",
@@ -121,7 +116,6 @@ public class SecurityConfig {
                                                                 // Read-only rate lookups for the grant form's FX field;
                                                                 // GET-only, so no CSRF exemption is needed.
                                                                 "/api/v1/fx-rates",
-                                                                "/api/v1/disbursement/**",
                                                                 "/api/v1/notifications",
                                                                 "/api/v1/notifications/**",
                                                                 "/api/v1/role-directory",
@@ -139,6 +133,8 @@ public class SecurityConfig {
                                                                 "/api/v1/departments/**",
                                                                 "/api/v1/designations",
                                                                 "/api/v1/designations/**",
+                                                                "/api/v1/donor-types",
+                                                                "/api/v1/donor-types/**",
                                                                 "/api/v1/payment-type-groups",
                                                                 "/api/v1/payment-type-groups/**",
                                                                 "/api/v1/payment-type-ledgers",
@@ -153,6 +149,8 @@ public class SecurityConfig {
                                                                 "/api/v1/employees/**",
                                                                 "/api/v1/employee-allocations",
                                                                 "/api/v1/employee-allocations/**",
+                                                                "/api/v1/inflow-budget",
+                                                                "/api/v1/inflow-budget/**",
                                                                 "/swagger-ui.html",
                                                                 "/swagger-ui/**",
                                                                 "/api-docs/**",

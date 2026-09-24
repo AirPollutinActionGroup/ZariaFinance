@@ -1,7 +1,7 @@
 package com.ngo.finance.bankDetails.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
-import com.ngo.finance.donation.enums.Book;
+import com.ngo.finance.common.enums.ContributionType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -26,7 +26,7 @@ public class BankDetail extends AuditEntity {
 
     @Column(nullable = false, length = 5)
     @Enumerated(EnumType.STRING)
-    private Book book;
+    private ContributionType book;
 
     @Column(nullable = false, length = 255)
     private String bankName;

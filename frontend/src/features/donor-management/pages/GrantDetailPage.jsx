@@ -4,10 +4,10 @@ import {
   Button,
   Card,
   CardContent,
-  Collapse,
   Grid,
-  LinearProgress,
   Link,
+  MenuItem,
+  Select,
   Stack,
   Table,
   TableBody,
@@ -19,11 +19,11 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
-import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { ACTIONS, PermissionGate } from '../../../core/permissions/index.js';
 import {
   ConfirmDialog,
+  DataTable,
   ErrorState,
   LoadingState,
   PageHeader,
@@ -34,12 +34,10 @@ import { formatInr } from '../../../lib/format/currency.js';
 import { useGrant, useGrantLifecycle } from '../hooks/useGrants.js';
 import { useFundProfile } from '../hooks/useFundProfiles.js';
 import { useDonor } from '../hooks/useDonors.js';
-import { useTranchesByGrant } from '../hooks/useTranches.js';
+import { useTransactions } from '../../new-transaction/hooks/useTransactions.js';
+import { useFinancialYears } from '../../financial-year/hooks/useFinancialYears.js';
 import { grantService } from '../services/grantService.js';
 import { FUND_CLASS_CODE_TONE, GRANT_ACTIVE_TONE, MODULE_ID } from '../constants.js';
-import { DocumentsPanel } from '../components/DocumentsPanel.jsx';
-import { TranchesPanel } from '../components/TranchesPanel.jsx';
-import { FundingDonut } from '../components/FundingDonut.jsx';
 import { deriveDisbursementType, deriveReleaseCriteria } from '../lib/disbursement.js';
 
 const ACTION_COPY = {
@@ -130,164 +128,18 @@ function SectionCard({ title, children }) {
   );
 }
 
-/** Per-tranche Committed → Received → Utilised → Available strip (Advanced view). */
-function TrancheCycle({ tranche, currency }) {
-  const committed = Number(tranche.trancheAmount) || 0;
-  const received = Number(tranche.actualAmount) || 0;
-  const utilised = Number(tranche.utilisedAmount) || 0;
-  const available = Math.max(0, received - utilised);
-  const utilisedPct = received > 0 ? Math.min(100, Math.round((utilised / received) * 100)) : 0;
-  const money = (n) => (currency && currency !== 'INR' ? `${currency} ` : '₹') + Number(n).toLocaleString('en-IN');
+/** Committed amount, per the signed agreement (no receipt tracking). */
+function FundingPosition({ grant }) {
+  const committedInr = Number(grant.totalGrantAmount) || 0;
 
   return (
-    <Box sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
-        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1E293B' }}>
-          Tranche {tranche.trancheNumber} {tranche.trancheName ? `— ${tranche.trancheName}` : ''}
-        </Typography>
-        <Typography variant="caption" sx={{ color: '#475569' }}>
-          committed {money(committed)} · received {money(received)}
-        </Typography>
-      </Stack>
-
-      <LinearProgress
-        variant="determinate"
-        value={utilisedPct}
-        sx={{
-          height: 7,
-          borderRadius: 3.5,
-          bgcolor: '#FFF3E0',
-          '& .MuiLinearProgress-bar': {
-            borderRadius: 3.5,
-            bgcolor: '#F57C00',
-          },
-        }}
-      />
-
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.75 }}>
-        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 500 }}>
-          utilised {money(utilised)} ({utilisedPct}%)
-        </Typography>
-        <Typography variant="caption" sx={{ color: '#059669', fontWeight: 600 }}>
-          available {money(available)}
-        </Typography>
-      </Stack>
-    </Box>
-  );
-}
-
-/** Committed / Received / Utilised / Available driven by live tranche data. */
-function FundingPosition({ grant, tranches, rule }) {
-  const [advanced, setAdvanced] = useState(false);
-  const fx = grant.grantCurrency && grant.grantCurrency !== 'INR' ? Number(grant.fxLockedRate || 1) : 1;
-  const committedInr = Number(grant.reportingAmountInr ?? grant.totalGrantAmount) || 0;
-  const received = tranches.filter((t) => t.actualAmount != null);
-  const receivedInr = received.reduce((sum, t) => sum + Number(t.actualAmount || 0), 0) * fx;
-  const utilisedInr = Number(grant.utilisedAmount || 0);
-  const availableInr = receivedInr - utilisedInr;
-  const utilisedPct = committedInr > 0 ? Math.round((utilisedInr / committedInr) * 100) : 0;
-
-  // Per-tranche breakdown is only meaningful for tranche-based disbursement
-  // (spec §3): a lump-sum grant has a single release, so hide the toggle.
-  const isTranched = deriveDisbursementType(rule, tranches) === 'Tranches' && tranches.length > 0;
-
-  const rows = [
-    { stage: 'Committed', amount: committedInr, basis: 'contracted / signed (receivable)' },
-    {
-      stage: 'Received',
-      amount: receivedInr,
-      basis: tranches.length
-        ? `${received.length} of ${tranches.length} tranches recognised`
-        : 'no tranches scheduled yet',
-    },
-    {
-      stage: 'Utilised',
-      amount: utilisedInr,
-      basis: `${utilisedPct}% of committed · spent against budget lines`,
-    },
-  ];
-
-  return (
-    <Stack spacing={2}>
-      <FundingDonut committed={committedInr} received={receivedInr} utilised={utilisedInr} />
-
-      <Table size="small" sx={{ '& td, & th': { borderColor: 'divider' } }}>
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ pl: 0 }}>Stage</TableCell>
-            <TableCell align="right">Amount (INR)</TableCell>
-            <TableCell>Basis</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.stage}>
-              <TableCell sx={{ pl: 0, py: 2 }}>{row.stage}</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
-                {formatInr(row.amount)}
-              </TableCell>
-              <TableCell sx={{ color: 'text.secondary' }}>{row.basis}</TableCell>
-            </TableRow>
-          ))}
-          <TableRow>
-            <TableCell sx={{ pl: 0, py: 2, fontWeight: 700, border: 0 }}>Available (realised)</TableCell>
-            <TableCell
-              align="right"
-              sx={{ fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--ok)', border: 0 }}
-            >
-              {formatInr(availableInr)}
-            </TableCell>
-            <TableCell sx={{ color: 'text.secondary', border: 0 }}>
-              received − utilised · spendable now
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-
-      {isTranched ? (
-        <Box sx={{ mt: 1 }}>
-          <Box
-            component="button"
-            type="button"
-            onClick={() => setAdvanced((v) => !v)}
-            sx={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              p: 1.5,
-              px: 2,
-              borderRadius: 1.5,
-              border: '1px solid',
-              borderColor: advanced ? 'primary.main' : 'divider',
-              bgcolor: 'var(--card2, rgba(0, 0, 0, 0.02))',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              textTransform: 'none',
-              textAlign: 'left',
-              fontFamily: 'inherit',
-              '&:hover': {
-                bgcolor: 'action.hover',
-                borderColor: 'primary.main',
-              },
-            }}
-          >
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: 13, color: 'text.primary' }}>
-              Advanced — per-tranche breakdown
-            </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main', ml: 1 }}>
-              {advanced ? '▲ Hide' : '▼ Show'}
-            </Typography>
-          </Box>
-          <Collapse in={advanced} unmountOnExit>
-            <Box sx={{ mt: 1.5 }}>
-              {tranches.map((t) => (
-                <TrancheCycle key={t.id} tranche={t} currency={grant.grantCurrency} />
-              ))}
-            </Box>
-          </Collapse>
-        </Box>
-      ) : null}
+    <Stack spacing={0.5}>
+      <Typography variant="h3" sx={{ fontWeight: 700 }}>
+        {formatInr(committedInr)}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        Committed — contracted / signed
+      </Typography>
     </Stack>
   );
 }
@@ -297,7 +149,7 @@ function FundingPosition({ grant, tranches, rule }) {
  * this shows the disbursement type and, for tranche-based grants, the release
  * criteria as a list (implicit AND) rather than the old flat Type/Trigger/Gate.
  */
-function DisbursementRule({ rule, tranches }) {
+function DisbursementRule({ rule }) {
   if (!rule) {
     return (
       <Typography color="text.secondary" sx={{ py: 2 }}>
@@ -306,21 +158,59 @@ function DisbursementRule({ rule, tranches }) {
     );
   }
 
-  const disbursementType = deriveDisbursementType(rule, tranches);
+  const disbursementType = deriveDisbursementType(rule);
   const isTranched = disbursementType === 'Tranches';
   const criteria = deriveReleaseCriteria(rule);
-  const firstDate = tranches.find((t) => t.plannedReleaseDate)?.plannedReleaseDate;
+  const tranches = rule.trancheCriteria || [];
 
   return (
     <>
       <TermRow label="Disbursement type">
         <StatusChip label={disbursementType} tone={isTranched ? 'info' : 'neutral'} />
       </TermRow>
-      {isTranched ? (
-        <TermRow label="Schedule">{`${tranches.length || 0} tranche${tranches.length === 1 ? '' : 's'}`}</TermRow>
-      ) : (
-        <TermRow label="Receiving date">{formatDate(firstDate)}</TermRow>
-      )}
+
+      {isTranched && tranches.length ? (
+        <Box sx={{ pt: 2 }}>
+          <Typography
+            variant="caption"
+            sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.secondary' }}
+          >
+            Tranche schedule
+          </Typography>
+          <Table size="small" sx={{ mt: 1, '& td, & th': { borderColor: 'divider' } }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ pl: 0 }}>#</TableCell>
+                <TableCell align="right">Amount</TableCell>
+                <TableCell>Expected date</TableCell>
+                <TableCell>Frequency</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {tranches.map((t, i) => (
+                <TableRow key={t.id ?? i}>
+                  <TableCell sx={{ pl: 0, border: i === tranches.length - 1 ? 0 : undefined }}>
+                    {i + 1}
+                    {t.isFinalTranche ? ' (final)' : ''}
+                  </TableCell>
+                  <TableCell
+                    align="right"
+                    sx={{ fontWeight: 600, whiteSpace: 'nowrap', border: i === tranches.length - 1 ? 0 : undefined }}
+                  >
+                    {formatInr(t.amountCriteria)}
+                  </TableCell>
+                  <TableCell sx={{ border: i === tranches.length - 1 ? 0 : undefined }}>
+                    {formatDate(t.expectedReleaseDate)}
+                  </TableCell>
+                  <TableCell sx={{ border: i === tranches.length - 1 ? 0 : undefined }}>
+                    {t.frequencyLabel || t.frequency || '—'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+      ) : null}
 
       <Box sx={{ pt: 2 }}>
         <Typography
@@ -359,6 +249,150 @@ function DisbursementRule({ rule, tranches }) {
   );
 }
 
+/** Expected / received / spent totals for this grant's transactions. */
+function TransactionSummary({ expectedAmount, receivedAmount, spentAmount }) {
+  const stats = [
+    { label: 'Expected amount', value: expectedAmount, color: 'text.primary' },
+    { label: 'Received amount', value: receivedAmount, color: 'success.main' },
+    { label: 'Spent amount', value: spentAmount, color: 'error.main' },
+  ];
+
+  return (
+    <Grid container spacing={2} sx={{ mb: 2.5 }}>
+      {stats.map((s) => (
+        <Grid key={s.label} size={{ xs: 12, sm: 4 }}>
+          <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'var(--card2)' }}>
+            <Typography variant="caption" color="text.secondary">
+              {s.label}
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: s.color }}>
+              {formatInr(s.value)}
+            </Typography>
+          </Box>
+        </Grid>
+      ))}
+    </Grid>
+  );
+}
+
+/** Transactions recorded against this grant agreement, via the Payment Window form. */
+function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, expectedAmount }) {
+  const [typeFilter, setTypeFilter] = useState('All');
+  // null = user hasn't touched the FY filter yet, so it defaults to the
+  // financial year marked current; 'All'/an id means the user picked it.
+  const [fyFilter, setFyFilter] = useState(null);
+
+  const financialYearsQuery = useFinancialYears();
+  const financialYears = financialYearsQuery.data || [];
+  const currentFy = financialYears.find((fy) => fy.current) || null;
+  const effectiveFyFilter = fyFilter ?? (currentFy ? String(currentFy.id) : 'All');
+  const selectedFy = financialYears.find((fy) => String(fy.id) === effectiveFyFilter) || null;
+
+  const receivedAmount = transactions
+    .filter((t) => t.type === 'CREDIT')
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const spentAmount = transactions
+    .filter((t) => t.type === 'DEBIT')
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+  const filteredTransactions = transactions.filter((t) => {
+    const matchesType = typeFilter === 'All' || t.type === typeFilter;
+    const matchesFy = !selectedFy || (t.date >= selectedFy.startDate && t.date <= selectedFy.endDate);
+    return matchesType && matchesFy;
+  });
+
+  const columns = [
+    {
+      key: 'id',
+      header: 'Transaction ID',
+      width: 140,
+      render: (r) => (
+        <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
+          {r.id}
+        </Typography>
+      ),
+    },
+    { key: 'date', header: 'Date', width: 110, render: (r) => formatDate(r.date) },
+    {
+      key: 'type',
+      header: 'Type',
+      width: 110,
+      render: (r) => (
+        <StatusChip
+          label={r.type === 'DEBIT' ? 'Debit (Out)' : 'Credit (In)'}
+          tone={r.type === 'DEBIT' ? 'error' : 'success'}
+        />
+      ),
+    },
+    { key: 'partyName', header: 'Payee / Donor', width: 200, render: (r) => r.partyName },
+    { key: 'paymentModeLabel', header: 'Payment mode', width: 140, render: (r) => r.paymentModeLabel },
+    { key: 'reference', header: 'Reference', width: 160, render: (r) => r.reference || '—' },
+    {
+      key: 'amount',
+      header: 'Amount',
+      width: 130,
+      align: 'right',
+      render: (r) => (
+        <Typography
+          variant="body2"
+          sx={{ fontWeight: 700, color: r.type === 'DEBIT' ? 'error.main' : 'success.main' }}
+        >
+          {r.type === 'DEBIT' ? '−' : '+'}
+          {formatInr(r.amount)}
+        </Typography>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <TransactionSummary
+        expectedAmount={expectedAmount}
+        receivedAmount={receivedAmount}
+        spentAmount={spentAmount}
+      />
+
+      <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }}>
+        <Select
+          size="small"
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          sx={{ minWidth: 150, borderRadius: 2 }}
+        >
+          <MenuItem value="All">All Types</MenuItem>
+          <MenuItem value="DEBIT">Debit (Out)</MenuItem>
+          <MenuItem value="CREDIT">Credit (In)</MenuItem>
+        </Select>
+
+        <Select
+          size="small"
+          value={effectiveFyFilter}
+          onChange={(e) => setFyFilter(e.target.value)}
+          sx={{ minWidth: 170, borderRadius: 2 }}
+        >
+          <MenuItem value="All">All Financial Years</MenuItem>
+          {financialYears.map((fy) => (
+            <MenuItem key={fy.id} value={String(fy.id)}>
+              {fy.code}
+            </MenuItem>
+          ))}
+        </Select>
+      </Stack>
+
+      <DataTable
+        columns={columns}
+        rows={filteredTransactions}
+        getRowKey={(r) => r.id}
+        isLoading={isLoading}
+        error={error}
+        onRetry={onRetry}
+        onRowClick={(r) => navigate(`/new-transaction/${r.id}`)}
+        emptyTitle="No transactions recorded against this grant yet"
+      />
+    </>
+  );
+}
+
 /** Single grant view — /grants/:id. Layout mirrors the approved detail design. */
 export function GrantDetailPage() {
   const { id } = useParams();
@@ -369,22 +403,18 @@ export function GrantDetailPage() {
   const [approvalRemarks, setApprovalRemarks] = useState('');
 
   const grant = grantQuery.data;
-  const tranchesQuery = useTranchesByGrant(grant ? Number(id) : null);
   const profileQuery = useFundProfile(grant?.fundProfileId);
   const donorQuery = useDonor(grant?.donorId);
+  const transactionsQuery = useTransactions();
 
   if (grantQuery.isPending) return <LoadingState label="Loading grant…" />;
   if (grantQuery.isError) return <ErrorState error={grantQuery.error} onRetry={grantQuery.refetch} />;
 
-  const tranches = tranchesQuery.data || [];
   const profile = profileQuery.data;
   const donor = donorQuery.data;
   const rule = profile?.disbursementRules?.[0];
   const actions = grantService.availableActions(grant.isApproved, grant.isActive);
-  const foreign = grant.grantCurrency && grant.grantCurrency !== 'INR';
-  // FX-locked rate is only meaningful for foreign-sourced funding. A domestic
-  // donor's grant is in INR, so the rate is shown as N/A (issue #21, item 12).
-  const domesticSource = (donor?.fundSourceDomicile || '').toLowerCase() === 'domestic';
+  const grantTransactions = (transactionsQuery.data || []).filter((t) => t.grantId === grant.id);
 
   const runLifecycle = async () => {
     // approvedBy is a user id (no session id available yet — BACKEND_GAPS.md #1 —
@@ -426,13 +456,6 @@ export function GrantDetailPage() {
                   onClick={() => navigate(`/grants/${grant.id}/edit`)}
                 >
                   Edit
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<AccountBalanceWalletOutlinedIcon />}
-                  onClick={() => navigate(`/grants/${grant.id}/disbursement`)}
-                >
-                  Disbursement
                 </Button>
               </Stack>
             </PermissionGate>
@@ -478,27 +501,11 @@ export function GrantDetailPage() {
                   ? `Class ${grant.fundClassCode}`
                   : '—'}
             </TermRow>
-            <TermRow label="Programme">{grant.programmeName || 'Untied'}</TermRow>
             <TermRow label="Agreement date">{formatDate(grant.agreementDate)}</TermRow>
             <TermRow label="Period">
               {`${formatDate(grant.startDate)} → ${formatDate(grant.endDate)}`}
             </TermRow>
-            <TermRow label="Currency (CCY)">{grant.grantCurrency || 'INR'}</TermRow>
-            <TermRow label="FX-locked rate (at signing)">
-              {domesticSource
-                ? 'N/A'
-                : foreign
-                  ? String(grant.fxLockedRate ?? '—')
-                  : '— (INR grant)'}
-            </TermRow>
-            <TermRow label="Total grant amount">
-              {foreign
-                ? `${grant.grantCurrency} ${Number(grant.totalGrantAmount).toLocaleString('en-IN')}`
-                : formatInr(grant.totalGrantAmount)}
-            </TermRow>
-            <TermRow label="Reporting amount (INR)">
-              {formatInr(grant.reportingAmountInr ?? grant.totalGrantAmount)}
-            </TermRow>
+            <TermRow label="Total grant amount">{formatInr(grant.totalGrantAmount)}</TermRow>
             <TermRow label="Approved by">
               {grant.isApproved === 1 && (grant.approvedByName || grant.approvedBy)
                 ? grant.approvedByName || grant.approvedBy
@@ -521,7 +528,7 @@ export function GrantDetailPage() {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <SectionCard title="Funding position">
-            <FundingPosition grant={grant} tranches={tranches} rule={rule} />
+            <FundingPosition grant={grant} />
           </SectionCard>
         </Grid>
 
@@ -540,6 +547,11 @@ export function GrantDetailPage() {
                 <TermRow label="Fund mode">{profile.fundModeLabel}</TermRow>
                 <TermRow label="FCRA">
                   {donor ? (donor.fcraApplicable ? 'Applicable' : 'Not applicable') : '—'}
+                </TermRow>
+                <TermRow label="Programme / Project">
+                  {profile.programmeType === 'Project'
+                    ? `${profile.parentProgrammeName || '—'} / ${profile.programmeName || '—'}`
+                    : profile.programmeName || '—'}
                 </TermRow>
                 <TermRow label="Purpose">{profile.purpose || '—'}</TermRow>
                 <TermRow label="Overhead cap">
@@ -562,17 +574,22 @@ export function GrantDetailPage() {
             {profileQuery.isPending && grant.fundProfileId ? (
               <LoadingState label="Loading disbursement rule…" />
             ) : (
-              <DisbursementRule rule={rule} tranches={tranches} />
+              <DisbursementRule rule={rule} />
             )}
           </SectionCard>
         </Grid>
 
-        <Grid size={12}>
-          <TranchesPanel grantId={Number(id)} grantCurrency={grant.grantCurrency} />
-        </Grid>
-
-        <Grid size={12}>
-          <DocumentsPanel grantId={Number(id)} />
+        <Grid size={{ xs: 12 }}>
+          <SectionCard title="Transactions">
+            <GrantTransactions
+              transactions={grantTransactions}
+              isLoading={transactionsQuery.isPending}
+              error={transactionsQuery.isError ? transactionsQuery.error : null}
+              onRetry={transactionsQuery.refetch}
+              navigate={navigate}
+              expectedAmount={grant.totalGrantAmount}
+            />
+          </SectionCard>
         </Grid>
       </Grid>
 
