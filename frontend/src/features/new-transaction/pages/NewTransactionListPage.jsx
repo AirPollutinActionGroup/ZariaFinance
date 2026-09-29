@@ -120,16 +120,21 @@ export function NewTransactionListPage() {
   return (
     <>
       <PageHeader
-        title="Payment Window(Cr/Dr)"
-        subtitle="Donor receipts and programme disbursements recorded through the New Transaction form."
+        title="Payment Window (Cr)"
+        subtitle="Donor receipts (Credit In). Debit payments are raised as Debit Notes; older Debit (Out) entries stay listed here for history."
         actions={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/new-transaction/new')}
-          >
-            New Transaction
-          </Button>
+          <Stack direction="row" spacing={1.5}>
+            <Button variant="outlined" onClick={() => navigate('/debit-notes')}>
+              Debit Notes
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/new-transaction/new')}
+            >
+              New Receipt
+            </Button>
+          </Stack>
         }
       />
 

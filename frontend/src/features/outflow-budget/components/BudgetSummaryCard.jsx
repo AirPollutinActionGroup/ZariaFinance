@@ -38,7 +38,8 @@ function Tile({ accent, dot, label, value, valueColor, children, borderRight, bo
  * disconnected KPI cards plus a separate chart.
  */
 export function BudgetSummaryCard({ kpis, lineCount }) {
-  const { totalBudgeted, totalSpent, totalRemaining, byBook } = kpis;
+  const { totalBudgeted, totalSpent, totalDebits = 0, totalCredits = 0, totalRemaining, byBook } = kpis;
+  const adjustments = [totalDebits ? `+${formatInrExact(totalDebits)} debit` : '', totalCredits ? `−${formatInrExact(totalCredits)} credit` : ''].filter(Boolean);
   const spentPct = totalBudgeted > 0 ? Math.min(100, Math.round((totalSpent / totalBudgeted) * 100)) : 0;
 
   const lc = byBook.LC || { budgeted: 0, spent: 0 };
@@ -78,6 +79,11 @@ export function BudgetSummaryCard({ kpis, lineCount }) {
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>{spentPct}% of budget</Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>as at {formatDate(AS_AT_DATE)}</Typography>
           </Stack>
+          {adjustments.length ? (
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+              incl. {adjustments.join(' · ')} notes
+            </Typography>
+          ) : null}
         </Tile>
 
         <Tile accent="success.main" dot="success.main" label="Remaining" value={formatInrExact(totalRemaining)} valueColor="success.main">

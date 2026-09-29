@@ -24,6 +24,8 @@ import AddIcon from '@mui/icons-material/Add';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import BadgeIcon from '@mui/icons-material/Badge';
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism';
+import CategoryIcon from '@mui/icons-material/Category';
+import { BudgetCategoryTab } from '../components/BudgetCategoryTab.jsx';
 import { ConfirmDialog, DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
 import { useCreateDepartment, useDepartmentLifecycle, useDepartments } from '../hooks/useDepartments.js';
 import { useCreateDesignation, useDesignationLifecycle, useDesignations } from '../hooks/useDesignations.js';
@@ -70,6 +72,9 @@ export function MasterPage() {
   const [newDonorTypeStatus, setNewDonorTypeStatus] = useState('Active');
   const [newDonorTypeFundSourceDomiciles, setNewDonorTypeFundSourceDomiciles] = useState([]);
   const [newDonorTypeContributionTypes, setNewDonorTypeContributionTypes] = useState([]);
+
+  // Budget Category — the tab component owns its list; the page header only opens its Add dialog.
+  const [newBudgetCategoryOpen, setNewBudgetCategoryOpen] = useState(false);
 
   const donorTypesQuery = useDonorTypes(donorTypeSearch);
   const createDonorType = useCreateDonorType();
@@ -376,7 +381,7 @@ export function MasterPage() {
     <Box>
       <PageHeader
         title="Master Configuration"
-        subtitle="Manage organisational departments, designations, donor types and master registers"
+        subtitle="Manage organisational departments, designations, donor types, budget categories and master registers"
         actions={
           activeTab === 0 ? (
             <Button
@@ -394,13 +399,21 @@ export function MasterPage() {
             >
               Add Designation
             </Button>
-          ) : (
+          ) : activeTab === 2 ? (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => setNewDonorTypeOpen(true)}
             >
               Add Donor Type
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setNewBudgetCategoryOpen(true)}
+            >
+              Add Budget Category
             </Button>
           )
         }
@@ -423,6 +436,7 @@ export function MasterPage() {
           <Tab icon={<ApartmentIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Department" />
           <Tab icon={<BadgeIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Designation" />
           <Tab icon={<VolunteerActivismIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Donor Type" />
+          <Tab icon={<CategoryIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Budget Category" />
         </Tabs>
       </Box>
 
@@ -532,6 +546,11 @@ export function MasterPage() {
             emptyTitle="No donor types found"
           />
         </Box>
+      )}
+
+      {/* TAB 4: BUDGET CATEGORY */}
+      {activeTab === 3 && (
+        <BudgetCategoryTab createOpen={newBudgetCategoryOpen} onCreateClose={() => setNewBudgetCategoryOpen(false)} />
       )}
 
       {/* DIALOG: ADD DEPARTMENT */}

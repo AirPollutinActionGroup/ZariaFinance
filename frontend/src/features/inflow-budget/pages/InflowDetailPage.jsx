@@ -146,7 +146,7 @@ export function InflowDetailPage() {
               <Box sx={{ py: 1.5 }}>
                 <Typography variant="body2" color="text.secondary">
                   Not yet received. Record the receipt as a Credit transaction against this tranche on the Payment
-                  Window (Cr/Dr) page — it will show up here automatically.
+                  Window (Cr) page — it will show up here automatically.
                 </Typography>
               </Box>
             )}

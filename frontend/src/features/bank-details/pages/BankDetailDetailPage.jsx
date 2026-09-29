@@ -181,7 +181,7 @@ export function BankDetailDetailPage() {
                 Bank Transaction Detail
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Receipts and payments recorded against this account through the Payment Window (Cr/Dr).
+                Receipts and payments recorded against this account through the Payment Window (Cr).
               </Typography>
             </Box>
 

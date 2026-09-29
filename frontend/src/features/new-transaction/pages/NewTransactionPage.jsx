@@ -8,8 +8,6 @@ import {
   Grid,
   Snackbar,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
@@ -24,18 +22,21 @@ import { useDonors } from '../../donor-management/hooks/useDonors.js';
 import { useFundProfilesByDonor } from '../../donor-management/hooks/useFundProfiles.js';
 import { useGrantByFundProfileId } from '../../donor-management/hooks/useGrants.js';
 import { deriveDisbursementType } from '../../donor-management/lib/disbursement.js';
+import { donorBook } from '../../donor-management/lib/donorBook.js';
 import { donorTypeService } from '../../donor-management/services/donorTypeService.js';
 import { useCreateTransaction } from '../hooks/useTransactions.js';
 import { useInflowBudgetLine, useInflowBudgetLines } from '../../inflow-budget/hooks/useInflowBudget.js';
 import { useBankDetails } from '../../bank-details/hooks/useBankDetails.js';
-import { BOOKS, PAYEE_CATEGORIES, PAYEES, TRANSACTION_TYPES } from '../data/mockNewTransaction.js';
+import { BOOKS } from '../data/mockNewTransaction.js';
 
 export function NewTransactionPage() {
   const navigate = useNavigate();
-  const [type, setType] = useState('DEBIT');
+  // The Payment Window records Credit (In) receipts only. Debit (Out)
+  // payments are raised as Debit Notes against an outflow budget line.
+  const type = 'CREDIT';
   const [book, setBook] = useState('LC');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [category, setCategory] = useState('EMPLOYEE');
+  const [category, setCategory] = useState('');
   const [partyId, setPartyId] = useState('');
   const [donorId, setDonorId] = useState('');
   const [fundId, setFundId] = useState('');
@@ -49,8 +50,6 @@ export function NewTransactionPage() {
   const [notes, setNotes] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
-
-  const isCredit = type === 'CREDIT';
 
   // Donor type is a manageable master (see Master Configuration → Donor Type)
   // — load the active ones instead of a hardcoded list.
@@ -103,7 +102,7 @@ export function NewTransactionPage() {
     [bankDetailsQuery.data, book]
   );
 
-  const categoryOptions = isCredit ? donorTypeOptions : PAYEE_CATEGORIES;
+  const categoryOptions = donorTypeOptions;
 
   // Ledger accounts cascade from the selected Group, same as the Transaction Entry page.
   const ledgerOptions = useMemo(() => {
@@ -113,26 +112,24 @@ export function NewTransactionPage() {
   }, [group, ledgersQuery.data]);
 
   // Donor, Fund profile and Grant agreement are the real donor-management
-  // master data — server-backed, not mock — for both Debit and Credit.
+  // master data — server-backed, not mock.
   const donorsQuery = useDonors();
   const donors = useMemo(() => donorsQuery.data || [], [donorsQuery.data]);
 
   // A donor is booked as LC (local) or FC (foreign) contribution — a Credit
   // receipt against a given Book should only offer donors booked the same way.
-  const partyOptions = useMemo(() => {
-    if (!isCredit) {
-      return PAYEES.filter((p) => p.category === category).map((p) => ({ value: p.id, label: p.name }));
-    }
-    return donors
-      .filter((d) => String(d.donorTypeId) === String(category) && d.book === book)
-      .map((d) => ({ value: d.id, label: d.donorName }));
-  }, [isCredit, category, donors, book]);
+  const partyOptions = useMemo(
+    () =>
+      donors
+        .filter((d) => String(d.donorTypeId) === String(category) && donorBook(d) === book)
+        .map((d) => ({ value: d.id, label: d.donorName })),
+    [category, donors, book]
+  );
 
-  // The donor whose fund is being credited or debited — kept separate from the
-  // Payee/Donor party field so a Debit (expense) can still be charged to a
-  // specific donor's restricted fund.
+  // The donor whose fund is being credited — kept in sync with the Donor
+  // party field (see handlePartyChange / handleDonorChange).
   const donorOptions = useMemo(
-    () => donors.filter((d) => d.book === book).map((d) => ({ value: d.id, label: d.donorName })),
+    () => donors.filter((d) => donorBook(d) === book).map((d) => ({ value: d.id, label: d.donorName })),
     [donors, book]
   );
 
@@ -252,25 +249,8 @@ export function NewTransactionPage() {
 
   const projectedBalance = useMemo(() => {
     if (!currentFund || currentFund.balance == null) return null;
-    const amt = Number(amount) || 0;
-    return type === 'DEBIT' ? currentFund.balance - amt : currentFund.balance + amt;
-  }, [currentFund, amount, type]);
-
-  const insufficientBalance =
-    type === 'DEBIT' && currentFund && currentFund.balance != null && projectedBalance !== null && projectedBalance < 0;
-
-  function handleTypeChange(_event, newType) {
-    if (!newType) return;
-    setType(newType);
-    const nextCategory = newType === 'CREDIT' ? (donorTypeOptions[0]?.value ?? '') : PAYEE_CATEGORIES[0].value;
-    setCategory(nextCategory);
-    setPartyId('');
-    setDonorId('');
-    setFundId('');
-    setTrancheId('');
-    setGroup('');
-    setLedgerType('');
-  }
+    return currentFund.balance + (Number(amount) || 0);
+  }, [currentFund, amount]);
 
   function handleBookChange(newValue) {
     setBook(newValue?.value || '');
@@ -298,20 +278,16 @@ export function NewTransactionPage() {
   function handlePartyChange(newValue) {
     const newPartyId = newValue?.value || '';
     setPartyId(newPartyId);
-    // For a Credit, the payee field IS the donor — keep the Donor field in sync.
-    if (isCredit) {
-      setDonorId(newPartyId);
-      setFundId('');
-      setTrancheId('');
-    }
+    // For a Credit, the party IS the donor — keep the Donor field in sync.
+    setDonorId(newPartyId);
+    setFundId('');
+    setTrancheId('');
   }
 
   function handleDonorChange(newValue) {
     const newDonorId = newValue?.value || '';
     setDonorId(newDonorId);
-    if (isCredit) {
-      setPartyId(newDonorId);
-    }
+    setPartyId(newDonorId);
     setFundId('');
     setTrancheId('');
   }
@@ -337,10 +313,7 @@ export function NewTransactionPage() {
     }
 
     if (!partyId) {
-      setToastMessage({
-        type: 'error',
-        text: isCredit ? 'Please select a donor.' : 'Please select a payee.',
-      });
+      setToastMessage({ type: 'error', text: 'Please select a donor.' });
       return;
     }
 
@@ -361,14 +334,6 @@ export function NewTransactionPage() {
 
     if (!group || !ledgerType) {
       setToastMessage({ type: 'error', text: 'Please select a Group and Ledger.' });
-      return;
-    }
-
-    if (insufficientBalance) {
-      setToastMessage({
-        type: 'error',
-        text: `Insufficient balance — only ${formatInr(currentFund.balance)} available in this fund.`,
-      });
       return;
     }
 
@@ -412,7 +377,7 @@ export function NewTransactionPage() {
 
       setToastMessage({
         type: 'success',
-        text: `Transaction of ${formatInr(amount)} (${type === 'DEBIT' ? 'Dr' : 'Cr'}) saved successfully.`,
+        text: `Receipt of ${formatInr(amount)} (Cr) saved successfully.`,
       });
 
       setTimeout(() => navigate('/new-transaction'), 1200);
@@ -427,7 +392,7 @@ export function NewTransactionPage() {
 
   return (
     <Box sx={{ maxWidth: 1100, pb: 4 }}>
-      <PageHeader title="Payment Window(Cr/Dr)" subtitle="Record a donor receipt or programme disbursement" />
+      <PageHeader title="Payment Window (Cr)" subtitle="Record a donor receipt (Credit In). Debit payments are raised as Debit Notes." />
 
       <Card component="form" onSubmit={handleSubmit} noValidate sx={{ borderRadius: 3 }}>
         <CardContent sx={{ p: { xs: 3, sm: 4, md: 4.5 } }}>
@@ -439,35 +404,17 @@ export function NewTransactionPage() {
 
               <Grid container rowSpacing={3.25} columnSpacing={3}>
                 <Grid size={{ xs: 12 }}>
-                  <Tabs
-                    value={type}
-                    onChange={handleTypeChange}
-                    variant="fullWidth"
-                    sx={{
-                      minHeight: 48,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      '& .MuiTabs-indicator': {
-                        height: 3,
-                        bgcolor: type === 'DEBIT' ? 'error.main' : 'success.main',
-                      },
-                    }}
+                  <Alert
+                    severity="info"
+                    action={
+                      <Button color="inherit" size="small" onClick={() => navigate('/debit-notes')}>
+                        Go to Debit Notes
+                      </Button>
+                    }
                   >
-                    {TRANSACTION_TYPES.map((t) => (
-                      <Tab
-                        key={t.value}
-                        value={t.value}
-                        label={t.label}
-                        sx={{
-                          fontWeight: 600,
-                          '&.Mui-selected': {
-                            color: t.value === 'DEBIT' ? 'error.main' : 'success.main',
-                          },
-                        }}
-                      />
-                    ))}
-                  </Tabs>
+                    This window records <b>Credit (In)</b> receipts only. To record a debit payment, raise a Debit Note
+                    against its outflow budget line.
+                  </Alert>
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -500,7 +447,7 @@ export function NewTransactionPage() {
               <Grid container rowSpacing={3.25} columnSpacing={3}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <SearchableSelect
-                    label={isCredit ? 'Donor type *' : 'Payee category *'}
+                    label="Donor type *"
                     options={categoryOptions}
                     value={categoryOptions.find((o) => o.value === category) || null}
                     onChange={handleCategoryChange}
@@ -509,7 +456,7 @@ export function NewTransactionPage() {
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <SearchableSelect
-                    label={isCredit ? 'Donor *' : 'Payee *'}
+                    label="Donor *"
                     options={partyOptions}
                     value={partyOptions.find((o) => o.value === partyId) || null}
                     onChange={handlePartyChange}
@@ -544,13 +491,13 @@ export function NewTransactionPage() {
                   />
                   <Typography
                     variant="caption"
-                    sx={{ mt: 0.75, display: 'block', color: insufficientBalance ? 'error.main' : 'text.secondary' }}
+                    sx={{ mt: 0.75, display: 'block', color: 'text.secondary' }}
                   >
                     {currentFund
                       ? currentFund.balance != null
                         ? `Available: ${formatInr(currentFund.balance)}${
                             amount
-                              ? ` → After this ${type === 'DEBIT' ? 'debit' : 'credit'}: ${formatInr(projectedBalance)}`
+                              ? ` → After this credit: ${formatInr(projectedBalance)}`
                               : ''
                           }`
                         : 'Balance not available for this fund profile'
@@ -603,7 +550,7 @@ export function NewTransactionPage() {
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    error={insufficientBalance || amountExceedsOutstanding}
+                    error={amountExceedsOutstanding}
                   />
                   {outstandingAmount != null ? (
                     <Typography

@@ -61,6 +61,18 @@ import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
 import { InflowBudgetPage } from '../inflow-budget/pages/InflowBudgetPage.jsx';
 import { InflowDetailPage } from '../inflow-budget/pages/InflowDetailPage.jsx';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
+import { BudgetListPage } from '../budget/pages/BudgetListPage.jsx';
+import { BudgetFormPage } from '../budget/pages/BudgetFormPage.jsx';
+import { BudgetDetailPage } from '../budget/pages/BudgetDetailPage.jsx';
+import RequestQuoteOutlinedIcon from '@mui/icons-material/RequestQuoteOutlined';
+import { DebitNotesPage } from '../debit-notes/pages/DebitNotesPage.jsx';
+import { DebitNoteDetailPage } from '../debit-notes/pages/DebitNoteDetailPage.jsx';
+import { DebitNoteCreatePage } from '../debit-notes/pages/DebitNoteCreatePage.jsx';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import { CreditNotesPage } from '../credit-notes/pages/CreditNotesPage.jsx';
+import { CreditNoteDetailPage } from '../credit-notes/pages/CreditNoteDetailPage.jsx';
+import { CreditNoteCreatePage } from '../credit-notes/pages/CreditNoteCreatePage.jsx';
+import AssignmentReturnOutlinedIcon from '@mui/icons-material/AssignmentReturnOutlined';
 
 /**
  * Donor Management module definition — registered in app/modules.js.
@@ -86,9 +98,12 @@ export const donorManagementModule = {
     { label: 'Bank Details', path: '/bank-details', icon: AccountBalanceOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Financial Year', path: '/financial-years', icon: CalendarMonthOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Payment Type', path: '/payment-types', icon: AccountTreeOutlinedIcon, section: 'FINANCE & PAYMENTS' },
-    { label: 'Payment Window(Cr/Dr)', path: '/new-transaction', icon: ReceiptOutlinedIcon, section: 'FINANCE & PAYMENTS' },
+    { label: 'Payment Window (Cr)', path: '/new-transaction', icon: ReceiptOutlinedIcon, section: 'FINANCE & PAYMENTS' },
+    { label: 'Budget', path: '/budgets', icon: RequestQuoteOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Inflow Budget', path: '/inflow-budget', icon: TrendingUpOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Outflow Budget', path: '/outflow-budget', icon: TrendingDownOutlinedIcon, section: 'FINANCE & PAYMENTS' },
+    { label: 'Debit Notes', path: '/debit-notes', icon: ReceiptLongOutlinedIcon, section: 'FINANCE & PAYMENTS' },
+    { label: 'Credit Notes', path: '/credit-notes', icon: AssignmentReturnOutlinedIcon, section: 'FINANCE & PAYMENTS' },
   ],
   routes: [
     { path: '/donors', element: <DonorsListPage /> },
@@ -134,9 +149,19 @@ export const donorManagementModule = {
     { path: '/bank-details', element: <BankDetailsPage /> },
     { path: '/bank-details/:id', element: <BankDetailDetailPage /> },
     { path: '/financial-years', element: <FinancialYearsPage /> },
+    { path: '/budgets', element: <BudgetListPage /> },
+    { path: '/budgets/new', element: <BudgetFormPage /> },
+    { path: '/budgets/:id', element: <BudgetDetailPage /> },
+    { path: '/budgets/:id/edit', element: <BudgetFormPage /> },
     { path: '/inflow-budget', element: <InflowBudgetPage /> },
     { path: '/inflow-budget/:id', element: <InflowDetailPage /> },
     { path: '/outflow-budget', element: <OutflowBudgetPage /> },
     { path: '/outflow-budget/:id', element: <OutflowDetailPage /> },
+    { path: '/debit-notes', element: <DebitNotesPage /> },
+    { path: '/debit-notes/new', element: <DebitNoteCreatePage /> },
+    { path: '/debit-notes/:id', element: <DebitNoteDetailPage /> },
+    { path: '/credit-notes', element: <CreditNotesPage /> },
+    { path: '/credit-notes/new', element: <CreditNoteCreatePage /> },
+    { path: '/credit-notes/:id', element: <CreditNoteDetailPage /> },
   ],
 };

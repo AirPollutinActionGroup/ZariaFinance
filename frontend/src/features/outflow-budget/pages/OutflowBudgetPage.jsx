@@ -7,6 +7,9 @@ import { formatDate } from '../../../lib/format/date.js';
 import { BOOK, BOOK_TONE } from '../../donation-management/constants.js';
 import { getOutflowRows } from '../data/outflowRepository.js';
 import { getRowStatus } from '../lib/status.js';
+import { rowCredits, rowDebits, rowRemaining, rowSpent } from '../lib/spent.js';
+import { debitTotalsByLine, getDebitNotes } from '../../debit-notes/data/debitNoteRepository.js';
+import { creditTotalsByLine, getCreditNotes } from '../../credit-notes/data/creditNoteRepository.js';
 import { BudgetSummaryCard } from '../components/BudgetSummaryCard.jsx';
 import {
   AS_AT_DATE,
@@ -64,6 +67,9 @@ function AgeingTile({ meta, amount, count }) {
 export function OutflowBudgetPage() {
   const navigate = useNavigate();
   const [rows] = useState(() => getOutflowRows());
+  // Issued debit notes add to each line's Spent; issued credit notes take off it (see lib/spent.js).
+  const [debitTotals] = useState(() => debitTotalsByLine(getDebitNotes()));
+  const [creditTotals] = useState(() => creditTotalsByLine(getCreditNotes()));
   const [searchQuery, setSearchQuery] = useState('');
   const [bookFilter, setBookFilter] = useState('All');
   const [fundingSourceFilter, setFundingSourceFilter] = useState('All');
@@ -87,15 +93,17 @@ export function OutflowBudgetPage() {
 
   const kpis = useMemo(() => {
     const totalBudgeted = rows.reduce((sum, r) => sum + r.expectedAmount, 0);
-    const totalSpent = rows.reduce((sum, r) => sum + (r.actualAmount || 0), 0);
+    const totalSpent = rows.reduce((sum, r) => sum + rowSpent(r, debitTotals, creditTotals), 0);
+    const totalDebits = rows.reduce((sum, r) => sum + rowDebits(r, debitTotals), 0);
+    const totalCredits = rows.reduce((sum, r) => sum + rowCredits(r, creditTotals), 0);
     const byBook = rows.reduce((acc, r) => {
       const bucket = acc[r.book] || (acc[r.book] = { budgeted: 0, spent: 0 });
       bucket.budgeted += r.expectedAmount;
-      bucket.spent += r.actualAmount || 0;
+      bucket.spent += rowSpent(r, debitTotals, creditTotals);
       return acc;
     }, {});
-    return { totalBudgeted, totalSpent, totalRemaining: totalBudgeted - totalSpent, byBook };
-  }, [rows]);
+    return { totalBudgeted, totalSpent, totalDebits, totalCredits, totalRemaining: totalBudgeted - totalSpent, byBook };
+  }, [rows, debitTotals, creditTotals]);
 
   const ageing = useMemo(() => {
     const onTime = { count: 0, amount: 0 };
@@ -172,11 +180,22 @@ export function OutflowBudgetPage() {
       key: 'actualAmount',
       header: 'Spent',
       align: 'right',
-      render: (row) => (
-        <Box sx={{ ...MONEY_SX, fontWeight: row.actualAmount != null ? 700 : 400, color: row.actualAmount != null ? 'error.main' : 'text.secondary' }}>
-          {row.actualAmount != null ? formatInrExact(row.actualAmount) : '—'}
-        </Box>
-      ),
+      render: (row) => {
+        const spent = rowSpent(row, debitTotals, creditTotals);
+        const debits = rowDebits(row, debitTotals);
+        const credits = rowCredits(row, creditTotals);
+        const adjustments = [debits ? `+${formatInrExact(debits)} debit` : '', credits ? `−${formatInrExact(credits)} credit` : ''].filter(Boolean);
+        return (
+          <Box sx={{ ...MONEY_SX, fontWeight: spent ? 700 : 400, color: spent ? 'error.main' : 'text.secondary' }}>
+            {spent ? formatInrExact(spent) : '—'}
+            {adjustments.length ? (
+              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 400 }}>
+                incl. {adjustments.join(' · ')} notes
+              </Typography>
+            ) : null}
+          </Box>
+        );
+      },
     },
     {
       key: 'status',
@@ -187,11 +206,22 @@ export function OutflowBudgetPage() {
       key: 'remaining',
       header: 'Remaining',
       align: 'right',
-      render: (row) => (
-        <Box sx={{ ...MONEY_SX, color: row.actualAmount != null ? 'text.secondary' : 'text.primary', fontWeight: row.actualAmount != null ? 400 : 600 }}>
-          {row.actualAmount != null ? '—' : formatInrExact(row.expectedAmount)}
-        </Box>
-      ),
+      render: (row) => {
+        const remaining = rowRemaining(row, debitTotals, creditTotals);
+        if (remaining < 0) {
+          return (
+            <Box sx={{ ...MONEY_SX, color: 'error.main', fontWeight: 600 }}>
+              −{formatInrExact(-remaining)}
+              <Typography variant="caption" sx={{ display: 'block', fontWeight: 400 }}>over budget</Typography>
+            </Box>
+          );
+        }
+        return (
+          <Box sx={{ ...MONEY_SX, color: remaining ? 'text.primary' : 'text.secondary', fontWeight: remaining ? 600 : 400 }}>
+            {remaining ? formatInrExact(remaining) : '—'}
+          </Box>
+        );
+      },
     },
   ];
 
@@ -199,7 +229,7 @@ export function OutflowBudgetPage() {
     <Box sx={{ maxWidth: 1400 }}>
       <PageHeader
         title="Outflow Budget"
-        subtitle="Budgeted vs spent across every approved budget line — fed automatically; you only record what goes out."
+        subtitle="Budgeted vs spent across every approved budget line — fed automatically from the approved budget and payments."
       />
 
       <BudgetSummaryCard kpis={kpis} lineCount={rows.length} />
@@ -221,8 +251,7 @@ export function OutflowBudgetPage() {
           No re-entry.
         </Box>{' '}
         Budget line, category, funding source, restriction and book are inherited from the approved budget. Open a
-        row to record what goes out — payment date, amount, payment reference/UTR and, if it differs from what
-        was budgeted, the variance reason.
+        row to see its payment details — payment date, amount, payment reference/UTR and any variance reason.
       </Box>
 
       <Typography variant="h4" component="h2" sx={{ mb: 1.5 }}>
