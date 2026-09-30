@@ -14,7 +14,7 @@ export const employeeAllocationService = {
     return employeeAllocationApi.create({
       employeeId: formValues.employeeId,
       programmeId: formValues.programmeId,
-      projectId: formValues.projectId,
+      projectId: formValues.projectId || null,
       role: formValues.role?.trim() || null,
       stateIds: formValues.stateIds || [],
       cityIds: formValues.cityIds || [],

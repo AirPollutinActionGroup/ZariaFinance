@@ -50,7 +50,7 @@ export function EmployeeSplitBars({ allocations }) {
                 {rows.map((r, idx) => (
                   <Box
                     key={r.id}
-                    title={`${r.programmeName} — ${r.projectName}: ${r.allocationPct}%`}
+                    title={`${r.programmeName}${r.projectName ? ` — ${r.projectName}` : ''}: ${r.allocationPct}%`}
                     sx={{
                       width: `${Math.min(r.allocationPct, 100)}%`,
                       minWidth: 2,
@@ -70,7 +70,7 @@ export function EmployeeSplitBars({ allocations }) {
                       sx={{ width: 9, height: 9, borderRadius: 0.5, bgcolor: colorMap.get(r.programmeId) }}
                     />
                     <Typography variant="caption" color="text.secondary">
-                      {r.programmeName} · {r.projectName} · {r.allocationPct}%
+                      {r.programmeName} · {r.projectName ? `${r.projectName} · ` : ''}{r.allocationPct}%
                     </Typography>
                   </Stack>
                 ))}

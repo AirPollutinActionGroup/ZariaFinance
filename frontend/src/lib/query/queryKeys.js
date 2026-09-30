@@ -76,6 +76,31 @@ export const queryKeys = {
     all: () => ['donorTypes'],
     list: (search) => ['donorTypes', 'list', { search: search || '' }],
   },
+  budgetCategories: {
+    all: () => ['budgetCategories'],
+    list: (search) => ['budgetCategories', 'list', { search: search || '' }],
+  },
+  outflow: {
+    all: () => ['outflow'],
+    list: (financialYear) => ['outflow', 'list', { financialYear: financialYear || '' }],
+    detail: (id) => ['outflow', 'detail', String(id)],
+  },
+  debitNotes: {
+    all: () => ['debitNotes'],
+    list: () => ['debitNotes', 'list'],
+    detail: (code) => ['debitNotes', 'detail', String(code)],
+  },
+  creditNotes: {
+    all: () => ['creditNotes'],
+    list: () => ['creditNotes', 'list'],
+    detail: (code) => ['creditNotes', 'detail', String(code)],
+  },
+  budgets: {
+    all: () => ['budgets'],
+    list: () => ['budgets', 'list'],
+    detail: (id) => ['budgets', 'detail', String(id)],
+    categoryUsage: () => ['budgets', 'categoryUsage'],
+  },
   paymentTypeGroups: {
     all: () => ['paymentTypeGroups'],
     list: (search) => ['paymentTypeGroups', 'list', { search: search || '' }],
@@ -100,12 +125,6 @@ export const queryKeys = {
   },
   employeeAllocations: {
     all: () => ['employeeAllocations'],
-  },
-  transactions: {
-    all: () => ['transactions'],
-    detail: (code) => ['transactions', 'detail', String(code)],
-    /** Raw (unmapped) TransactionResponse[] — used where a numeric `id` is needed, since the mapped view model overwrites `id` with `transactionCode`. */
-    rawAll: () => ['transactions', 'raw'],
   },
   inflowBudgetLines: {
     all: () => ['inflowBudgetLines'],

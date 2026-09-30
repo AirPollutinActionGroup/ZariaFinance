@@ -8,7 +8,7 @@ import com.ngo.finance.donor.entity.DonorTrancheCriterion;
 import com.ngo.finance.donor.FundingClassifier;
 import com.ngo.finance.donor.enums.FundMode;
 import com.ngo.finance.inflowbudget.dto.response.InflowBudgetLineResponse;
-import com.ngo.finance.inflowbudget.entity.InflowReceipt;
+import com.ngo.finance.outflow.entity.CreditNote;
 import com.ngo.finance.programme.entity.Programme;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -20,30 +20,24 @@ import org.springframework.stereotype.Component;
  * Builds an {@link InflowBudgetLineResponse} from a donor tranche criterion,
  * deriving the funding source, donor name, book and a human-readable line
  * description from its disbursement rule / fund profile / donor chain, plus
- * the actual-receipt totals aggregated from its {@link InflowReceipt} rows.
+ * what was received — the credit notes received against the line.
  */
 @Component
 public class InflowBudgetMapper {
 
-    public InflowBudgetLineResponse toResponse(DonorTrancheCriterion criterion, List<InflowReceipt> receipts) {
+    private static final Comparator<CreditNote> OLDEST_FIRST =
+            Comparator.comparing(CreditNote::getNoteDate).thenComparing(CreditNote::getNoteCode);
+
+    public InflowBudgetLineResponse toResponse(DonorTrancheCriterion criterion, List<CreditNote> creditNotes) {
         DonorDisbursementRule rule = criterion.getDonorDisbursementRule();
         DonorFundProfile profile = rule.getFundProfile();
         DonorMaster donor = profile.getDonor();
 
-        BigDecimal actualAmount = receipts.stream()
-                .map(InflowReceipt::getReceivedAmount)
+        List<CreditNote> received = creditNotes.stream().sorted(OLDEST_FIRST).toList();
+        BigDecimal actualAmount = received.stream()
+                .map(CreditNote::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        LocalDate actualDate = receipts.stream()
-                .map(InflowReceipt::getReceivedDate)
-                .max(Comparator.naturalOrder())
-                .orElse(null);
-        // Latest non-blank variance reason wins, mirroring the prior single-field behaviour.
-        String varianceReason = receipts.stream()
-                .sorted(Comparator.comparing(InflowReceipt::getReceivedDate).reversed())
-                .map(InflowReceipt::getVarianceReason)
-                .filter(reason -> reason != null && !reason.isBlank())
-                .findFirst()
-                .orElse(null);
+        LocalDate actualDate = received.isEmpty() ? null : received.get(received.size() - 1).getNoteDate();
 
         return InflowBudgetLineResponse.builder()
                 .id(criterion.getId())
@@ -54,17 +48,23 @@ public class InflowBudgetMapper {
                 .expectedDate(criterion.getExpectedReleaseDate())
                 .expectedAmount(criterion.getAmountCriteria())
                 .actualDate(actualDate)
-                .actualAmount(receipts.isEmpty() ? null : actualAmount)
-                .receiptRef(joinDetail(receipts, InflowReceipt::getBankReference))
-                .receiptNo(joinDetail(receipts, InflowReceipt::getReceiptVoucherNo))
-                .varianceReason(varianceReason)
+                .actualAmount(received.isEmpty() ? null : actualAmount)
+                .receiptRef(joinDetail(received, CreditNote::getReference))
+                .receiptNo(joinDetail(received, CreditNote::getNoteCode))
+                .receipts(received.stream()
+                        .map(n -> InflowBudgetLineResponse.ReceiptItem.builder()
+                                .date(n.getNoteDate())
+                                .amount(n.getAmount())
+                                .reference(n.getReference())
+                                .creditNoteId(n.getNoteCode())
+                                .build())
+                        .toList())
                 .build();
     }
 
-    /** Joins each instalment's non-blank value, oldest first, for display — same "; "-joined shape the UI already expects. */
-    private String joinDetail(List<InflowReceipt> receipts, java.util.function.Function<InflowReceipt, String> field) {
-        String joined = receipts.stream()
-                .sorted(Comparator.comparing(InflowReceipt::getReceivedDate))
+    /** Joins each instalment's non-blank value, oldest first, for display — "; "-joined. */
+    private String joinDetail(List<CreditNote> received, java.util.function.Function<CreditNote, String> field) {
+        String joined = received.stream()
                 .map(field)
                 .filter(value -> value != null && !value.isBlank())
                 .reduce((a, b) -> a + "; " + b)

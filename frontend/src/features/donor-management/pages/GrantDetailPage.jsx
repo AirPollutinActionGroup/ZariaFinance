@@ -34,7 +34,9 @@ import { formatInr } from '../../../lib/format/currency.js';
 import { useGrant, useGrantLifecycle } from '../hooks/useGrants.js';
 import { useFundProfile } from '../hooks/useFundProfiles.js';
 import { useDonor } from '../hooks/useDonors.js';
-import { useTransactions } from '../../new-transaction/hooks/useTransactions.js';
+import { useInflowBudgetLines } from '../../inflow-budget/hooks/useInflowBudget.js';
+import { useDebitNotes } from '../../debit-notes/hooks/useDebitNotes.js';
+import { useCreditNotes } from '../../credit-notes/hooks/useCreditNotes.js';
 import { useFinancialYears } from '../../financial-year/hooks/useFinancialYears.js';
 import { grantService } from '../services/grantService.js';
 import { FUND_CLASS_CODE_TONE, GRANT_ACTIVE_TONE, MODULE_ID } from '../constants.js';
@@ -249,7 +251,10 @@ function DisbursementRule({ rule }) {
   );
 }
 
-/** Expected / received / spent totals for this grant's transactions. */
+/**
+ * Expected / received / spent totals for this grant. Received = actual receipts
+ * on its Inflow Budget lines (credit notes included); spent = debit notes.
+ */
 function TransactionSummary({ expectedAmount, receivedAmount, spentAmount }) {
   const stats = [
     { label: 'Expected amount', value: expectedAmount, color: 'text.primary' },
@@ -275,8 +280,16 @@ function TransactionSummary({ expectedAmount, receivedAmount, spentAmount }) {
   );
 }
 
-/** Transactions recorded against this grant agreement, via the Payment Window form. */
-function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, expectedAmount }) {
+const TYPE_CHIP = {
+  DEBIT: { label: 'Debit note', tone: 'error' },
+  CREDIT: { label: 'Credit note', tone: 'success' },
+};
+
+/**
+ * Money out of and into this grant: the debit notes charged to its fund and
+ * the credit notes received into it.
+ */
+function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, expectedAmount, receivedAmount }) {
   const [typeFilter, setTypeFilter] = useState('All');
   // null = user hasn't touched the FY filter yet, so it defaults to the
   // financial year marked current; 'All'/an id means the user picked it.
@@ -288,12 +301,8 @@ function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, 
   const effectiveFyFilter = fyFilter ?? (currentFy ? String(currentFy.id) : 'All');
   const selectedFy = financialYears.find((fy) => String(fy.id) === effectiveFyFilter) || null;
 
-  const receivedAmount = transactions
-    .filter((t) => t.type === 'CREDIT')
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  const spentAmount = transactions
-    .filter((t) => t.type === 'DEBIT')
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const total = (pred) => transactions.filter(pred).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const spentAmount = total((t) => t.type === 'DEBIT');
 
   const filteredTransactions = transactions.filter((t) => {
     const matchesType = typeFilter === 'All' || t.type === typeFilter;
@@ -304,7 +313,7 @@ function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, 
   const columns = [
     {
       key: 'id',
-      header: 'Transaction ID',
+      header: 'Note ID',
       width: 140,
       render: (r) => (
         <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
@@ -317,12 +326,7 @@ function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, 
       key: 'type',
       header: 'Type',
       width: 110,
-      render: (r) => (
-        <StatusChip
-          label={r.type === 'DEBIT' ? 'Debit (Out)' : 'Credit (In)'}
-          tone={r.type === 'DEBIT' ? 'error' : 'success'}
-        />
-      ),
+      render: (r) => <StatusChip label={TYPE_CHIP[r.type].label} tone={TYPE_CHIP[r.type].tone} />,
     },
     { key: 'partyName', header: 'Payee / Donor', width: 200, render: (r) => r.partyName },
     { key: 'paymentModeLabel', header: 'Payment mode', width: 140, render: (r) => r.paymentModeLabel },
@@ -386,8 +390,8 @@ function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, 
         isLoading={isLoading}
         error={error}
         onRetry={onRetry}
-        onRowClick={(r) => navigate(`/new-transaction/${r.id}`)}
-        emptyTitle="No transactions recorded against this grant yet"
+        onRowClick={(r) => navigate(r.href)}
+        emptyTitle="No debit or credit notes recorded against this grant yet"
       />
     </>
   );
@@ -405,7 +409,9 @@ export function GrantDetailPage() {
   const grant = grantQuery.data;
   const profileQuery = useFundProfile(grant?.fundProfileId);
   const donorQuery = useDonor(grant?.donorId);
-  const transactionsQuery = useTransactions();
+  const inflowLinesQuery = useInflowBudgetLines();
+  const debitNotesQuery = useDebitNotes();
+  const creditNotesQuery = useCreditNotes();
 
   if (grantQuery.isPending) return <LoadingState label="Loading grant…" />;
   if (grantQuery.isError) return <ErrorState error={grantQuery.error} onRetry={grantQuery.refetch} />;
@@ -414,7 +420,35 @@ export function GrantDetailPage() {
   const donor = donorQuery.data;
   const rule = profile?.disbursementRules?.[0];
   const actions = grantService.availableActions(grant.isApproved, grant.isActive);
-  const grantTransactions = (transactionsQuery.data || []).filter((t) => t.grantId === grant.id);
+  // Notes snapshot the grant as { id, name }; older ones may only carry the fund profile.
+  const sameId = (a, b) => a != null && b != null && String(a) === String(b);
+  const onThisGrant = (n) => sameId(n.grant?.id, grant.id) || (!n.grant && sameId(n.fundProfile?.id, grant.fundProfileId));
+  const noteRows = (notes, type) =>
+    (notes || []).filter(onThisGrant).map((n) => ({
+      id: n.id,
+      source: 'NOTE',
+      type,
+      date: n.date,
+      amount: n.amount,
+      partyName: type === 'DEBIT' ? n.payee?.name || '—' : n.donor?.name || '—',
+      paymentModeLabel: n.paymentMode?.name || '—',
+      reference: n.reference,
+      href: `/${type === 'DEBIT' ? 'debit' : 'credit'}-notes/${n.id}`,
+    }));
+  const grantTransactions = [
+    ...noteRows(debitNotesQuery.data, 'DEBIT'),
+    ...noteRows(creditNotesQuery.data, 'CREDIT'),
+  ].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  // Inflow Budget lines share the tranche-criterion id, so the grant's receipts
+  // are the actuals recorded on its fund profile's tranches.
+  const trancheIds = new Set(
+    (profile?.disbursementRules || []).flatMap((r) => (r.trancheCriteria || []).map((t) => String(t.id)))
+  );
+  const receivedAmount = (inflowLinesQuery.data || [])
+    .filter((line) => trancheIds.has(String(line.id)))
+    .reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
+  const sourceQueries = [debitNotesQuery, creditNotesQuery, inflowLinesQuery];
+  const failedQuery = sourceQueries.find((q) => q.isError);
 
   const runLifecycle = async () => {
     // approvedBy is a user id (no session id available yet — BACKEND_GAPS.md #1 —
@@ -583,11 +617,12 @@ export function GrantDetailPage() {
           <SectionCard title="Transactions">
             <GrantTransactions
               transactions={grantTransactions}
-              isLoading={transactionsQuery.isPending}
-              error={transactionsQuery.isError ? transactionsQuery.error : null}
-              onRetry={transactionsQuery.refetch}
+              isLoading={sourceQueries.some((q) => q.isPending)}
+              error={failedQuery ? failedQuery.error : null}
+              onRetry={() => sourceQueries.forEach((q) => q.isError && q.refetch())}
               navigate={navigate}
               expectedAmount={grant.totalGrantAmount}
+              receivedAmount={receivedAmount}
             />
           </SectionCard>
         </Grid>

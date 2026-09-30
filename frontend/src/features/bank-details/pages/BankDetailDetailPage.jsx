@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Avatar,
   Box,
@@ -7,22 +7,17 @@ import {
   CardContent,
   Chip,
   Divider,
-  FormControl,
   Grid,
-  MenuItem,
-  Select,
   Stack,
   Typography,
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import { ConfirmDialog, DataTable, ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
-import { formatInr } from '../../../lib/format/currency.js';
+import { ConfirmDialog, ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
 import { BOOK } from '../../donation-management/constants.js';
 import { useBankDetail, useBankDetailLifecycle } from '../hooks/useBankDetails.js';
-import { useTransactions } from '../../new-transaction/hooks/useTransactions.js';
-import { useFinancialYears } from '../../financial-year/hooks/useFinancialYears.js';
+import { BankAccountNotes } from '../components/BankAccountNotes.jsx';
 
 function DetailField({ label, value, chip = null }) {
   return (
@@ -49,28 +44,7 @@ export function BankDetailDetailPage() {
   const navigate = useNavigate();
   const bankDetailQuery = useBankDetail(id);
   const bankDetailLifecycle = useBankDetailLifecycle();
-  const transactionsQuery = useTransactions();
-  const financialYearsQuery = useFinancialYears();
   const [pendingAction, setPendingAction] = useState(null);
-  const [typeFilter, setTypeFilter] = useState('All');
-  // null = user hasn't touched the FY filter yet, so it defaults to whichever
-  // financial year is marked current; 'All'/an id means the user picked it.
-  const [fyFilter, setFyFilter] = useState(null);
-
-  const financialYears = financialYearsQuery.data || [];
-  const currentFy = financialYears.find((fy) => fy.current) || null;
-  const effectiveFyFilter = fyFilter ?? (currentFy ? String(currentFy.id) : 'All');
-  const selectedFy = financialYears.find((fy) => String(fy.id) === effectiveFyFilter) || null;
-
-  const accountTransactions = useMemo(() => {
-    const rows = transactionsQuery.data || [];
-    return rows.filter((tx) => {
-      const matchesAccount = String(tx.bankAccountId) === String(id);
-      const matchesType = typeFilter === 'All' || tx.type === typeFilter;
-      const matchesFy = !selectedFy || (tx.date >= selectedFy.startDate && tx.date <= selectedFy.endDate);
-      return matchesAccount && matchesType && matchesFy;
-    });
-  }, [transactionsQuery.data, id, typeFilter, selectedFy]);
 
   if (bankDetailQuery.isPending) return <LoadingState label="Loading bank account…" />;
   if (bankDetailQuery.isError) {
@@ -167,116 +141,7 @@ export function BankDetailDetailPage() {
         </CardContent>
       </Card>
 
-      <Card variant="outlined" sx={{ borderRadius: 3, mb: 3 }}>
-        <CardContent sx={{ p: 3.5 }}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            justifyContent="space-between"
-            alignItems={{ sm: 'center' }}
-            spacing={1.5}
-            sx={{ mb: 2 }}
-          >
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
-                Bank Transaction Detail
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Receipts and payments recorded against this account through the Payment Window (Cr/Dr).
-              </Typography>
-            </Box>
-
-            <Stack direction="row" spacing={1.5}>
-              <FormControl size="small" sx={{ minWidth: 150 }}>
-                <Select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  displayEmpty
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="All">All Types</MenuItem>
-                  <MenuItem value="CREDIT">Credit (In)</MenuItem>
-                  <MenuItem value="DEBIT">Debit (Out)</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl size="small" sx={{ minWidth: 170 }}>
-                <Select
-                  value={effectiveFyFilter}
-                  onChange={(e) => setFyFilter(e.target.value)}
-                  displayEmpty
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="All">All Financial Years</MenuItem>
-                  {financialYears.map((fy) => (
-                    <MenuItem key={fy.id} value={String(fy.id)}>
-                      {fy.code}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Stack>
-          </Stack>
-
-          <DataTable
-            columns={[
-              {
-                key: 'id',
-                header: 'Transaction ID',
-                width: 140,
-                render: (r) => (
-                  <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
-                    {r.id}
-                  </Typography>
-                ),
-              },
-              { key: 'date', header: 'Date', width: 110 },
-              {
-                key: 'type',
-                header: 'Type',
-                width: 110,
-                render: (r) => (
-                  <Chip
-                    label={r.type === 'DEBIT' ? 'Debit (Out)' : 'Credit (In)'}
-                    size="small"
-                    color={r.type === 'DEBIT' ? 'error' : 'success'}
-                    variant="outlined"
-                    sx={{ fontWeight: 600 }}
-                  />
-                ),
-              },
-              {
-                key: 'partyName',
-                header: 'Payee / Donor',
-                render: (r) => <b>{r.partyName}</b>,
-              },
-              { key: 'paymentModeLabel', header: 'Payment Mode' },
-              { key: 'reference', header: 'Reference' },
-              {
-                key: 'amount',
-                header: 'Amount',
-                align: 'right',
-                render: (r) => (
-                  <Typography
-                    variant="body2"
-                    sx={{ fontWeight: 700, color: r.type === 'DEBIT' ? 'error.main' : 'success.main' }}
-                  >
-                    {r.type === 'DEBIT' ? '−' : '+'}
-                    {formatInr(r.amount)}
-                  </Typography>
-                ),
-              },
-            ]}
-            rows={accountTransactions}
-            getRowKey={(r) => r.id}
-            isLoading={transactionsQuery.isPending}
-            error={transactionsQuery.isError ? transactionsQuery.error : null}
-            onRetry={transactionsQuery.refetch}
-            onRowClick={(r) => navigate(`/new-transaction/${r.id}`)}
-            emptyTitle="No transactions on this account"
-            emptyDescription="Receipts and payments made through this bank account will appear here."
-          />
-        </CardContent>
-      </Card>
+      <BankAccountNotes bankAccountId={record.id} />
 
       <ConfirmDialog
         open={Boolean(pendingAction)}
