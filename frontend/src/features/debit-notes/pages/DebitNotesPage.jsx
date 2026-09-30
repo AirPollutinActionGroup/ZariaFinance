@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  Alert,
   Autocomplete,
   Box,
   Button,
@@ -17,39 +16,34 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../core/auth/index.js';
 import { DataTable, PageHeader, SearchField, StatusChip } from '../../../shared/components/index.js';
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate } from '../../../lib/format/date.js';
 import { downloadCsv, toCsv } from '../../../lib/export/csv.js';
 import { useFinancialYears } from '../../financial-year/hooks/useFinancialYears.js';
-import { getOutflowRows } from '../../outflow-budget/data/outflowRepository.js';
+import { useOutflowRows } from '../../outflow-budget/hooks/useOutflow.js';
 import { BOOK_TONE } from '../../donation-management/constants.js';
-import { BOOKS, PAYEE_CATEGORIES } from '../../new-transaction/data/mockNewTransaction.js';
-import { cancelDebitNote, getDebitNotes } from '../data/debitNoteRepository.js';
-import { creditTotalsByDebitNote, getCreditNotes } from '../../credit-notes/data/creditNoteRepository.js';
+import { BOOKS } from '../../donor-management/lib/donorBook.js';
+import { useDebitNotes } from '../hooks/useDebitNotes.js';
 import { MONEY_SX } from '../../credit-notes/components/NoteLayout.jsx';
-import { CancelDebitNoteDialog } from '../components/CancelDebitNoteDialog.jsx';
 import { DebitSummaryCard } from '../components/DebitSummaryCard.jsx';
 import { summarizeDebitNotes } from '../lib/summarizeDebitNotes.js';
 import { donorsOf, EMPTY_FILTERS, filterDebitNotes, hasActiveFilters } from '../lib/filterDebitNotes.js';
-import { DEBIT_NOTE_REASON, DEBIT_NOTE_STATUS, DEBIT_NOTE_STATUS_TONE, reasonLabel } from '../constants.js';
+import { DEBIT_NOTE_REASON, PAYEE_CATEGORIES, reasonLabel } from '../constants.js';
 
 const payeeCategoryLabel = (code) => PAYEE_CATEGORIES.find((c) => c.value === code)?.label || '';
 
-/** All debit notes — /debit-notes. Issued notes add to Spent on the Outflow Budget. */
+/** All debit notes — /debit-notes. Every note adds to Spent on the Outflow Budget. */
 export function DebitNotesPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [notes, setNotes] = useState(() => getDebitNotes());
-  const [lines] = useState(() => getOutflowRows());
+  const notesQuery = useDebitNotes();
+  const notes = useMemo(() => notesQuery.data || [], [notesQuery.data]);
+  const linesQuery = useOutflowRows();
+  const lines = useMemo(() => linesQuery.data || [], [linesQuery.data]);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [cancelTarget, setCancelTarget] = useState(null);
-  const [message, setMessage] = useState(null);
-  const [creditedByDebit] = useState(() => creditTotalsByDebitNote(getCreditNotes()));
 
-  // Financial year: null = not touched yet, so it follows the year marked current
-  // (as on the Payment Window); 'All' or an id once the user picks one.
+  // Financial year: null = not touched yet, so it follows the year marked
+  // current; 'All' or an id once the user picks one.
   const [fyChoice, setFyChoice] = useState(null);
   const financialYearsQuery = useFinancialYears();
   const financialYears = useMemo(() => financialYearsQuery.data || [], [financialYearsQuery.data]);
@@ -71,14 +65,7 @@ export function DebitNotesPage() {
   };
 
   // The summary follows the filters, so it always describes the rows shown below.
-  const summary = useMemo(() => summarizeDebitNotes(filtered, creditedByDebit), [filtered, creditedByDebit]);
-
-  const handleCancel = (reason) => {
-    cancelDebitNote(cancelTarget.id, { by: user?.name || 'You', note: reason });
-    setNotes(getDebitNotes());
-    setMessage(`${cancelTarget.id} cancelled — ${formatInrExact(cancelTarget.amount)} removed from Spent on ${cancelTarget.outflowLineId}.`);
-    setCancelTarget(null);
-  };
+  const summary = useMemo(() => summarizeDebitNotes(filtered), [filtered]);
 
   const handleExport = () => {
     const csv = toCsv(
@@ -87,7 +74,7 @@ export function DebitNotesPage() {
         { header: 'Date', value: (n) => n.date },
         { header: 'Book', value: (n) => n.book },
         { header: 'Outflow line', value: (n) => n.outflowLineId },
-        { header: 'Line description', value: (n) => lineById[n.outflowLineId]?.line || '' },
+        { header: 'Line description', value: (n) => lineById[n.outflowLineId]?.line || n.lineDescription || '' },
         { header: 'Reason', value: (n) => reasonLabel(n.reason) },
         { header: 'Payee category', value: (n) => payeeCategoryLabel(n.payeeCategory) },
         { header: 'Payee', value: (n) => n.payee?.name },
@@ -102,10 +89,7 @@ export function DebitNotesPage() {
         { header: 'Remarks', value: (n) => n.remarks },
         { header: 'Attachment', value: (n) => n.attachment?.name },
         { header: 'Amount (INR)', value: (n) => n.amount },
-        { header: 'Credited back (INR)', value: (n) => creditedByDebit[n.id] || 0 },
-        { header: 'Status', value: (n) => DEBIT_NOTE_STATUS[n.status] },
         { header: 'Issued by', value: (n) => n.createdBy },
-        { header: 'Cancelled by', value: (n) => n.cancelledBy || '' },
       ],
       filtered,
     );
@@ -132,7 +116,7 @@ export function DebitNotesPage() {
         <Box>
           <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12.5 }}>{n.outflowLineId}</Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-            {lineById[n.outflowLineId]?.line || 'Unknown line'}
+            {lineById[n.outflowLineId]?.line || n.lineDescription || 'Unknown line'}
           </Typography>
           {n.reason ? (
             <Typography variant="caption" sx={{ color: 'warning.main', display: 'block', fontWeight: 600 }}>
@@ -183,44 +167,10 @@ export function DebitNotesPage() {
       align: 'right',
       sortValue: (n) => n.amount,
       render: (n) => (
-        <Box>
-          <Box sx={{ ...MONEY_SX, fontWeight: 700, color: n.status === 'ISSUED' ? 'error.main' : 'text.secondary', textDecoration: n.status === 'CANCELLED' ? 'line-through' : 'none' }}>
-            {formatInrExact(n.amount)}
-          </Box>
-          {creditedByDebit[n.id] ? (
-            <Typography variant="caption" sx={{ ...MONEY_SX, color: 'success.main', display: 'block' }}>
-              − {formatInrExact(creditedByDebit[n.id])} credited
-            </Typography>
-          ) : null}
+        <Box sx={{ ...MONEY_SX, fontWeight: 700, color: 'error.main' }}>
+          {formatInrExact(n.amount)}
         </Box>
       ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      sortValue: (n) => DEBIT_NOTE_STATUS[n.status],
-      render: (n) => <StatusChip label={DEBIT_NOTE_STATUS[n.status]} tone={DEBIT_NOTE_STATUS_TONE[n.status]} />,
-    },
-    {
-      key: 'actions',
-      header: '',
-      align: 'right',
-      render: (n) =>
-        n.status === 'ISSUED' ? (
-          <Button
-            size="small"
-            color="inherit"
-            // A credited debit note can't be cancelled until its credit notes are.
-            disabled={Boolean(creditedByDebit[n.id])}
-            title={creditedByDebit[n.id] ? 'Cancel its credit notes first' : undefined}
-            onClick={(e) => {
-              e.stopPropagation(); // don't open the detail page
-              setCancelTarget(n);
-            }}
-          >
-            Cancel
-          </Button>
-        ) : null,
     },
   ];
 
@@ -230,14 +180,10 @@ export function DebitNotesPage() {
         <TableRow sx={{ '& td': { borderBottom: 'none', bgcolor: 'var(--card2)', color: 'text.primary', fontSize: 13 } }}>
           <TableCell colSpan={5} sx={{ fontWeight: 600 }}>
             Total · {filtered.length} {filtered.length === 1 ? 'note' : 'notes'}
-            <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 1 }}>
-              (issued only — cancelled notes excluded)
-            </Typography>
           </TableCell>
           <TableCell align="right" sx={{ ...MONEY_SX, fontWeight: 700, color: 'error.main' }}>
             {formatInrExact(summary.issuedTotal)}
           </TableCell>
-          <TableCell colSpan={2} />
         </TableRow>
       </TableFooter>
     ) : null;
@@ -259,12 +205,6 @@ export function DebitNotesPage() {
         }
       />
 
-      {message ? (
-        <Alert severity="success" onClose={() => setMessage(null)} sx={{ mb: 3 }}>
-          {message}
-        </Alert>
-      ) : null}
-
       <DebitSummaryCard
         summary={summary}
         period={selectedFy ? `FY ${selectedFy.code} · ${formatDate(selectedFy.startDate)} – ${formatDate(selectedFy.endDate)}` : 'All financial years'}
@@ -284,7 +224,7 @@ export function DebitNotesPage() {
               options={lines}
               value={filters.lineId ? lineById[filters.lineId] || null : null}
               onChange={(_, line) => setFilter('lineId')(line?.id || null)}
-              getOptionLabel={(l) => `${l.id} — ${l.line}`}
+              getOptionLabel={(l) => `${l.budgetCode} · ${l.lineCode} · Q${l.quarter} — ${l.line}`}
               isOptionEqualToValue={(a, b) => a.id === b.id}
               renderInput={(params) => <TextField {...params} placeholder="All outflow lines" />}
             />
@@ -312,14 +252,6 @@ export function DebitNotesPage() {
             <TextField select fullWidth size="small" value={filters.reason} onChange={(e) => setFilter('reason')(e.target.value)}>
               <MenuItem value="All">All Reasons</MenuItem>
               {Object.entries(DEBIT_NOTE_REASON).map(([code, label]) => (
-                <MenuItem key={code} value={code}>{label}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-            <TextField select fullWidth size="small" value={filters.status} onChange={(e) => setFilter('status')(e.target.value)}>
-              <MenuItem value="All">All Statuses</MenuItem>
-              {Object.entries(DEBIT_NOTE_STATUS).map(([code, label]) => (
                 <MenuItem key={code} value={code}>{label}</MenuItem>
               ))}
             </TextField>
@@ -386,6 +318,9 @@ export function DebitNotesPage() {
         columns={columns}
         rows={filtered}
         getRowKey={(n) => n.id}
+        isLoading={notesQuery.isPending}
+        error={notesQuery.isError ? notesQuery.error : null}
+        onRetry={notesQuery.refetch}
         defaultSort={{ key: 'id', direction: 'desc' }}
         footer={footer}
         onRowClick={(n) => navigate(`/debit-notes/${n.id}`)}
@@ -398,8 +333,6 @@ export function DebitNotesPage() {
               : 'Try another financial year, widening the date range, or clearing filters.'
         }
       />
-
-      <CancelDebitNoteDialog key={cancelTarget?.id ?? 'none'} note={cancelTarget} onClose={() => setCancelTarget(null)} onConfirm={handleCancel} />
     </Box>
   );
 }

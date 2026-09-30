@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Box, Button, Card, GlobalStyles, Grid, Stack, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, GlobalStyles, Grid, Stack, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
@@ -10,24 +10,22 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../core/auth/index.js';
-import { ErrorState, PageHeader, StatusChip } from '../../../shared/components/index.js';
+import { ErrorState, LoadingState, PageHeader, StatusChip } from '../../../shared/components/index.js';
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate, formatDateTime } from '../../../lib/format/date.js';
 import { BOOK, BOOK_TONE } from '../../donation-management/constants.js';
-import { PAYEE_CATEGORIES } from '../../new-transaction/data/mockNewTransaction.js';
-import { useTransactions } from '../../new-transaction/hooks/useTransactions.js';
 import { useFundProfile } from '../../donor-management/hooks/useFundProfiles.js';
 import { useGrantByFundProfileId } from '../../donor-management/hooks/useGrants.js';
 import { useInflowBudgetLines } from '../../inflow-budget/hooks/useInflowBudget.js';
-import { getOutflowRowById } from '../../outflow-budget/data/outflowRepository.js';
-import { rowCredits, rowDebits, rowRemaining, rowSpent } from '../../outflow-budget/lib/spent.js';
-import { FUNDING_SOURCE_TONE, FUNDING_SOURCE_TYPE } from '../../outflow-budget/constants.js';
-import { creditTotalsByLine, getCreditNotes } from '../../credit-notes/data/creditNoteRepository.js';
+import { useOutflowRow } from '../../outflow-budget/hooks/useOutflow.js';
+import { rowDebits, rowRemaining, rowSpent } from '../../outflow-budget/lib/spent.js';
+import { BUDGET_TYPE, BUDGET_TYPE_TONE } from '../../budget/constants.js';
+import { useCreditNotes } from '../../credit-notes/hooks/useCreditNotes.js';
 import { Fact, Figure, MONEY_SX, Panel, TermRow } from '../../credit-notes/components/NoteLayout.jsx';
-import { cancelDebitNote, debitTotalsByLine, getDebitNoteById, getDebitNotes } from '../data/debitNoteRepository.js';
+import { useDebitNote, useDebitNotes } from '../hooks/useDebitNotes.js';
+import { debitTotalsByLine } from '../lib/debitTotals.js';
 import { computeGrantBalance } from '../lib/grantBalance.js';
-import { CancelDebitNoteDialog } from '../components/CancelDebitNoteDialog.jsx';
-import { DEBIT_NOTE_STATUS, DEBIT_NOTE_STATUS_TONE, reasonLabel } from '../constants.js';
+import { PAYEE_CATEGORIES, reasonLabel } from '../constants.js';
 
 const payeeCategoryLabel = (code) => PAYEE_CATEGORIES.find((c) => c.value === code)?.label || '';
 const signedInr = (v) => (v < 0 ? `−${formatInrExact(-v)}` : formatInrExact(v));
@@ -43,7 +41,7 @@ const PRINT_STYLES = {
 };
 
 /** Headline: the amount, the line it was charged to, and the key facts at a glance. */
-function SummaryBanner({ note, line, creditedBack, isCancelled }) {
+function SummaryBanner({ note, line }) {
   return (
     <Card
       variant="outlined"
@@ -51,12 +49,12 @@ function SummaryBanner({ note, line, creditedBack, isCancelled }) {
         mb: 3,
         borderRadius: 3,
         overflow: 'hidden',
-        borderColor: isCancelled ? 'divider' : 'error.main',
+        borderColor: 'error.main',
         borderLeftWidth: 4,
       }}
     >
       <Stack direction={{ xs: 'column', md: 'row' }} divider={<Box sx={{ borderLeft: { md: '1px solid' }, borderTop: { xs: '1px solid', md: 'none' }, borderColor: 'divider' }} />}>
-        <Box sx={{ p: { xs: 2.5, sm: 3 }, minWidth: { md: 300 }, bgcolor: isCancelled ? 'transparent' : 'var(--err-bg)' }}>
+        <Box sx={{ p: { xs: 2.5, sm: 3 }, minWidth: { md: 300 }, bgcolor: 'var(--err-bg)' }}>
           <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10.5 }}>
             Amount paid out
           </Typography>
@@ -67,17 +65,11 @@ function SummaryBanner({ note, line, creditedBack, isCancelled }) {
               fontWeight: 800,
               lineHeight: 1.15,
               mt: 0.5,
-              color: isCancelled ? 'text.secondary' : 'error.main',
-              textDecoration: isCancelled ? 'line-through' : 'none',
+              color: 'error.main',
             }}
           >
             {formatInrExact(note.amount)}
           </Typography>
-          {creditedBack ? (
-            <Typography variant="body2" sx={{ ...MONEY_SX, color: 'success.main', mt: 0.25 }}>
-              − {formatInrExact(creditedBack)} credited back · net {formatInrExact(note.amount - creditedBack)}
-            </Typography>
-          ) : null}
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
             Charged to <b>{note.outflowLineId}</b>
             {line ? ` — ${line.line}` : ''}
@@ -108,16 +100,15 @@ function SummaryBanner({ note, line, creditedBack, isCancelled }) {
 }
 
 /** Where the outflow line stands now, with this note's share of Spent called out. */
-function BudgetImpact({ line, debitTotals, creditTotals, note, isCancelled }) {
+function BudgetImpact({ line, debitTotals, note }) {
   const budget = Number(line.expectedAmount) || 0;
-  const spent = rowSpent(line, debitTotals, creditTotals);
-  const remaining = rowRemaining(line, debitTotals, creditTotals);
-  const thisNote = isCancelled ? 0 : note.amount;
+  const spent = rowSpent(line, debitTotals);
+  const remaining = rowRemaining(line, debitTotals);
+  const thisNote = note.amount;
   const others = Math.max(spent - thisNote, 0);
   const scale = Math.max(budget, spent, 1);
   const pct = (v) => `${Math.max(0, (v / scale) * 100)}%`;
   const over = remaining < 0;
-  const credits = rowCredits(line, creditTotals);
   return (
     <Box
       sx={{
@@ -145,18 +136,17 @@ function BudgetImpact({ line, debitTotals, creditTotals, note, isCancelled }) {
         {[
           line.actualAmount != null ? `Payment ${formatInrExact(line.actualAmount)}` : 'Not yet paid',
           `debit notes ${formatInrExact(rowDebits(line, debitTotals))}`,
-          credits ? `credit notes − ${formatInrExact(credits)}` : null,
         ]
           .filter(Boolean)
           .join(' · ')}
-        {isCancelled ? ' — this note is cancelled and not counted.' : over ? ' — the line is over budget.' : ''}
+        {over ? ' — the line is over budget.' : ''}
       </Typography>
     </Box>
   );
 }
 
 /** Where the donor fund stands now, with this note's charge called out. */
-function FundBalancePanel({ balance, loading, note, isCancelled }) {
+function FundBalancePanel({ balance, loading, note }) {
   if (loading) {
     return <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>Loading fund balance…</Typography>;
   }
@@ -177,7 +167,7 @@ function FundBalancePanel({ balance, loading, note, isCancelled }) {
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1.75 }}>
         <Figure label="Received" value={formatInrExact(balance.received)} color="success.main" />
         <Figure label="Debited" value={balance.debited ? `− ${formatInrExact(balance.debited)}` : formatInrExact(0)} color={balance.debited ? 'error.main' : undefined} />
-        <Figure label="Credited back" value={balance.credited ? `+ ${formatInrExact(balance.credited)}` : formatInrExact(0)} color={balance.credited ? 'success.main' : undefined} />
+        <Figure label="Received via credit notes" value={formatInrExact(balance.credited)} color={balance.credited ? 'success.main' : undefined} />
         <Figure label="Balance available" strong value={signedInr(balance.available)} color={balance.available < 0 ? 'error.main' : 'text.primary'} />
       </Box>
       {balance.received > 0 ? (
@@ -186,9 +176,7 @@ function FundBalancePanel({ balance, loading, note, isCancelled }) {
         </Box>
       ) : null}
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-        {isCancelled
-          ? 'This note is cancelled and not counted in the balance.'
-          : `Includes this note's ${formatInrExact(note.amount)} debit.`}
+        {`Includes this note's ${formatInrExact(note.amount)} debit.`}
       </Typography>
     </Box>
   );
@@ -196,23 +184,11 @@ function FundBalancePanel({ balance, loading, note, isCancelled }) {
 
 const DOT_COLOR = { error: 'error.main', success: 'success.main', neutral: 'text.disabled' };
 
-/** Issued / credited / cancelled events as a vertical timeline, newest first. */
-function Timeline({ note, noteCredits, isCancelled, onOpenCredit }) {
+/** The note's history as a vertical timeline. */
+function Timeline({ note }) {
   const events = [
     { key: 'issued', label: 'Issued', tone: 'error', by: note.createdBy, at: note.createdAt, detail: `${formatInrExact(note.amount)} added to Spent` },
-    ...noteCredits.map((c) => ({
-      key: c.id,
-      label: c.status === 'CANCELLED' ? 'Credit cancelled' : 'Credited',
-      tone: c.status === 'CANCELLED' ? 'neutral' : 'success',
-      by: c.createdBy,
-      at: c.createdAt,
-      creditId: c.id,
-      detail: `− ${formatInrExact(c.amount)}`,
-    })),
-    ...(isCancelled
-      ? [{ key: 'cancelled', label: 'Cancelled', tone: 'neutral', by: note.cancelledBy, at: note.cancelledAt, detail: note.cancelNote }]
-      : []),
-  ].sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+  ];
 
   return (
     <Box sx={{ mt: 1.5 }}>
@@ -228,21 +204,7 @@ function Timeline({ note, noteCredits, isCancelled, onOpenCredit }) {
               <Typography variant="caption" color="text.secondary">{formatDateTime(e.at)}</Typography>
             </Stack>
             <Typography variant="body2" sx={{ mt: 0.5 }}>
-              {e.creditId ? (
-                <>
-                  <Box
-                    component="button"
-                    type="button"
-                    onClick={() => onOpenCredit(e.creditId)}
-                    sx={{ all: 'unset', cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
-                  >
-                    {e.creditId}
-                  </Box>{' '}
-                  · {e.by || '—'}
-                </>
-              ) : (
-                e.by || '—'
-              )}
+              {e.by || '—'}
               {e.detail ? <Box component="span" sx={{ color: 'text.secondary', ...MONEY_SX }}> · {e.detail}</Box> : null}
             </Typography>
           </Box>
@@ -272,14 +234,13 @@ function PrintableNote({ note, line, organisation }) {
           <Box sx={{ fontSize: 20, fontWeight: 700, letterSpacing: 2 }}>DEBIT NOTE</Box>
           <Box sx={{ fontSize: 12 }}>No. {note.id}</Box>
           <Box sx={{ fontSize: 12 }}>Date {formatDate(note.date)}</Box>
-          {note.status === 'CANCELLED' ? <Box sx={{ fontSize: 14, fontWeight: 700, mt: 0.5 }}>CANCELLED</Box> : null}
         </Box>
       </Box>
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
         <tbody>
           {row('Book', note.book || line?.book)}
-          {row('Budget line', `${note.outflowLineId} — ${line?.line || '—'}`)}
-          {row('Funding source', line ? `${FUNDING_SOURCE_TYPE[line.fundingSource]}${line.donor ? ` · ${line.donor}` : ''}` : '')}
+          {row('Budget line', `${note.outflowLineId} — ${line?.line || note.lineDescription || '—'}`)}
+          {row('Budget', line ? `${line.budgetName} · ${line.scope}` : '')}
           {row('Reason', reasonLabel(note.reason) || '— (within budget)')}
           {row('Payee', note.payee ? `${note.payee.name}${note.payeeCategory ? ` (${payeeCategoryLabel(note.payeeCategory)})` : ''}` : '')}
           {row('Payment mode', note.paymentMode?.name)}
@@ -309,8 +270,11 @@ export function DebitNoteDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [note, setNote] = useState(() => getDebitNoteById(id));
-  const [cancelOpen, setCancelOpen] = useState(false);
+  const noteQuery = useDebitNote(id);
+  const note = noteQuery.data || null;
+  const lineQuery = useOutflowRow(note?.outflowLineId);
+  const debitNotesQuery = useDebitNotes();
+  const creditNotesQuery = useCreditNotes();
   // Set by the create page so a freshly issued note gets a confirmation banner.
   const location = useLocation();
   const [justIssued, setJustIssued] = useState(Boolean(location.state?.justIssued));
@@ -320,7 +284,6 @@ export function DebitNoteDetailPage() {
   const fundProfileQuery = useFundProfile(fundProfileId);
   const grantQuery = useGrantByFundProfileId(fundProfileId);
   const inflowLinesQuery = useInflowBudgetLines();
-  const transactionsQuery = useTransactions();
   const inflowLinesById = useMemo(() => {
     const map = new Map();
     (inflowLinesQuery.data || []).forEach((l) => map.set(Number(l.id), l));
@@ -333,26 +296,20 @@ export function DebitNoteDetailPage() {
     </Button>
   );
 
-  if (!note) {
+  if (noteQuery.isPending) return <LoadingState label="Loading debit note…" />;
+  if (noteQuery.isError) {
     return (
       <>
         {back}
-        <ErrorState error={{ message: `No debit note found for "${id}".` }} />
+        <ErrorState error={noteQuery.error} onRetry={noteQuery.refetch} />
       </>
     );
   }
 
-  // Read fresh on every render so a cancel here is reflected in the figures.
-  const line = getOutflowRowById(note.outflowLineId);
-  const allDebits = getDebitNotes();
-  const allCredits = getCreditNotes();
+  const line = lineQuery.data || null;
+  const allDebits = debitNotesQuery.data || [];
+  const allCredits = creditNotesQuery.data || [];
   const debitTotals = debitTotalsByLine(allDebits);
-  const creditTotals = creditTotalsByLine(allCredits);
-  const noteCredits = allCredits.filter((c) => c.debitNoteId === note.id);
-  const creditedBack = noteCredits.filter((c) => c.status === 'ISSUED').reduce((s, c) => s + c.amount, 0);
-  const isCancelled = note.status === 'CANCELLED';
-  // Cancelling a debit note that's been credited would leave its credits reversing nothing.
-  const cancelBlocked = creditedBack > 0;
 
   const fundBalance = fundProfileQuery.data
     ? computeGrantBalance({
@@ -361,15 +318,9 @@ export function DebitNoteDetailPage() {
         inflowLinesById,
         notes: allDebits,
         credits: allCredits,
-        transactions: transactionsQuery.data || [],
       })
     : null;
-  const balanceLoading = fundProfileId != null && (fundProfileQuery.isLoading || inflowLinesQuery.isLoading || transactionsQuery.isLoading);
-
-  const handleCancel = (reason) => {
-    setNote(cancelDebitNote(note.id, { by: user?.name || 'You', note: reason }));
-    setCancelOpen(false);
-  };
+  const balanceLoading = fundProfileId != null && (fundProfileQuery.isLoading || inflowLinesQuery.isLoading);
 
   return (
     <Box sx={{ maxWidth: 1400 }}>
@@ -382,38 +333,21 @@ export function DebitNoteDetailPage() {
         subtitle={`Recorded by ${note.createdBy || '—'} on ${formatDate(note.createdAt)}`}
         actions={
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <StatusChip label={DEBIT_NOTE_STATUS[note.status]} tone={DEBIT_NOTE_STATUS_TONE[note.status]} />
             <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={() => window.print()}>
               Print
             </Button>
-            {!isCancelled ? (
-              <Tooltip title={cancelBlocked ? 'Cancel its credit notes first' : ''}>
-                <span>
-                  <Button variant="outlined" color="error" disabled={cancelBlocked} onClick={() => setCancelOpen(true)}>
-                    Cancel note
-                  </Button>
-                </span>
-              </Tooltip>
-            ) : null}
           </Stack>
         }
       />
 
-      {justIssued && !isCancelled ? (
+      {justIssued ? (
         <Alert severity="success" onClose={() => setJustIssued(false)} sx={{ mb: 3 }}>
           {note.id} issued — {formatInrExact(note.amount)} added to Spent on {note.outflowLineId}
           {note.fundProfile ? ` and charged to ${note.fundProfile.name}` : ''}.
         </Alert>
       ) : null}
 
-      {isCancelled ? (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          Cancelled by {note.cancelledBy || '—'} on {formatDateTime(note.cancelledAt)}
-          {note.cancelNote ? ` — ${note.cancelNote}` : ''}. This note no longer counts towards Spent.
-        </Alert>
-      ) : null}
-
-      <SummaryBanner note={note} line={line} creditedBack={creditedBack} isCancelled={isCancelled} />
+      <SummaryBanner note={note} line={line} />
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 7 }}>
@@ -433,17 +367,20 @@ export function DebitNoteDetailPage() {
               <>
                 <TermRow label="Line">
                   <Typography variant="body1">
-                    <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>{line.id}</Box> — {line.line}
+                    <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
+                      {line.budgetCode} · {line.lineCode} · Q{line.quarter}
+                    </Box>{' '}
+                    — {line.line}
                   </Typography>
                 </TermRow>
-                <TermRow label="Funding source">
+                <TermRow label="Budget">
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <StatusChip label={FUNDING_SOURCE_TYPE[line.fundingSource]} tone={FUNDING_SOURCE_TONE[line.fundingSource]} />
-                    {line.donor ? <Typography variant="body2" color="text.secondary">{line.donor}</Typography> : null}
+                    <StatusChip label={BUDGET_TYPE[line.budgetType]} tone={BUDGET_TYPE_TONE[line.budgetType]} />
+                    <Typography variant="body2">{line.budgetName} · {line.scope}</Typography>
                   </Stack>
                 </TermRow>
                 <TermRow label="Over-budget reason" last>{reasonLabel(note.reason) || '— (within budget)'}</TermRow>
-                <BudgetImpact line={line} debitTotals={debitTotals} creditTotals={creditTotals} note={note} isCancelled={isCancelled} />
+                <BudgetImpact line={line} debitTotals={debitTotals} note={note} />
               </>
             ) : (
               <Box sx={{ py: 2, textAlign: 'center' }}>
@@ -481,13 +418,12 @@ export function DebitNoteDetailPage() {
                 <TermRow label="Donor">{note.donor?.name || '—'}</TermRow>
                 <TermRow label="Fund profile">{note.fundProfile?.name || '—'}</TermRow>
                 <TermRow label="Grant agreement" last>{note.grant?.name || '—'}</TermRow>
-                {note.fundProfile ? <FundBalancePanel balance={fundBalance} loading={balanceLoading} note={note} isCancelled={isCancelled} /> : null}
+                {note.fundProfile ? <FundBalancePanel balance={fundBalance} loading={balanceLoading} note={note} /> : null}
               </>
             ) : (
               <Box sx={{ py: 2, textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">
-                  Not charged to a donor fund
-                  {line && line.fundingSource !== 'RESTRICTED' ? ` (${FUNDING_SOURCE_TYPE[line.fundingSource].toLowerCase()} line)` : ''}.
+                  Not charged to a donor fund.
                 </Typography>
               </Box>
             )}
@@ -523,19 +459,12 @@ export function DebitNoteDetailPage() {
 
         <Grid size={12}>
           <Panel tone="error" icon={HistoryOutlinedIcon} title="History">
-            <Timeline note={note} noteCredits={noteCredits} isCancelled={isCancelled} onOpenCredit={(cid) => navigate(`/credit-notes/${cid}`)} />
+            <Timeline note={note} />
           </Panel>
         </Grid>
       </Grid>
 
       <PrintableNote note={note} line={line} organisation={user?.organisationName} />
-
-      <CancelDebitNoteDialog
-        key={cancelOpen ? note.id : 'closed'}
-        note={cancelOpen ? note : null}
-        onClose={() => setCancelOpen(false)}
-        onConfirm={handleCancel}
-      />
     </Box>
   );
 }

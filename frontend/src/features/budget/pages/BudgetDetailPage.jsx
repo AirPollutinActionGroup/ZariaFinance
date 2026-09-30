@@ -3,13 +3,12 @@ import { Alert, Box, Button, Card, CardContent, Grid, Stack, TextField, Typograp
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../core/auth/index.js';
-import { ConfirmDialog, DataTable, ErrorState, PageHeader, StatusChip } from '../../../shared/components/index.js';
+import { ConfirmDialog, DataTable, ErrorState, LoadingState, PageHeader, StatusChip } from '../../../shared/components/index.js';
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate, formatDateTime } from '../../../lib/format/date.js';
 import { BOOK, BOOK_TONE } from '../../donation-management/constants.js';
-import { EDITABLE_STATUSES, deleteBudget, getBudgetById, transitionBudget } from '../data/budgetRepository.js';
+import { useBudget, useBudgetTransition, useDeleteBudget } from '../hooks/useBudgets.js';
 import { budgetTotal, lineTotal, quarterTotals, totalsBy } from '../lib/budgetMath.js';
-import { getBudgetCategoryName } from '../data/budgetCategoryRepository.js';
 import {
   BUDGET_STATUS,
   BUDGET_STATUS_TONE,
@@ -20,13 +19,13 @@ import {
 
 const MONEY_SX = { fontVariantNumeric: 'tabular-nums' };
 
-/** What each action does, keyed by action id. `to: null` means delete. */
+/** Confirm-dialog copy per action; the key is also the API action (submit | withdraw | approve | reject), or delete. */
 const ACTIONS = {
-  submit: { to: 'SUBMITTED', title: 'Submit for approval?', confirm: 'Submit', color: 'primary', description: 'The budget is locked for editing while it awaits approval.' },
-  withdraw: { to: 'DRAFT', title: 'Withdraw submission?', confirm: 'Withdraw', color: 'inherit', description: 'The budget returns to Draft so it can be edited again.' },
-  approve: { to: 'APPROVED', title: 'Approve budget?', confirm: 'Approve', color: 'success', description: 'Approved budgets are final and feed the outflow schedule.' },
-  reject: { to: 'REJECTED', title: 'Return for revision?', confirm: 'Reject', color: 'error', description: 'The owner can revise and resubmit it.', noteRequired: true },
-  delete: { to: null, title: 'Delete draft budget?', confirm: 'Delete', color: 'error', description: 'This cannot be undone.' },
+  submit: { title: 'Submit for approval?', confirm: 'Submit', color: 'primary', description: 'The budget is locked for editing while it awaits approval.' },
+  withdraw: { title: 'Withdraw submission?', confirm: 'Withdraw', color: 'inherit', description: 'The budget returns to Draft so it can be edited again.' },
+  approve: { title: 'Approve budget?', confirm: 'Approve', color: 'success', description: 'Approved budgets are final and feed the outflow schedule.' },
+  reject: { title: 'Return for revision?', confirm: 'Reject', color: 'error', description: 'The owner can revise and resubmit it.', noteRequired: true },
+  delete: { title: 'Delete draft budget?', confirm: 'Delete', color: 'error', description: 'This cannot be undone.' },
 };
 
 function SectionCard({ title, children }) {
@@ -71,7 +70,10 @@ export function BudgetDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [budget, setBudget] = useState(() => getBudgetById(id));
+  const budgetQuery = useBudget(id);
+  const budget = budgetQuery.data;
+  const transition = useBudgetTransition();
+  const removeBudget = useDeleteBudget();
   const [pendingAction, setPendingAction] = useState(null);
   const [note, setNote] = useState('');
   const [actionError, setActionError] = useState(null);
@@ -83,11 +85,12 @@ export function BudgetDetailPage() {
     </Button>
   );
 
-  if (!budget) {
+  if (budgetQuery.isPending) return <LoadingState label="Loading budget…" />;
+  if (budgetQuery.isError) {
     return (
       <>
         {back}
-        <ErrorState error={{ message: `No budget found for "${id}".` }} />
+        <ErrorState error={budgetQuery.error} onRetry={budgetQuery.refetch} />
       </>
     );
   }
@@ -96,7 +99,11 @@ export function BudgetDetailPage() {
   const qTotals = quarterTotals(budget.lines);
   const maxQuarter = Math.max(1, ...Object.values(qTotals));
   const action = pendingAction ? ACTIONS[pendingAction] : null;
-  const isEditable = EDITABLE_STATUSES.includes(budget.status);
+  const isEditable = budget.status === 'DRAFT' || budget.status === 'REJECTED';
+  const busy = transition.isPending || removeBudget.isPending;
+  // Lines carry their category name from the server; used for the "By category" labels too.
+  const categoryName = (categoryId) =>
+    budget.lines.find((l) => String(l.category) === String(categoryId))?.categoryName || `Category #${categoryId}`;
 
   const openAction = (key) => {
     setNote('');
@@ -104,29 +111,34 @@ export function BudgetDetailPage() {
     setPendingAction(key);
   };
 
-  const confirmAction = () => {
+  const confirmAction = async () => {
+    setActionError(null);
     try {
-      if (action.to === null) {
-        deleteBudget(budget.id);
+      if (pendingAction === 'delete') {
+        await removeBudget.mutateAsync(budget.id);
         navigate(listUrl);
         return;
       }
-      setBudget(transitionBudget(budget.id, action.to, { by: user?.name || 'You', note: note.trim() }));
+      await transition.mutateAsync({ id: budget.id, action: pendingAction, note: note.trim(), actor: user?.name || 'You' });
       setPendingAction(null);
     } catch (err) {
-      setActionError(err.message);
+      setActionError(err.message || 'Could not update the budget.');
     }
   };
 
   const columns = [
-    { key: 'id', header: 'Line', render: (l) => <Box sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12.5 }}>{l.id}</Box> },
+    {
+      key: 'lineCode',
+      header: 'Line',
+      render: (l) => <Box sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12.5 }}>{l.lineCode}</Box>,
+    },
     {
       key: 'description',
       header: 'Description',
       render: (l) => (
         <Box>
           <Typography variant="body2">{l.description}</Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>{getBudgetCategoryName(l.category)}</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>{categoryName(l.category)}</Typography>
         </Box>
       ),
     },
@@ -145,7 +157,7 @@ export function BudgetDetailPage() {
       {back}
 
       <PageHeader
-        eyebrow={`${budget.id} · FY ${budget.financialYear} · ${BUDGET_TYPE[budgetTypeOf(budget)]}`}
+        eyebrow={`${budget.budgetCode} · FY ${budget.financialYear} · ${BUDGET_TYPE[budgetTypeOf(budget)]}`}
         title={budget.name}
         subtitle={`${budget.programme} · ${budget.stateName || 'All states'}${budget.owner ? ` · Owner: ${budget.owner}` : ''}`}
         actions={
@@ -205,7 +217,7 @@ export function BudgetDetailPage() {
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <SectionCard title="By category">
-            <BreakdownBars rows={totalsBy(budget.lines, 'category')} total={total} labelOf={getBudgetCategoryName} />
+            <BreakdownBars rows={totalsBy(budget.lines, 'category')} total={total} labelOf={categoryName} />
           </SectionCard>
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
@@ -260,6 +272,7 @@ export function BudgetDetailPage() {
         description={action?.description}
         confirmLabel={action?.confirm}
         confirmColor={action?.color}
+        busy={busy}
         onClose={() => setPendingAction(null)}
         onConfirm={() => {
           if (action?.noteRequired && !note.trim()) {
@@ -269,7 +282,7 @@ export function BudgetDetailPage() {
           confirmAction();
         }}
       >
-        {action && action.to !== null ? (
+        {action && pendingAction !== 'delete' ? (
           <TextField
             fullWidth
             multiline

@@ -123,7 +123,7 @@ export function CreditSummaryCard({ summary, period, filtered = false, totalCoun
     <Card sx={{ mb: 3.5, overflow: 'hidden' }}>
       <PeriodBar
         period={period}
-        shown={s.issuedCount + s.cancelledCount}
+        shown={s.issuedCount}
         totalCount={totalCount}
         filtered={filtered}
         onClearFilters={onClearFilters}
@@ -135,7 +135,7 @@ export function CreditSummaryCard({ summary, period, filtered = false, totalCoun
             <Box sx={{ height: '100%', width: `${fundPct}%`, bgcolor: 'success.main', borderRadius: 3, transition: 'width .3s ease' }} />
           </Box>
           <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{plural(s.issuedCount, 'issued note')}</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{plural(s.issuedCount, 'note')}</Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>{fundPct}% to funds</Typography>
           </Stack>
         </Tile>
@@ -153,16 +153,11 @@ export function CreditSummaryCard({ summary, period, filtered = false, totalCoun
           ) : null}
         </Tile>
 
-        <Tile accent="text.secondary" label="By disbursement" value={plural(s.toFundCount, 'note')}>
+        <Tile accent="text.secondary" label="By disbursement" value={plural(s.toFundCount, 'note')} last>
           <SplitRow color="info.main" label="Tranches" amount={s.byDisbursement.Tranches.amount} count={s.byDisbursement.Tranches.count} />
           <SplitRow color="text.secondary" label="Lump Sum" amount={s.byDisbursement['Lump Sum'].amount} count={s.byDisbursement['Lump Sum'].count} />
         </Tile>
 
-        <Tile accent="text.disabled" label="Cancelled" value={s.cancelledCount} valueColor="text.secondary" last>
-          <Caption>
-            {s.cancelledCount ? `${formatInrExact(s.cancelledTotal)} kept on record, not counted` : 'None cancelled'}
-          </Caption>
-        </Tile>
       </Stack>
 
       <BookSplit byBook={s.byBook} total={s.issuedTotal} />

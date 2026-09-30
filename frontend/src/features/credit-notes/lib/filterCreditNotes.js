@@ -1,4 +1,4 @@
-export const EMPTY_FILTERS = Object.freeze({ query: '', status: 'All', book: 'All', donor: null, from: '', to: '' });
+export const EMPTY_FILTERS = Object.freeze({ query: '', book: 'All', donor: null, from: '', to: '' });
 
 /** Distinct donors on the given notes, as { id, name }, sorted by name — options for the Donor filter. */
 export function donorsOf(notes) {
@@ -22,7 +22,6 @@ export function filterCreditNotes(notes, filters) {
   const fy = filters.fy;
   return notes.filter((n) => {
     if (fy && (n.date < fy.startDate || n.date > fy.endDate)) return false;
-    if (filters.status !== 'All' && n.status !== filters.status) return false;
     if (filters.book !== 'All' && n.book !== filters.book) return false;
     if (filters.donor && donorKey(n.donor) !== donorKey(filters.donor)) return false;
     if (filters.from && n.date < filters.from) return false;
@@ -38,8 +37,6 @@ export function filterCreditNotes(notes, filters) {
       n.bankAccount?.name,
       n.reference,
       n.remarks,
-      n.outflowLineId,
-      n.debitNoteId,
     ].some((text) => (text || '').toLowerCase().includes(q));
   });
 }

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { EMPTY_FILTERS, filterDebitNotes, hasActiveFilters } from './filterDebitNotes.js';
 
 const notes = [
-  { id: 'DN-1', outflowLineId: 'BL-01', date: '2026-05-01', reason: 'FX_DIFFERENCE', status: 'ISSUED', reference: 'SBI', remarks: '' },
-  { id: 'DN-2', outflowLineId: 'BL-02', date: '2026-06-15', reason: 'OTHER', status: 'CANCELLED', reference: '', remarks: 'Rent' },
-  { id: 'DN-3', outflowLineId: 'BL-01', date: '2026-06-30', reason: 'OTHER', status: 'ISSUED', reference: '', remarks: '' },
+  { id: 'DN-1', outflowLineId: 'BL-01', date: '2026-05-01', reason: 'FX_DIFFERENCE', reference: 'SBI', remarks: '' },
+  { id: 'DN-2', outflowLineId: 'BL-02', date: '2026-06-15', reason: 'OTHER', reference: '', remarks: 'Rent' },
+  { id: 'DN-3', outflowLineId: 'BL-01', date: '2026-06-30', reason: 'OTHER', reference: '', remarks: '' },
 ];
 const lineById = { 'BL-01': { line: 'Salaries' }, 'BL-02': { line: 'Office rent' } };
 const ids = (list) => list.map((n) => n.id);
@@ -15,8 +15,8 @@ describe('filterDebitNotes', () => {
     expect(hasActiveFilters(EMPTY_FILTERS)).toBe(false);
   });
 
-  it('filters by status, reason, line and inclusive date range', () => {
-    expect(ids(filterDebitNotes(notes, { ...EMPTY_FILTERS, status: 'ISSUED' }))).toEqual(['DN-1', 'DN-3']);
+  it('filters by reason, line and inclusive date range', () => {
+    expect(ids(filterDebitNotes(notes, { ...EMPTY_FILTERS, reason: 'OTHER' }))).toEqual(['DN-2', 'DN-3']);
     expect(ids(filterDebitNotes(notes, { ...EMPTY_FILTERS, reason: 'OTHER', lineId: 'BL-01' }))).toEqual(['DN-3']);
     expect(ids(filterDebitNotes(notes, { ...EMPTY_FILTERS, from: '2026-06-15', to: '2026-06-30' }))).toEqual(['DN-2', 'DN-3']);
     expect(hasActiveFilters({ ...EMPTY_FILTERS, from: '2026-06-15' })).toBe(true);

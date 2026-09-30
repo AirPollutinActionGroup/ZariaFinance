@@ -15,76 +15,79 @@ import {
   Typography,
 } from '@mui/material';
 import { ConfirmDialog, DataTable, SearchField } from '../../../shared/components/index.js';
-import { MASTER_STATUS_LABEL } from '../constants.js';
-import { useBudgetCategories } from '../../budget/hooks/useBudgetCategories.js';
 import {
-  createBudgetCategory,
-  setBudgetCategoryStatus,
-  updateBudgetCategory,
-} from '../../budget/data/budgetCategoryRepository.js';
-import { getBudgets } from '../../budget/data/budgetRepository.js';
+  useBudgetCategories,
+  useBudgetCategoryLifecycle,
+  useCreateBudgetCategory,
+  useUpdateBudgetCategory,
+} from '../hooks/useBudgetCategories.js';
+import { useBudgetCategoryUsage } from '../../budget/hooks/useBudgets.js';
 
 const EMPTY_FORM = { name: '', description: '', status: 'ACTIVE' };
 
 /**
- * Master Configuration → Budget Category. Same layout as the Department /
- * Designation / Donor Type tabs. `createOpen` / `onCreateClose` are driven by
- * the page header's "Add Budget Category" button.
+ * Master Configuration → Budget Category (server-backed, /api/v1/budget-categories).
+ * Same layout as the Department / Designation / Donor Type tabs.
+ * `createOpen` / `onCreateClose` are driven by the page header's
+ * "Add Budget Category" button.
  */
 export function BudgetCategoryTab({ createOpen, onCreateClose }) {
-  const categories = useBudgetCategories();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [editing, setEditing] = useState(null); // category being edited
   const [form, setForm] = useState(EMPTY_FORM);
-  const [formError, setFormError] = useState(null);
   const [toToggle, setToToggle] = useState(null);
+
+  const categoriesQuery = useBudgetCategories(search);
+  const createCategory = useCreateBudgetCategory();
+  const updateCategory = useUpdateBudgetCategory();
+  const lifecycle = useBudgetCategoryLifecycle();
+  const saving = createCategory.isPending || updateCategory.isPending;
+  const saveError = createCategory.error || updateCategory.error;
 
   const dialogOpen = createOpen || Boolean(editing);
 
-  // How many budget lines use each category — helps decide before deactivating.
-  const usage = useMemo(() => {
-    const counts = {};
-    for (const budget of getBudgets()) {
-      for (const line of budget.lines) counts[line.category] = (counts[line.category] || 0) + 1;
-    }
-    return counts;
-  }, []);
+  // How many budget lines use each category (server: { [categoryId]: count }) — helps decide before deactivating.
+  const usageQuery = useBudgetCategoryUsage();
+  const usage = usageQuery.data || {};
 
   const rows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return categories
-      .filter((c) => statusFilter === 'All' || c.status === statusFilter)
-      .filter((c) => !q || c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q))
-      .map((c, index) => ({ ...c, srNo: index + 1, statusLabel: MASTER_STATUS_LABEL[c.status] }));
-  }, [categories, search, statusFilter]);
+    const list = categoriesQuery.data || [];
+    const filtered = statusFilter === 'All' ? list : list.filter((c) => c.status === statusFilter);
+    return filtered.map((c, index) => ({ ...c, srNo: index + 1 }));
+  }, [categoriesQuery.data, statusFilter]);
 
   const openEdit = (category) => {
+    createCategory.reset();
+    updateCategory.reset();
     setForm({ name: category.name, description: category.description || '', status: category.status });
-    setFormError(null);
     setEditing(category);
   };
 
   const closeDialog = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
-    setFormError(null);
+    createCategory.reset();
+    updateCategory.reset();
     onCreateClose();
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
+    if (!form.name.trim()) return;
     try {
-      if (editing) updateBudgetCategory(editing.id, form);
-      else createBudgetCategory(form);
+      if (editing) await updateCategory.mutateAsync({ id: editing.id, values: form });
+      else await createCategory.mutateAsync(form);
       closeDialog();
-    } catch (err) {
-      setFormError(err.message);
+    } catch {
+      // Shown in the dialog via saveError.
     }
   };
 
-  const handleConfirmToggle = () => {
-    setBudgetCategoryStatus(toToggle.id, toToggle.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE');
+  const handleConfirmToggle = async () => {
+    if (!toToggle) return;
+    const action = toToggle.status === 'ACTIVE' ? 'deactivate' : 'activate';
+    await lifecycle.mutateAsync({ id: toToggle.id, action });
     setToToggle(null);
   };
 
@@ -102,10 +105,7 @@ export function BudgetCategoryTab({ createOpen, onCreateClose }) {
       width: '22%',
       align: 'center',
       render: (r) => (
-        <Box>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>{r.name}</Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>{r.id}</Typography>
-        </Box>
+        <Typography variant="body2" sx={{ fontWeight: 700 }}>{r.name}</Typography>
       ),
     },
     {
@@ -169,7 +169,7 @@ export function BudgetCategoryTab({ createOpen, onCreateClose }) {
     <Box>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
         <Box sx={{ maxWidth: 380, flex: 1, minWidth: 240 }}>
-          <SearchField value={search} onChange={setSearch} placeholder="Search category name or code…" />
+          <SearchField value={search} onChange={setSearch} placeholder="Search category name…" />
         </Box>
         <Select size="small" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 140, borderRadius: 2 }}>
           <MenuItem value="All">All Statuses</MenuItem>
@@ -182,11 +182,14 @@ export function BudgetCategoryTab({ createOpen, onCreateClose }) {
         columns={columns}
         rows={rows}
         getRowKey={(r) => r.id}
+        isLoading={categoriesQuery.isPending}
+        error={categoriesQuery.isError ? categoriesQuery.error : null}
+        onRetry={categoriesQuery.refetch}
         emptyTitle="No budget categories found"
         emptyDescription="Budget categories are the heads each budget line is booked against."
       />
 
-      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="xs" fullWidth>
+      <Dialog open={dialogOpen} onClose={saving ? undefined : closeDialog} maxWidth="xs" fullWidth>
         <form onSubmit={handleSave}>
           <DialogTitle sx={{ fontWeight: 700 }}>{editing ? 'Edit Budget Category' : 'Add New Budget Category'}</DialogTitle>
           <DialogContent>
@@ -213,7 +216,7 @@ export function BudgetCategoryTab({ createOpen, onCreateClose }) {
               />
               {editing ? (
                 <Typography variant="caption" color="text.secondary">
-                  Code <Box component="span" sx={{ fontFamily: 'monospace' }}>{editing.id}</Box> stays the same, so existing budget lines keep this category.
+                  Existing budget lines keep this category when it is renamed.
                 </Typography>
               ) : (
                 <TextField
@@ -229,13 +232,13 @@ export function BudgetCategoryTab({ createOpen, onCreateClose }) {
                   <MenuItem value="INACTIVE">Inactive</MenuItem>
                 </TextField>
               )}
-              {formError ? <Alert severity="error">{formError}</Alert> : null}
+              {saveError ? <Alert severity="error">{saveError.message || 'Could not save the category.'}</Alert> : null}
             </Stack>
           </DialogContent>
           <DialogActions sx={{ p: 2.5, pt: 1 }}>
-            <Button onClick={closeDialog}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={!form.name.trim()}>
-              {editing ? 'Save Changes' : 'Save Category'}
+            <Button onClick={closeDialog} disabled={saving}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={!form.name.trim() || saving}>
+              {saving ? 'Saving…' : editing ? 'Save Changes' : 'Save Category'}
             </Button>
           </DialogActions>
         </form>
@@ -257,6 +260,7 @@ export function BudgetCategoryTab({ createOpen, onCreateClose }) {
         }
         confirmLabel="Confirm"
         confirmColor={toToggle?.status === 'ACTIVE' ? 'warning' : 'primary'}
+        busy={lifecycle.isPending}
         onConfirm={handleConfirmToggle}
         onClose={() => setToToggle(null)}
       />

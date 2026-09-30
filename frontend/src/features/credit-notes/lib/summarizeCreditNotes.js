@@ -2,8 +2,8 @@ const bucket = () => ({ amount: 0, count: 0 });
 const keyOf = (ref) => (ref ? String(ref.id ?? ref.name) : null);
 
 /**
- * Figures for the Credit Notes summary strip. Only issued notes count towards
- * the money figures; cancelled ones are reported separately.
+ * Figures for the Credit Notes summary strip. Every note counts (there is no
+ * cancel workflow).
  *   byDisbursement: 'Lump Sum' | 'Tranches' | 'None' (not returned to a fund)
  *   byBook:         'LC' | 'FC'
  */
@@ -17,18 +17,11 @@ export function summarizeCreditNotes(notes) {
     donorCount: 0,
     byDisbursement: { 'Lump Sum': bucket(), Tranches: bucket(), None: bucket() },
     byBook: { LC: bucket(), FC: bucket() },
-    cancelledTotal: 0,
-    cancelledCount: 0,
   };
   const funds = new Set();
   const donors = new Set();
 
   for (const n of notes) {
-    if (n.status !== 'ISSUED') {
-      summary.cancelledTotal += n.amount;
-      summary.cancelledCount += 1;
-      continue;
-    }
     summary.issuedTotal += n.amount;
     summary.issuedCount += 1;
 

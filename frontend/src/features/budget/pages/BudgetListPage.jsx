@@ -18,8 +18,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DataTable, PageHeader, SearchField, StatCard, StatusChip } from '../../../shared/components/index.js';
 import { formatInr, formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate } from '../../../lib/format/date.js';
-import { getBudgets } from '../data/budgetRepository.js';
-import { budgetTotal } from '../lib/budgetMath.js';
+import { useBudgetFinancialYears, useBudgets } from '../hooks/useBudgets.js';
 import { isFinancialYearLabel } from '../lib/financialYear.js';
 import {
   BUDGET_STATUS,
@@ -27,7 +26,6 @@ import {
   BUDGET_TYPE,
   BUDGET_TYPE_TONE,
   CURRENT_FINANCIAL_YEAR,
-  FINANCIAL_YEARS,
   budgetTypeOf,
 } from '../constants.js';
 
@@ -40,7 +38,8 @@ const pct = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
 /** All budgets — /budgets. */
 export function BudgetListPage() {
   const navigate = useNavigate();
-  const [budgets] = useState(() => getBudgets().map((b) => ({ ...b, total: budgetTotal(b.lines) })));
+  const budgetsQuery = useBudgets();
+  const budgets = useMemo(() => budgetsQuery.data || [], [budgetsQuery.data]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
@@ -48,9 +47,13 @@ export function BudgetListPage() {
   // The FY lives in the URL (?fy=2026-27 | ?fy=All) so Back from a budget returns to the same year.
   const [searchParams, setSearchParams] = useSearchParams();
   const fyParam = searchParams.get('fy');
-  const fy = fyParam === 'All' || isFinancialYearLabel(fyParam) ? fyParam : CURRENT_FINANCIAL_YEAR;
+  // Years from the Financial Year master; the default is the year running today (master status ACTIVE).
+  const fyMaster = useBudgetFinancialYears();
+  const defaultFy = fyMaster.activeLabel || CURRENT_FINANCIAL_YEAR;
+  const fy = fyParam === 'All' || isFinancialYearLabel(fyParam) ? fyParam : defaultFy;
   const setFy = (value) => setSearchParams({ fy: value }, { replace: true });
-  const fyOptions = [...new Set([...FINANCIAL_YEARS, ...budgets.map((b) => b.financialYear)])].sort();
+  // Every master year (closed ones too, to look back), plus any year a budget uses.
+  const fyOptions = [...new Set([...fyMaster.options.map((o) => o.label), ...budgets.map((b) => b.financialYear)])].sort();
 
   const fyBudgets = useMemo(() => budgets.filter((b) => fy === 'All' || b.financialYear === fy), [budgets, fy]);
 
@@ -58,7 +61,7 @@ export function BudgetListPage() {
     const q = searchQuery.trim().toLowerCase();
     return fyBudgets.filter((b) => {
       const matchesSearch =
-        !q || [b.id, b.name, b.programme, b.stateName].some((text) => (text || '').toLowerCase().includes(q));
+        !q || [b.budgetCode, b.name, b.programme, b.stateName].some((text) => (text || '').toLowerCase().includes(q));
       const matchesStatus = statusFilter === 'All' || b.status === statusFilter;
       const matchesType = typeFilter === 'All' || budgetTypeOf(b) === typeFilter;
       return matchesSearch && matchesStatus && matchesType;
@@ -104,7 +107,7 @@ export function BudgetListPage() {
         <Box sx={{ minWidth: 200 }}>
           <Typography variant="body2" sx={{ fontWeight: 700 }}>{b.name}</Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>
-            {b.id}{fy === 'All' ? ` · FY ${b.financialYear}` : ''}
+            {b.budgetCode}{fy === 'All' ? ` · FY ${b.financialYear}` : ''}
           </Typography>
         </Box>
       ),
@@ -135,7 +138,7 @@ export function BudgetListPage() {
         <Box>
           <Typography variant="body2" sx={{ ...MONEY_SX, fontWeight: 700 }}>{formatInrExact(b.total)}</Typography>
           <Typography variant="caption" color="text.secondary">
-            {b.lines.length} {b.lines.length === 1 ? 'line' : 'lines'}
+            {b.lineCount} {b.lineCount === 1 ? 'line' : 'lines'}
           </Typography>
         </Box>
       ),
@@ -186,7 +189,7 @@ export function BudgetListPage() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => navigate(`/budgets/new?fy=${fy === 'All' ? CURRENT_FINANCIAL_YEAR : fy}`)}
+            onClick={() => navigate(`/budgets/new?fy=${fy === 'All' ? defaultFy : fy}`)}
           >
             New budget
           </Button>
@@ -243,7 +246,7 @@ export function BudgetListPage() {
             <Select value={fy} onChange={(e) => setFy(e.target.value)} inputProps={{ 'aria-label': 'Financial year' }}>
               {fyOptions.map((option) => (
                 <MenuItem key={option} value={option}>
-                  FY {option}{option === CURRENT_FINANCIAL_YEAR ? ' (current)' : ''}
+                  FY {option}{option === fyMaster.activeLabel ? ' (current)' : ''}
                 </MenuItem>
               ))}
               <MenuItem value="All">All FYs</MenuItem>
@@ -285,6 +288,9 @@ export function BudgetListPage() {
         columns={columns}
         rows={filtered}
         getRowKey={(b) => b.id}
+        isLoading={budgetsQuery.isPending}
+        error={budgetsQuery.isError ? budgetsQuery.error : null}
+        onRetry={budgetsQuery.refetch}
         defaultSort={{ key: 'updatedAt', direction: 'desc' }}
         footer={footer}
         emptyTitle={filtersActive ? 'No budgets match these filters' : `No budgets in ${fyLabel} yet`}

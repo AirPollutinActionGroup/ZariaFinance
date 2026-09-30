@@ -1,278 +1,310 @@
-import { useMemo, useState } from 'react';
-import { Box, Button, Card, CardContent, Grid, Stack, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableFooter,
+  TableHead,
+  TableRow,
+  Typography,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ErrorState, PageHeader, StatusChip } from '../../../shared/components/index.js';
+import { ErrorState, LoadingState, PageHeader, StatusChip } from '../../../shared/components/index.js';
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate } from '../../../lib/format/date.js';
 import { BOOK_TONE } from '../../donation-management/constants.js';
-import { getOutflowRowById } from '../data/outflowRepository.js';
-import { rowCredits, rowDebits, rowSpent } from '../lib/spent.js';
-import { debitTotalsByLine, getDebitNotes } from '../../debit-notes/data/debitNoteRepository.js';
-import { DEBIT_NOTE_STATUS, DEBIT_NOTE_STATUS_TONE, reasonLabel } from '../../debit-notes/constants.js';
-import { creditTotalsByLine, getCreditNotes } from '../../credit-notes/data/creditNoteRepository.js';
-import {
-  CREDIT_NOTE_STATUS,
-  CREDIT_NOTE_STATUS_TONE,
-  reasonLabel as creditReasonLabel,
-} from '../../credit-notes/constants.js';
-import { getRowStatus } from '../lib/status.js';
-import { AS_AT_DATE, FUNDING_SOURCE_TONE, FUNDING_SOURCE_TYPE, PAYMENT_STATUS, PAYMENT_STATUS_TONE } from '../constants.js';
+import { BUDGET_TYPE, BUDGET_TYPE_TONE } from '../../budget/constants.js';
+import { useOutflowRow } from '../hooks/useOutflow.js';
+import { useDebitNotes } from '../../debit-notes/hooks/useDebitNotes.js';
+import { reasonLabel } from '../../debit-notes/constants.js';
+import { PAYMENT_STATUS, PAYMENT_STATUS_TONE } from '../constants.js';
 
-/** Label/value row in the "register" style used across donor & grant detail pages. */
-function TermRow({ label, children, last = false }) {
-  return (
-    <Stack
-      direction="row"
-      spacing={2}
-      sx={{ py: 1.75, alignItems: 'center', borderBottom: last ? 'none' : '1px solid', borderColor: 'divider' }}
-    >
-      <Typography
-        variant="caption"
-        sx={{ width: { xs: 140, sm: 190 }, flexShrink: 0, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.secondary' }}
-      >
-        {label}
-      </Typography>
-      <Box sx={{ minWidth: 0 }}>
-        {typeof children === 'string' || typeof children === 'number' ? (
-          <Typography variant="body1">{children}</Typography>
-        ) : (
-          children
-        )}
-      </Box>
-    </Stack>
-  );
-}
+const MONEY_SX = { fontVariantNumeric: 'tabular-nums' };
 
-function SectionCard({ title, children }) {
+function SectionCard({ title, action, children }) {
   return (
-    <Card sx={{ height: '100%' }}>
+    <Card sx={{ mb: 3 }}>
       <CardContent sx={{ p: 3 }}>
-        <Typography variant="h4" component="h2" sx={{ mb: 1.5 }}>
-          {title}
-        </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+          <Typography variant="h4" component="h2">
+            {title}
+          </Typography>
+          {action}
+        </Stack>
         {children}
       </CardContent>
     </Card>
   );
 }
 
-/** Single budget line / vendor payment view — /outflow-budget/:id. */
+/** Small uppercase label over a value — the budget line facts grid. */
+function Fact({ label, children }) {
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography
+        variant="caption"
+        component="p"
+        sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.secondary', mb: 0.5 }}
+      >
+        {label}
+      </Typography>
+      {typeof children === 'string' || typeof children === 'number' ? (
+        <Typography variant="body1">{children}</Typography>
+      ) : (
+        children
+      )}
+    </Box>
+  );
+}
+
+/** Budgeted / Spent / Remaining across the page, with a spend meter that marks the budget line when overspent. */
+function SpendingSummary({ row, noteCount }) {
+  const budget = Number(row.expectedAmount) || 0;
+  const spent = Number(row.spent) || 0;
+  const over = row.remaining < 0;
+  const scale = Math.max(budget, spent, 1);
+  const pctOf = (v) => `${Math.min(100, Math.max(0, (v / scale) * 100))}%`;
+  const usedPct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+
+  const tiles = [
+    { label: 'Budgeted', value: formatInrExact(budget), sub: `${row.quarterLabel} · due by ${formatDate(row.expectedDate)}`, accent: 'text.secondary' },
+    {
+      label: 'Spent',
+      value: spent ? formatInrExact(spent) : '—',
+      sub: noteCount ? `${noteCount} debit ${noteCount === 1 ? 'note' : 'notes'}` : 'no debit notes yet',
+      accent: 'error.main',
+      color: spent ? 'error.main' : 'text.secondary',
+    },
+    {
+      label: over ? 'Over budget' : 'Remaining',
+      value: formatInrExact(Math.abs(row.remaining)),
+      sub: over ? 'spent more than budgeted' : row.remaining === 0 ? 'fully spent' : 'still available on this line',
+      accent: over ? 'error.main' : 'success.main',
+      color: over ? 'error.main' : 'success.main',
+    },
+  ];
+
+  return (
+    <Card sx={{ mb: 3, overflow: 'hidden' }}>
+      <Stack direction={{ xs: 'column', md: 'row' }}>
+        {tiles.map((t, i) => (
+          <Box
+            key={t.label}
+            sx={{
+              position: 'relative',
+              flex: 1,
+              p: 2.5,
+              pl: 3,
+              borderRight: { md: i < tiles.length - 1 ? '1px solid' : 'none' },
+              borderBottom: { xs: i < tiles.length - 1 ? '1px solid' : 'none', md: 'none' },
+              borderColor: 'divider',
+            }}
+          >
+            <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, bgcolor: t.accent }} />
+            <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.09em', color: 'text.secondary', fontWeight: 600 }}>
+              {t.label}
+            </Typography>
+            <Typography sx={{ ...MONEY_SX, fontSize: 26, fontWeight: 700, color: t.color }}>{t.value}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {t.sub}
+            </Typography>
+          </Box>
+        ))}
+      </Stack>
+      <Box sx={{ px: 3, py: 1.5, borderTop: '1px solid', borderColor: 'divider', bgcolor: over ? 'var(--warn-bg)' : 'var(--card2)' }}>
+        <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
+          <Typography variant="caption" color={over ? 'warning.main' : 'text.secondary'}>
+            {over ? 'Over budget' : 'Used'}
+          </Typography>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: over ? 'error.main' : 'text.primary' }}>
+            {usedPct}% of budget
+          </Typography>
+        </Stack>
+        <Box sx={{ position: 'relative', height: 6, borderRadius: 3, bgcolor: 'var(--line2)', overflow: 'hidden' }}>
+          <Box sx={{ height: '100%', width: pctOf(spent), bgcolor: 'error.main', borderRadius: 3, transition: 'width .3s ease' }} />
+          {over ? <Box sx={{ position: 'absolute', top: 0, bottom: 0, left: pctOf(budget), width: 2, bgcolor: 'text.primary' }} /> : null}
+        </Box>
+      </Box>
+    </Card>
+  );
+}
+
+/** The debit notes raised against this row. */
+function DebitNotesTable({ notes, navigate }) {
+  if (!notes.length) {
+    return (
+      <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
+        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+          Nothing spent yet
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          Raise a Debit Note when money goes out against this line — it adds to Spent here.
+        </Typography>
+      </Box>
+    );
+  }
+
+  const total = notes.reduce((sum, n) => sum + (Number(n.amount) || 0), 0);
+  return (
+    <TableContainer sx={{ overflowX: 'auto' }}>
+      <Table size="small" sx={{ '& th': { color: 'text.secondary', fontWeight: 600, whiteSpace: 'nowrap' } }}>
+        <TableHead>
+          <TableRow>
+            <TableCell>Debit note</TableCell>
+            <TableCell>Date</TableCell>
+            <TableCell>Paid to</TableCell>
+            <TableCell>Payment</TableCell>
+            <TableCell>Budget</TableCell>
+            <TableCell align="right">Amount</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {notes.map((n) => (
+            <TableRow key={n.id} hover onClick={() => navigate(`/debit-notes/${n.id}`)} sx={{ cursor: 'pointer' }}>
+              <TableCell sx={{ fontFamily: 'monospace', fontWeight: 700, color: 'primary.main' }}>{n.id}</TableCell>
+              <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(n.date)}</TableCell>
+              <TableCell>
+                {n.payee?.name || '—'}
+                {n.remarks ? (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                    {n.remarks}
+                  </Typography>
+                ) : null}
+              </TableCell>
+              <TableCell sx={{ color: 'text.secondary' }}>{[n.paymentMode?.name, n.reference].filter(Boolean).join(' · ') || '—'}</TableCell>
+              <TableCell>
+                {n.reason ? <StatusChip label={`Over · ${reasonLabel(n.reason)}`} tone="warning" /> : <StatusChip label="Within budget" tone="neutral" />}
+              </TableCell>
+              <TableCell align="right" sx={{ ...MONEY_SX, fontWeight: 700, color: 'error.main' }}>
+                {formatInrExact(n.amount)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+        <TableFooter>
+          <TableRow sx={{ '& td': { borderBottom: 'none', bgcolor: 'var(--card2)', color: 'text.primary', fontSize: 13 } }}>
+            <TableCell colSpan={5} sx={{ fontWeight: 600 }}>
+              Total spent · {notes.length} {notes.length === 1 ? 'note' : 'notes'}
+            </TableCell>
+            <TableCell align="right" sx={{ ...MONEY_SX, fontWeight: 700, color: 'error.main' }}>
+              {formatInrExact(total)}
+            </TableCell>
+          </TableRow>
+        </TableFooter>
+      </Table>
+    </TableContainer>
+  );
+}
+
+/** One outflow row (a budget line's quarter) — /outflow-budget/:id, e.g. BUD-2026-001-BL01-Q2. */
 export function OutflowDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [row] = useState(() => getOutflowRowById(id));
-  const [allNotes] = useState(() => getDebitNotes());
-  const [allCredits] = useState(() => getCreditNotes());
+  const rowQuery = useOutflowRow(id);
+  const debitNotesQuery = useDebitNotes();
+  const row = rowQuery.data;
 
-  const asAt = useMemo(() => new Date(AS_AT_DATE), []);
-  const status = row ? getRowStatus(row, asAt) : null;
+  const back = (
+    <Button startIcon={<ArrowBackIcon />} size="small" sx={{ mb: 2, color: 'text.secondary' }} onClick={() => navigate('/outflow-budget')}>
+      Outflow Budget
+    </Button>
+  );
 
-  if (!row) {
+  if (rowQuery.isPending) return <LoadingState label="Loading outflow row…" />;
+  if (rowQuery.isError) {
     return (
       <>
-        <Button startIcon={<ArrowBackIcon />} size="small" sx={{ mb: 2, color: 'text.secondary' }} onClick={() => navigate('/outflow-budget')}>
-          Outflow Budget
-        </Button>
-        <ErrorState error={{ message: `No budget line found for "${id}".` }} />
+        {back}
+        <ErrorState error={rowQuery.error} onRetry={rowQuery.refetch} />
       </>
     );
   }
 
-  const isPaid = status === PAYMENT_STATUS.PAID;
-  const isForeign = row.book === 'FC';
-  const debitTotals = debitTotalsByLine(allNotes);
-  const debits = rowDebits(row, debitTotals);
-  const lineNotes = allNotes.filter((n) => n.outflowLineId === row.id);
-  const creditTotals = creditTotalsByLine(allCredits);
-  const credits = rowCredits(row, creditTotals);
-  const lineCredits = allCredits.filter((n) => n.outflowLineId === row.id);
-  const spent = rowSpent(row, debitTotals, creditTotals);
+  const lineNotes = (debitNotesQuery.data || [])
+    .filter((n) => n.outflowLineId === row.id)
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  const status = row.status;
 
   return (
     <>
-      <Button startIcon={<ArrowBackIcon />} size="small" sx={{ mb: 2, color: 'text.secondary' }} onClick={() => navigate('/outflow-budget')}>
-        Outflow Budget
-      </Button>
+      {back}
 
       <PageHeader
-        title={row.id}
-        subtitle={row.line}
-        actions={<StatusChip label={status} tone={PAYMENT_STATUS_TONE[status]} />}
+        eyebrow={`${row.budgetCode} · ${row.lineCode} · ${row.quarterLabel}`}
+        title={row.line}
+        subtitle={`${row.budgetName} · ${row.scope}`}
+        actions={<StatusChip label={PAYMENT_STATUS[status] || status} tone={PAYMENT_STATUS_TONE[status]} />}
       />
 
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <SectionCard title="Budget line">
-            <TermRow label="Line">{row.line}</TermRow>
-            <TermRow label="Funding source">
-              <StatusChip label={FUNDING_SOURCE_TYPE[row.fundingSource]} tone={FUNDING_SOURCE_TONE[row.fundingSource]} />
-            </TermRow>
-            {row.donor ? <TermRow label="Donor / grant">{row.donor}</TermRow> : null}
-            <TermRow label="Book">
-              <StatusChip label={row.book} tone={BOOK_TONE[row.book]} />
-            </TermRow>
-            <TermRow label="Expected date">{formatDate(row.expectedDate)}</TermRow>
-            <TermRow label="Budgeted amount">{formatInrExact(row.expectedAmount)}</TermRow>
-            <TermRow label="Expected FX rate" last={!isForeign}>
-              {isForeign ? row.expectedFx ?? '—' : 'N/A (LC)'}
-            </TermRow>
-          </SectionCard>
-        </Grid>
+      <SpendingSummary row={row} noteCount={lineNotes.length} />
 
-        <Grid size={{ xs: 12, md: 6 }}>
-          <SectionCard title="Payment">
-            {isPaid ? (
-              <>
-                <TermRow label="Payment date">{formatDate(row.actualDate)}</TermRow>
-                <TermRow label="Amount paid">
-                  <Typography variant="body1" sx={{ fontWeight: 700, color: 'error.main' }}>
-                    {formatInrExact(row.actualAmount)}
-                  </Typography>
-                </TermRow>
-                {isForeign ? <TermRow label="Actual FX rate">{row.actualFx ?? '—'}</TermRow> : null}
-                <TermRow label="Payment ref / UTR">{row.paymentRef || '—'}</TermRow>
-                <TermRow label="Payment voucher no.">{row.voucherNo || '—'}</TermRow>
-                <TermRow label="Variance reason" last>
-                  {row.varianceReason || '— (matched budgeted amount)'}
-                </TermRow>
-              </>
-            ) : (
-              <Box sx={{ py: 1.5 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Not yet paid. Payment date, amount and reference will appear here once the payment is made.
-                </Typography>
-              </Box>
-            )}
-          </SectionCard>
-        </Grid>
+      <SectionCard
+        title="Debit notes"
+        action={
+          <Stack direction="row" spacing={1}>
+            <Button size="small" onClick={() => navigate('/debit-notes')}>
+              Go to Debit Notes
+            </Button>
+            <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => navigate(`/debit-notes/new?line=${row.id}`)}>
+              Add debit note
+            </Button>
+          </Stack>
+        }
+      >
+        {debitNotesQuery.isPending ? (
+          <Typography variant="body2" color="text.secondary">
+            Loading debit notes…
+          </Typography>
+        ) : debitNotesQuery.isError ? (
+          <ErrorState error={debitNotesQuery.error} onRetry={debitNotesQuery.refetch} />
+        ) : (
+          <DebitNotesTable notes={lineNotes} navigate={navigate} />
+        )}
+      </SectionCard>
 
-        <Grid size={{ xs: 12 }}>
-          <SectionCard title="Debit notes">
-            {lineNotes.length ? (
-              <>
-                {lineNotes.map((n) => (
-                  <Stack
-                    key={n.id}
-                    direction="row"
-                    spacing={2}
-                    alignItems="center"
-                    role="link"
-                    tabIndex={0}
-                    onClick={() => navigate(`/debit-notes/${n.id}`)}
-                    onKeyDown={(e) => e.key === 'Enter' && navigate(`/debit-notes/${n.id}`)}
-                    sx={{
-                      py: 1.25,
-                      px: 1,
-                      mx: -1,
-                      cursor: 'pointer',
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      opacity: n.status === 'CANCELLED' ? 0.6 : 1,
-                      '&:hover': { bgcolor: 'action.hover' },
-                    }}
-                  >
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 700, width: 110, flexShrink: 0 }}>{n.id}</Typography>
-                    <Typography variant="body2" sx={{ width: 110, flexShrink: 0 }}>{formatDate(n.date)}</Typography>
-                    <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }}>
-                      {[reasonLabel(n.reason), n.payee?.name].filter(Boolean).join(' · ') || 'Debit note'}{n.remarks ? ` — ${n.remarks}` : ''}
-                    </Typography>
-                    <StatusChip label={DEBIT_NOTE_STATUS[n.status]} tone={DEBIT_NOTE_STATUS_TONE[n.status]} />
-                    <Typography
-                      variant="body2"
-                      sx={{ fontWeight: 700, width: 120, textAlign: 'right', fontVariantNumeric: 'tabular-nums', textDecoration: n.status === 'CANCELLED' ? 'line-through' : 'none' }}
-                    >
-                      {formatInrExact(n.amount)}
-                    </Typography>
-                  </Stack>
-                ))}
-              </>
-            ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-                No debit notes against this line.
-              </Typography>
-            )}
-            <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
-              <Button size="small" variant="outlined" onClick={() => navigate(`/debit-notes/new?line=${row.id}`)}>
-                Add debit note
-              </Button>
-              <Button size="small" onClick={() => navigate('/debit-notes')}>
-                Go to Debit Notes
-              </Button>
+      <SectionCard
+        title="Budget line"
+        action={
+          <Button size="small" onClick={() => navigate(`/budgets/${row.budgetId}`)}>
+            Open budget
+          </Button>
+        }
+      >
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' },
+            gap: 3,
+          }}
+        >
+          <Box sx={{ gridColumn: 'span 2' }}>
+            <Fact label="Budget">{`${row.budgetCode} — ${row.budgetName}`}</Fact>
+          </Box>
+          <Box sx={{ gridColumn: 'span 2' }}>
+            <Fact label="Line">{`${row.lineCode} — ${row.line}`}</Fact>
+          </Box>
+          <Fact label="Category">{row.categoryName || '—'}</Fact>
+          <Fact label="Scope">
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+              <StatusChip label={BUDGET_TYPE[row.budgetType]} tone={BUDGET_TYPE_TONE[row.budgetType]} />
+              <Typography variant="body1">{row.scope}</Typography>
             </Stack>
-          </SectionCard>
-        </Grid>
-
-        <Grid size={{ xs: 12 }}>
-          <SectionCard title="Credit notes">
-            {lineCredits.length ? (
-              lineCredits.map((n) => (
-                <Stack
-                  key={n.id}
-                  direction="row"
-                  spacing={2}
-                  alignItems="center"
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => navigate(`/credit-notes/${n.id}`)}
-                  onKeyDown={(e) => e.key === 'Enter' && navigate(`/credit-notes/${n.id}`)}
-                  sx={{
-                    py: 1.25,
-                    px: 1,
-                    mx: -1,
-                    cursor: 'pointer',
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                    opacity: n.status === 'CANCELLED' ? 0.6 : 1,
-                    '&:hover': { bgcolor: 'action.hover' },
-                  }}
-                >
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 700, width: 110, flexShrink: 0 }}>{n.id}</Typography>
-                  <Typography variant="body2" sx={{ width: 110, flexShrink: 0 }}>{formatDate(n.date)}</Typography>
-                  <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }}>
-                    {[creditReasonLabel(n.reason), n.debitNoteId ? `reverses ${n.debitNoteId}` : '', n.payee?.name].filter(Boolean).join(' · ')}
-                    {n.remarks ? ` — ${n.remarks}` : ''}
-                  </Typography>
-                  <StatusChip label={CREDIT_NOTE_STATUS[n.status]} tone={CREDIT_NOTE_STATUS_TONE[n.status]} />
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 700,
-                      width: 120,
-                      textAlign: 'right',
-                      fontVariantNumeric: 'tabular-nums',
-                      color: n.status === 'CANCELLED' ? 'text.secondary' : 'success.main',
-                      textDecoration: n.status === 'CANCELLED' ? 'line-through' : 'none',
-                    }}
-                  >
-                    − {formatInrExact(n.amount)}
-                  </Typography>
-                </Stack>
-              ))
-            ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-                No credit notes against this line.
-              </Typography>
-            )}
-            {lineNotes.length || lineCredits.length ? (
-              <Stack direction="row" justifyContent="space-between" sx={{ pt: 1.75 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Total spent = payment {formatInrExact(row.actualAmount || 0)} + debit notes {formatInrExact(debits)} − credit notes{' '}
-                  {formatInrExact(credits)}
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 700, color: 'error.main', fontVariantNumeric: 'tabular-nums' }}>
-                  {formatInrExact(spent)}
-                </Typography>
-              </Stack>
-            ) : null}
-            <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
-              <Button size="small" onClick={() => navigate('/credit-notes')}>
-                Go to Credit Notes
-              </Button>
-            </Stack>
-          </SectionCard>
-        </Grid>
-      </Grid>
+          </Fact>
+          <Fact label="State">{row.stateName || 'All states'}</Fact>
+          <Fact label="Book">
+            <StatusChip label={row.book} tone={BOOK_TONE[row.book]} />
+          </Fact>
+          <Fact label="Quarter">{`${row.quarterLabel} · FY ${row.financialYear}`}</Fact>
+          <Fact label="Due by">{formatDate(row.expectedDate)}</Fact>
+        </Box>
+      </SectionCard>
     </>
   );
 }

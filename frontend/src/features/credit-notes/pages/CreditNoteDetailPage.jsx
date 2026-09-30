@@ -7,27 +7,21 @@ import VolunteerActivismOutlinedIcon from '@mui/icons-material/VolunteerActivism
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
-import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../core/auth/index.js';
-import { ErrorState, PageHeader, StatusChip } from '../../../shared/components/index.js';
+import { ErrorState, LoadingState, PageHeader, StatusChip } from '../../../shared/components/index.js';
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate, formatDateTime } from '../../../lib/format/date.js';
 import { BOOK, BOOK_TONE } from '../../donation-management/constants.js';
-import { PAYEE_CATEGORIES } from '../../new-transaction/data/mockNewTransaction.js';
-import { useTransactions } from '../../new-transaction/hooks/useTransactions.js';
 import { useFundProfile } from '../../donor-management/hooks/useFundProfiles.js';
 import { useGrantByFundProfileId } from '../../donor-management/hooks/useGrants.js';
 import { useInflowBudgetLines } from '../../inflow-budget/hooks/useInflowBudget.js';
-import { getOutflowRowById } from '../../outflow-budget/data/outflowRepository.js';
-import { getDebitNoteById, getDebitNotes } from '../../debit-notes/data/debitNoteRepository.js';
+import { useDebitNotes } from '../../debit-notes/hooks/useDebitNotes.js';
 import { computeGrantBalance } from '../../debit-notes/lib/grantBalance.js';
-import { cancelCreditNote, getCreditNoteById, getCreditNotes } from '../data/creditNoteRepository.js';
-import { CancelCreditNoteDialog } from '../components/CancelCreditNoteDialog.jsx';
+import { useCreditNote, useCreditNotes } from '../hooks/useCreditNotes.js';
 import { Fact, Figure, MONEY_SX, Panel, TermRow } from '../components/NoteLayout.jsx';
-import { CREDIT_NOTE_STATUS, CREDIT_NOTE_STATUS_TONE, reasonLabel } from '../constants.js';
+import { BankAccountDetails } from '../components/BankAccountDetails.jsx';
 
-const payeeCategoryLabel = (code) => PAYEE_CATEGORIES.find((c) => c.value === code)?.label || '';
 const signedInr = (v) => (v < 0 ? `−${formatInrExact(-v)}` : formatInrExact(v));
 const disbursementTone = (type) => (type === 'Tranches' ? 'info' : 'neutral');
 
@@ -42,7 +36,7 @@ const PRINT_STYLES = {
 };
 
 /** Headline: the amount, where it went, and the key facts at a glance. */
-function SummaryBanner({ note, isCancelled }) {
+function SummaryBanner({ note }) {
   return (
     <Card
       variant="outlined"
@@ -50,12 +44,12 @@ function SummaryBanner({ note, isCancelled }) {
         mb: 3,
         borderRadius: 3,
         overflow: 'hidden',
-        borderColor: isCancelled ? 'divider' : 'success.main',
+        borderColor: 'success.main',
         borderLeftWidth: 4,
       }}
     >
       <Stack direction={{ xs: 'column', md: 'row' }} divider={<Box sx={{ borderLeft: { md: '1px solid' }, borderTop: { xs: '1px solid', md: 'none' }, borderColor: 'divider' }} />}>
-        <Box sx={{ p: { xs: 2.5, sm: 3 }, minWidth: { md: 300 }, bgcolor: isCancelled ? 'transparent' : 'var(--ok-bg)' }}>
+        <Box sx={{ p: { xs: 2.5, sm: 3 }, minWidth: { md: 300 }, bgcolor: 'var(--ok-bg)' }}>
           <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10.5 }}>
             Amount received
           </Typography>
@@ -66,8 +60,7 @@ function SummaryBanner({ note, isCancelled }) {
               fontWeight: 800,
               lineHeight: 1.15,
               mt: 0.5,
-              color: isCancelled ? 'text.secondary' : 'success.main',
-              textDecoration: isCancelled ? 'line-through' : 'none',
+              color: 'success.main',
             }}
           >
             {formatInrExact(note.amount)}
@@ -119,7 +112,7 @@ function SummaryBanner({ note, isCancelled }) {
 }
 
 /** Where the fund stands now, with this note's share called out. */
-function FundBalancePanel({ balance, loading, note, isCancelled }) {
+function FundBalancePanel({ balance, loading, note }) {
   if (loading) {
     return <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>Loading fund balance…</Typography>;
   }
@@ -140,7 +133,7 @@ function FundBalancePanel({ balance, loading, note, isCancelled }) {
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1.75 }}>
         <Figure label="Received" value={formatInrExact(balance.received)} color="success.main" />
         <Figure label="Debited" value={balance.debited ? `− ${formatInrExact(balance.debited)}` : formatInrExact(0)} color={balance.debited ? 'error.main' : undefined} />
-        <Figure label="Credited back" value={balance.credited ? `+ ${formatInrExact(balance.credited)}` : formatInrExact(0)} color={balance.credited ? 'success.main' : undefined} />
+        <Figure label="Received via credit notes" value={formatInrExact(balance.credited)} color={balance.credited ? 'success.main' : undefined} />
         <Figure label="Balance available" strong value={signedInr(balance.available)} color={balance.available < 0 ? 'error.main' : 'text.primary'} />
       </Box>
       {balance.received > 0 ? (
@@ -149,20 +142,15 @@ function FundBalancePanel({ balance, loading, note, isCancelled }) {
         </Box>
       ) : null}
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-        {isCancelled
-          ? 'This note is cancelled and not counted in the balance.'
-          : `Includes this note's ${formatInrExact(note.amount)}.`}
+        {`Includes this note's ${formatInrExact(note.amount)}.`}
       </Typography>
     </Box>
   );
 }
 
-/** Issued / cancelled events as a vertical timeline, newest first. */
-function Timeline({ note, isCancelled }) {
+/** The issue event as a vertical timeline. */
+function Timeline({ note }) {
   const events = [
-    ...(isCancelled
-      ? [{ key: 'cancelled', label: 'Cancelled', tone: 'neutral', by: note.cancelledBy, at: note.cancelledAt, detail: note.cancelNote }]
-      : []),
     { key: 'issued', label: 'Issued', tone: 'success', by: note.createdBy, at: note.createdAt, detail: `${formatInrExact(note.amount)} recorded` },
   ];
   return (
@@ -190,7 +178,7 @@ function Timeline({ note, isCancelled }) {
 }
 
 /** Plain, printer-friendly credit note document — same order as the form. */
-function PrintableNote({ note, line, organisation }) {
+function PrintableNote({ note, organisation }) {
   const cell = { border: '1px solid #999', padding: '6px 10px', fontSize: 12, textAlign: 'left' };
   const row = (label, value) => (
     <tr>
@@ -209,7 +197,6 @@ function PrintableNote({ note, line, organisation }) {
           <Box sx={{ fontSize: 20, fontWeight: 700, letterSpacing: 2 }}>CREDIT NOTE</Box>
           <Box sx={{ fontSize: 12 }}>No. {note.id}</Box>
           <Box sx={{ fontSize: 12 }}>Date {formatDate(note.date)}</Box>
-          {note.status === 'CANCELLED' ? <Box sx={{ fontSize: 14, fontWeight: 700, mt: 0.5 }}>CANCELLED</Box> : null}
         </Box>
       </Box>
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
@@ -223,10 +210,6 @@ function PrintableNote({ note, line, organisation }) {
           {row('Into bank account', note.bankAccount?.name)}
           {row('Reference no.', note.reference)}
           {row('Group / Ledger', [note.group?.name, note.ledger?.name].filter(Boolean).join(' ▸ '))}
-          {note.payee ? row('Received from', note.payee.name) : null}
-          {note.outflowLineId ? row('Budget line', `${note.outflowLineId} — ${line?.line || '—'}`) : null}
-          {note.debitNoteId ? row('Against debit note', note.debitNoteId) : null}
-          {note.reason ? row('Reason', reasonLabel(note.reason)) : null}
           {row('Remarks', note.remarks)}
           <tr>
             <th style={{ ...cell, fontSize: 14 }}>Amount</th>
@@ -247,8 +230,10 @@ export function CreditNoteDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [note, setNote] = useState(() => getCreditNoteById(id));
-  const [cancelOpen, setCancelOpen] = useState(false);
+  const noteQuery = useCreditNote(id);
+  const note = noteQuery.data || null;
+  const debitNotesQuery = useDebitNotes();
+  const creditNotesQuery = useCreditNotes();
   const location = useLocation();
   const [justIssued, setJustIssued] = useState(Boolean(location.state?.justIssued));
 
@@ -257,7 +242,6 @@ export function CreditNoteDetailPage() {
   const fundProfileQuery = useFundProfile(fundProfileId);
   const grantQuery = useGrantByFundProfileId(fundProfileId);
   const inflowLinesQuery = useInflowBudgetLines();
-  const transactionsQuery = useTransactions();
   const inflowLinesById = useMemo(() => {
     const map = new Map();
     (inflowLinesQuery.data || []).forEach((l) => map.set(Number(l.id), l));
@@ -270,37 +254,26 @@ export function CreditNoteDetailPage() {
     </Button>
   );
 
-  if (!note) {
+  if (noteQuery.isPending) return <LoadingState label="Loading credit note…" />;
+  if (noteQuery.isError) {
     return (
       <>
         {back}
-        <ErrorState error={{ message: `No credit note found for "${id}".` }} />
+        <ErrorState error={noteQuery.error} onRetry={noteQuery.refetch} />
       </>
     );
   }
 
-  const isCancelled = note.status === 'CANCELLED';
   const fundBalance = fundProfileQuery.data
     ? computeGrantBalance({
         fundProfile: fundProfileQuery.data,
         grant: grantQuery.data || null,
         inflowLinesById,
-        notes: getDebitNotes(),
-        credits: getCreditNotes(), // read fresh so a cancel here is reflected
-        transactions: transactionsQuery.data || [],
+        notes: debitNotesQuery.data || [],
+        credits: creditNotesQuery.data || [],
       })
     : null;
-  const balanceLoading = fundProfileId != null && (fundProfileQuery.isLoading || inflowLinesQuery.isLoading || transactionsQuery.isLoading);
-
-  // Older notes may carry an outflow line / debit note / reason / party; new ones don't.
-  const line = note.outflowLineId ? getOutflowRowById(note.outflowLineId) : null;
-  const debitNote = note.debitNoteId ? getDebitNoteById(note.debitNoteId) : null;
-  const hasLegacy = Boolean(note.outflowLineId || note.debitNoteId || note.reason || note.payee);
-
-  const handleCancel = (reason) => {
-    setNote(cancelCreditNote(note.id, { by: user?.name || 'You', note: reason }));
-    setCancelOpen(false);
-  };
+  const balanceLoading = fundProfileId != null && (fundProfileQuery.isLoading || inflowLinesQuery.isLoading);
 
   return (
     <Box sx={{ maxWidth: 1400 }}>
@@ -313,34 +286,21 @@ export function CreditNoteDetailPage() {
         subtitle={`Recorded by ${note.createdBy || '—'} on ${formatDate(note.createdAt)}`}
         actions={
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <StatusChip label={CREDIT_NOTE_STATUS[note.status]} tone={CREDIT_NOTE_STATUS_TONE[note.status]} />
             <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={() => window.print()}>
               Print
             </Button>
-            {!isCancelled ? (
-              <Button variant="outlined" color="error" onClick={() => setCancelOpen(true)}>
-                Cancel note
-              </Button>
-            ) : null}
           </Stack>
         }
       />
 
-      {justIssued && !isCancelled ? (
+      {justIssued ? (
         <Alert severity="success" onClose={() => setJustIssued(false)} sx={{ mb: 3 }}>
           {note.id} issued — {formatInrExact(note.amount)}
           {note.fundProfile ? ` returned to ${note.fundProfile.name}` : ' recorded'}.
         </Alert>
       ) : null}
 
-      {isCancelled ? (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          Cancelled by {note.cancelledBy || '—'} on {formatDateTime(note.cancelledAt)}
-          {note.cancelNote ? ` — ${note.cancelNote}` : ''}. This note no longer counts.
-        </Alert>
-      ) : null}
-
-      <SummaryBanner note={note} isCancelled={isCancelled} />
+      <SummaryBanner note={note} />
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 7 }}>
@@ -356,7 +316,7 @@ export function CreditNoteDetailPage() {
                 {note.disbursementType === 'Tranches' || note.tranche ? (
                   <TermRow label="Tranche" last>{note.tranche?.name || '—'}</TermRow>
                 ) : null}
-                <FundBalancePanel balance={fundBalance} loading={balanceLoading} note={note} isCancelled={isCancelled} />
+                <FundBalancePanel balance={fundBalance} loading={balanceLoading} note={note} />
               </>
             ) : (
               <Box sx={{ py: 2, textAlign: 'center' }}>
@@ -372,7 +332,9 @@ export function CreditNoteDetailPage() {
           <Stack spacing={3} sx={{ height: '100%' }}>
             <Panel icon={PaymentsOutlinedIcon} title="Receipt details">
               <TermRow label="Received via">{note.paymentMode?.name || '—'}</TermRow>
-              <TermRow label="Into account">{note.bankAccount?.name || '—'}</TermRow>
+              <TermRow label="Into account">
+                <BankAccountDetails id={note.bankAccount?.id} fallbackName={note.bankAccount?.name} />
+              </TermRow>
               <TermRow label="Reference no.">{note.reference || '—'}</TermRow>
               <TermRow label="Group ▸ Ledger" last>
                 {[note.group?.name, note.ledger?.name].filter(Boolean).join(' ▸ ') || '—'}
@@ -406,57 +368,14 @@ export function CreditNoteDetailPage() {
           </Stack>
         </Grid>
 
-        {hasLegacy ? (
-          <Grid size={{ xs: 12, md: 7 }}>
-            <Panel icon={LinkOutlinedIcon} title="Earlier details">
-              {note.payee ? (
-                <TermRow label="Received from">
-                  {note.payee.name}
-                  {note.payeeCategory ? ` (${payeeCategoryLabel(note.payeeCategory)})` : ''}
-                </TermRow>
-              ) : null}
-              {note.reason ? <TermRow label="Reason">{reasonLabel(note.reason)}</TermRow> : null}
-              {note.outflowLineId ? (
-                <TermRow label="Outflow line" last={!note.debitNoteId}>
-                  {line ? (
-                    <Button size="small" sx={{ textTransform: 'none', px: 0 }} onClick={() => navigate(`/outflow-budget/${line.id}`)}>
-                      {line.id} — {line.line}
-                    </Button>
-                  ) : (
-                    `${note.outflowLineId} (no longer exists)`
-                  )}
-                </TermRow>
-              ) : null}
-              {note.debitNoteId ? (
-                <TermRow label="Against debit note" last>
-                  {debitNote ? (
-                    <Button size="small" sx={{ textTransform: 'none', px: 0, fontFamily: 'monospace' }} onClick={() => navigate(`/debit-notes/${debitNote.id}`)}>
-                      {debitNote.id}
-                    </Button>
-                  ) : (
-                    `${note.debitNoteId} (no longer exists)`
-                  )}
-                </TermRow>
-              ) : null}
-            </Panel>
-          </Grid>
-        ) : null}
-
-        <Grid size={{ xs: 12, md: hasLegacy ? 5 : 12 }}>
+        <Grid size={12}>
           <Panel icon={HistoryOutlinedIcon} title="History">
-            <Timeline note={note} isCancelled={isCancelled} />
+            <Timeline note={note} />
           </Panel>
         </Grid>
       </Grid>
 
-      <PrintableNote note={note} line={line} organisation={user?.organisationName} />
-
-      <CancelCreditNoteDialog
-        key={cancelOpen ? note.id : 'closed'}
-        note={cancelOpen ? note : null}
-        onClose={() => setCancelOpen(false)}
-        onConfirm={handleCancel}
-      />
+      <PrintableNote note={note} organisation={user?.organisationName} />
     </Box>
   );
 }

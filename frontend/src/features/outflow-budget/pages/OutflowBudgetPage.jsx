@@ -5,27 +5,18 @@ import { DataTable, PageHeader, SearchField, StatusChip } from '../../../shared/
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate } from '../../../lib/format/date.js';
 import { BOOK, BOOK_TONE } from '../../donation-management/constants.js';
-import { getOutflowRows } from '../data/outflowRepository.js';
-import { getRowStatus } from '../lib/status.js';
-import { rowCredits, rowDebits, rowRemaining, rowSpent } from '../lib/spent.js';
-import { debitTotalsByLine, getDebitNotes } from '../../debit-notes/data/debitNoteRepository.js';
-import { creditTotalsByLine, getCreditNotes } from '../../credit-notes/data/creditNoteRepository.js';
+import { useOutflowRows } from '../hooks/useOutflow.js';
+import { useBudgetFinancialYears } from '../../budget/hooks/useBudgets.js';
+import { BUDGET_TYPE, BUDGET_TYPE_TONE } from '../../budget/constants.js';
 import { BudgetSummaryCard } from '../components/BudgetSummaryCard.jsx';
-import {
-  AS_AT_DATE,
-  FUNDING_SOURCE_TONE,
-  FUNDING_SOURCE_TYPE,
-  OVERDUE_THRESHOLD_DAYS,
-  PAYMENT_STATUS,
-  PAYMENT_STATUS_TONE,
-} from '../constants.js';
+import { OVERDUE_THRESHOLD_DAYS, PAYMENT_STATUS, PAYMENT_STATUS_TONE } from '../constants.js';
 
 const MONEY_SX = { fontVariantNumeric: 'tabular-nums' };
 
 const AGEING_META = {
-  onTime: { label: 'Paid on time', desc: 'paid on or before the expected date', color: 'var(--ok)', unit: 'payments' },
-  pending: { label: 'Pending', desc: `1–${OVERDUE_THRESHOLD_DAYS} days past the expected date`, color: 'var(--warn)', unit: 'lines' },
-  overdue: { label: 'Overdue', desc: `${OVERDUE_THRESHOLD_DAYS}+ days past the expected date`, color: 'var(--err)', unit: 'lines' },
+  spent: { label: 'Fully spent', desc: 'debit notes cover the budgeted amount', color: 'var(--ok)', unit: 'rows' },
+  pending: { label: 'Pending', desc: `1–${OVERDUE_THRESHOLD_DAYS} days past the quarter's end`, color: 'var(--warn)', unit: 'rows' },
+  overdue: { label: 'Overdue', desc: `${OVERDUE_THRESHOLD_DAYS}+ days past the quarter's end`, color: 'var(--err)', unit: 'rows' },
 };
 
 /** Legend-row tile in the funding-chain style: coloured rail, label/desc left, amount/count right. */
@@ -64,76 +55,74 @@ function AgeingTile({ meta, amount, count }) {
   );
 }
 
+/** Outflow schedule — /outflow-budget. Rows come from APPROVED budgets; Spent = debit notes. */
 export function OutflowBudgetPage() {
   const navigate = useNavigate();
-  const [rows] = useState(() => getOutflowRows());
-  // Issued debit notes add to each line's Spent; issued credit notes take off it (see lib/spent.js).
-  const [debitTotals] = useState(() => debitTotalsByLine(getDebitNotes()));
-  const [creditTotals] = useState(() => creditTotalsByLine(getCreditNotes()));
+  const fyMaster = useBudgetFinancialYears();
+  const [fyChoice, setFyChoice] = useState(null); // null → the year running today
+  const fy = fyChoice ?? fyMaster.activeLabel ?? 'All';
+  const rowsQuery = useOutflowRows(fy === 'All' ? undefined : fy);
+  const rows = useMemo(() => rowsQuery.data || [], [rowsQuery.data]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [bookFilter, setBookFilter] = useState('All');
-  const [fundingSourceFilter, setFundingSourceFilter] = useState('All');
-
-  const asAt = useMemo(() => new Date(AS_AT_DATE), []);
-
-  const rowsWithStatus = useMemo(
-    () => rows.map((row) => ({ ...row, status: getRowStatus(row, asAt) })),
-    [rows, asAt],
-  );
+  const [typeFilter, setTypeFilter] = useState('All');
 
   const filteredRows = useMemo(() => {
-    return rowsWithStatus.filter((row) => {
-      const q = searchQuery.trim().toLowerCase();
-      const matchesSearch = !q || row.id.toLowerCase().includes(q) || row.line.toLowerCase().includes(q);
+    const q = searchQuery.trim().toLowerCase();
+    return rows.filter((row) => {
+      const matchesSearch =
+        !q || [row.id, row.line, row.budgetName, row.scope, row.categoryName].some((t) => (t || '').toLowerCase().includes(q));
       const matchesBook = bookFilter === 'All' || row.book === bookFilter;
-      const matchesFundingSource = fundingSourceFilter === 'All' || row.fundingSource === fundingSourceFilter;
-      return matchesSearch && matchesBook && matchesFundingSource;
+      const matchesType = typeFilter === 'All' || row.budgetType === typeFilter;
+      return matchesSearch && matchesBook && matchesType;
     });
-  }, [rowsWithStatus, searchQuery, bookFilter, fundingSourceFilter]);
+  }, [rows, searchQuery, bookFilter, typeFilter]);
 
+  // Summary and ageing describe the whole selected year (not the table filters).
   const kpis = useMemo(() => {
-    const totalBudgeted = rows.reduce((sum, r) => sum + r.expectedAmount, 0);
-    const totalSpent = rows.reduce((sum, r) => sum + rowSpent(r, debitTotals, creditTotals), 0);
-    const totalDebits = rows.reduce((sum, r) => sum + rowDebits(r, debitTotals), 0);
-    const totalCredits = rows.reduce((sum, r) => sum + rowCredits(r, creditTotals), 0);
+    const sum = (pick) => rows.reduce((s, r) => s + pick(r), 0);
+    const totalBudgeted = sum((r) => r.expectedAmount);
+    const totalSpent = sum((r) => r.spent);
     const byBook = rows.reduce((acc, r) => {
       const bucket = acc[r.book] || (acc[r.book] = { budgeted: 0, spent: 0 });
       bucket.budgeted += r.expectedAmount;
-      bucket.spent += rowSpent(r, debitTotals, creditTotals);
+      bucket.spent += r.spent;
       return acc;
     }, {});
-    return { totalBudgeted, totalSpent, totalDebits, totalCredits, totalRemaining: totalBudgeted - totalSpent, byBook };
-  }, [rows, debitTotals, creditTotals]);
+    return {
+      totalBudgeted,
+      totalSpent,
+      totalDebits: sum((r) => r.debitTotal),
+      totalRemaining: totalBudgeted - totalSpent,
+      byBook,
+    };
+  }, [rows]);
 
   const ageing = useMemo(() => {
-    const onTime = { count: 0, amount: 0 };
-    const pending = { count: 0, amount: 0 };
-    const overdue = { count: 0, amount: 0 };
-    for (const row of rowsWithStatus) {
-      if (row.status === PAYMENT_STATUS.PAID) {
-        if (new Date(row.actualDate) <= new Date(row.expectedDate)) {
-          onTime.count += 1;
-          onTime.amount += row.actualAmount;
-        }
-      } else if (row.status === PAYMENT_STATUS.PENDING) {
-        pending.count += 1;
-        pending.amount += row.expectedAmount;
-      } else if (row.status === PAYMENT_STATUS.OVERDUE) {
-        overdue.count += 1;
-        overdue.amount += row.expectedAmount;
+    const bucket = () => ({ count: 0, amount: 0 });
+    const result = { spent: bucket(), pending: bucket(), overdue: bucket() };
+    for (const row of rows) {
+      if (row.status === 'PAID') {
+        result.spent.count += 1;
+        result.spent.amount += row.spent;
+      } else if (row.status === 'PENDING' || row.status === 'OVERDUE') {
+        const b = row.status === 'PENDING' ? result.pending : result.overdue;
+        b.count += 1;
+        b.amount += Math.max(0, row.remaining); // what's still to go out
       }
     }
-    return { onTime, pending, overdue };
-  }, [rowsWithStatus]);
+    return result;
+  }, [rows]);
 
   const columns = [
     {
       key: 'id',
-      header: 'Budget line / vendor',
+      header: 'Budget line · quarter',
       render: (row) => (
         <Box>
           <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 12.5 }}>
-            {row.id}
+            {row.budgetCode} · {row.lineCode} · Q{row.quarter}
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.15 }}>
             {row.line}
@@ -142,16 +131,17 @@ export function OutflowBudgetPage() {
       ),
     },
     {
-      key: 'fundingSource',
-      header: 'Funding source',
+      key: 'scope',
+      header: 'Budget / scope',
       render: (row) => (
         <Box>
-          <StatusChip label={FUNDING_SOURCE_TYPE[row.fundingSource]} tone={FUNDING_SOURCE_TONE[row.fundingSource]} />
-          {row.donor ? (
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.4 }}>
-              {row.donor}
-            </Typography>
-          ) : null}
+          <Stack direction="row" spacing={0.75} alignItems="center">
+            <StatusChip label={BUDGET_TYPE[row.budgetType]} tone={BUDGET_TYPE_TONE[row.budgetType]} />
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.scope}</Typography>
+          </Stack>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.4 }}>
+            {row.categoryName}{row.stateName ? ` · ${row.stateName}` : ''}
+          </Typography>
         </Box>
       ),
     },
@@ -162,7 +152,7 @@ export function OutflowBudgetPage() {
     },
     {
       key: 'expectedDate',
-      header: 'Expected date',
+      header: 'Due by',
       render: (row) => formatDate(row.expectedDate),
     },
     {
@@ -172,27 +162,13 @@ export function OutflowBudgetPage() {
       render: (row) => <Box sx={MONEY_SX}>{formatInrExact(row.expectedAmount)}</Box>,
     },
     {
-      key: 'actualDate',
-      header: 'Payment date',
-      render: (row) => (row.actualDate ? formatDate(row.actualDate) : '—'),
-    },
-    {
-      key: 'actualAmount',
+      key: 'spent',
       header: 'Spent',
       align: 'right',
       render: (row) => {
-        const spent = rowSpent(row, debitTotals, creditTotals);
-        const debits = rowDebits(row, debitTotals);
-        const credits = rowCredits(row, creditTotals);
-        const adjustments = [debits ? `+${formatInrExact(debits)} debit` : '', credits ? `−${formatInrExact(credits)} credit` : ''].filter(Boolean);
         return (
-          <Box sx={{ ...MONEY_SX, fontWeight: spent ? 700 : 400, color: spent ? 'error.main' : 'text.secondary' }}>
-            {spent ? formatInrExact(spent) : '—'}
-            {adjustments.length ? (
-              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 400 }}>
-                incl. {adjustments.join(' · ')} notes
-              </Typography>
-            ) : null}
+          <Box sx={{ ...MONEY_SX, fontWeight: row.spent ? 700 : 400, color: row.spent ? 'error.main' : 'text.secondary' }}>
+            {row.spent ? formatInrExact(row.spent) : '—'}
           </Box>
         );
       },
@@ -200,36 +176,37 @@ export function OutflowBudgetPage() {
     {
       key: 'status',
       header: 'Status',
-      render: (row) => <StatusChip label={row.status} tone={PAYMENT_STATUS_TONE[row.status]} />,
+      render: (row) => <StatusChip label={PAYMENT_STATUS[row.status] || row.status} tone={PAYMENT_STATUS_TONE[row.status]} />,
     },
     {
       key: 'remaining',
       header: 'Remaining',
       align: 'right',
       render: (row) => {
-        const remaining = rowRemaining(row, debitTotals, creditTotals);
-        if (remaining < 0) {
+        if (row.remaining < 0) {
           return (
             <Box sx={{ ...MONEY_SX, color: 'error.main', fontWeight: 600 }}>
-              −{formatInrExact(-remaining)}
+              −{formatInrExact(-row.remaining)}
               <Typography variant="caption" sx={{ display: 'block', fontWeight: 400 }}>over budget</Typography>
             </Box>
           );
         }
         return (
-          <Box sx={{ ...MONEY_SX, color: remaining ? 'text.primary' : 'text.secondary', fontWeight: remaining ? 600 : 400 }}>
-            {remaining ? formatInrExact(remaining) : '—'}
+          <Box sx={{ ...MONEY_SX, color: row.remaining ? 'text.primary' : 'text.secondary', fontWeight: row.remaining ? 600 : 400 }}>
+            {row.remaining ? formatInrExact(row.remaining) : '—'}
           </Box>
         );
       },
     },
   ];
 
+  const fyOptions = fyMaster.options.map((o) => o.label);
+
   return (
     <Box sx={{ maxWidth: 1400 }}>
       <PageHeader
         title="Outflow Budget"
-        subtitle="Budgeted vs spent across every approved budget line — fed automatically from the approved budget and payments."
+        subtitle="Budgeted vs spent for every approved budget line, quarter by quarter. Spending is recorded as Debit Notes."
       />
 
       <BudgetSummaryCard kpis={kpis} lineCount={rows.length} />
@@ -250,8 +227,8 @@ export function OutflowBudgetPage() {
         <Box component="b" sx={{ color: 'text.primary' }}>
           No re-entry.
         </Box>{' '}
-        Budget line, category, funding source, restriction and book are inherited from the approved budget. Open a
-        row to see its payment details — payment date, amount, payment reference/UTR and any variance reason.
+        Each row is one quarter of an approved budget line — budget, line, category and book come from the budget.
+        Rows appear when a budget is approved. Open a row to see its debit notes.
       </Box>
 
       <Typography variant="h4" component="h2" sx={{ mb: 1.5 }}>
@@ -259,7 +236,7 @@ export function OutflowBudgetPage() {
       </Typography>
       <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <AgeingTile meta={AGEING_META.onTime} amount={ageing.onTime.amount} count={ageing.onTime.count} />
+          <AgeingTile meta={AGEING_META.spent} amount={ageing.spent.amount} count={ageing.spent.count} />
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
           <AgeingTile meta={AGEING_META.pending} amount={ageing.pending.amount} count={ageing.pending.count} />
@@ -273,29 +250,39 @@ export function OutflowBudgetPage() {
         Outflow schedule
       </Typography>
       <Stack
-        direction={{ xs: 'column', sm: 'row' }}
+        direction={{ xs: 'column', md: 'row' }}
         spacing={2}
-        alignItems={{ sm: 'center' }}
+        alignItems={{ md: 'center' }}
         justifyContent="space-between"
         sx={{ mb: 2 }}
       >
-        <Box sx={{ width: { xs: '100%', sm: 340 } }}>
-          <SearchField placeholder="Search budget line ID or description…" value={searchQuery} onChange={setSearchQuery} />
+        <Box sx={{ width: { xs: '100%', md: 340 } }}>
+          <SearchField placeholder="Search budget, line, programme or category…" value={searchQuery} onChange={setSearchQuery} />
         </Box>
-        <Stack direction="row" spacing={1.5}>
-          <FormControl size="small" sx={{ minWidth: 130 }}>
-            <Select value={bookFilter} onChange={(e) => setBookFilter(e.target.value)}>
-              <MenuItem value="All">All Books</MenuItem>
-              {Object.keys(BOOK).map((code) => (
-                <MenuItem key={code} value={code}>{code}</MenuItem>
+        <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', rowGap: 1.5 }}>
+          <FormControl size="small" sx={{ minWidth: 170 }}>
+            <Select value={fy} onChange={(e) => setFyChoice(e.target.value)} inputProps={{ 'aria-label': 'Financial year' }}>
+              {fyOptions.map((label) => (
+                <MenuItem key={label} value={label}>
+                  FY {label}{label === fyMaster.activeLabel ? ' (current)' : ''}
+                </MenuItem>
               ))}
+              <MenuItem value="All">All FYs</MenuItem>
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 170 }}>
-            <Select value={fundingSourceFilter} onChange={(e) => setFundingSourceFilter(e.target.value)}>
-              <MenuItem value="All">All Funding Sources</MenuItem>
-              {Object.entries(FUNDING_SOURCE_TYPE).map(([code, label]) => (
+            <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} inputProps={{ 'aria-label': 'Budget type' }}>
+              <MenuItem value="All">All Types</MenuItem>
+              {Object.entries(BUDGET_TYPE).map(([code, label]) => (
                 <MenuItem key={code} value={code}>{label}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <Select value={bookFilter} onChange={(e) => setBookFilter(e.target.value)} inputProps={{ 'aria-label': 'Book' }}>
+              <MenuItem value="All">All Books</MenuItem>
+              {Object.keys(BOOK).map((code) => (
+                <MenuItem key={code} value={code}>{code}</MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -306,8 +293,15 @@ export function OutflowBudgetPage() {
         columns={columns}
         rows={filteredRows}
         getRowKey={(row) => row.id}
-        emptyTitle="No outflow rows found"
-        emptyDescription="Try adjusting your search query or filters."
+        isLoading={rowsQuery.isPending}
+        error={rowsQuery.isError ? rowsQuery.error : null}
+        onRetry={rowsQuery.refetch}
+        emptyTitle={rows.length ? 'No outflow rows match these filters' : 'No approved budgets yet'}
+        emptyDescription={
+          rows.length
+            ? 'Try adjusting your search or filters.'
+            : 'Outflow rows appear here once a budget for this year is approved under Budget.'
+        }
         onRowClick={(row) => navigate(`/outflow-budget/${row.id}`)}
       />
 
@@ -315,7 +309,7 @@ export function OutflowBudgetPage() {
         {Object.entries(PAYMENT_STATUS_TONE).map(([status, tone]) => (
           <Stack key={status} direction="row" spacing={0.75} alignItems="center">
             <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: `${tone === 'neutral' ? 'text.secondary' : `${tone}.main`}` }} />
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{status}</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{PAYMENT_STATUS[status]}</Typography>
           </Stack>
         ))}
       </Stack>

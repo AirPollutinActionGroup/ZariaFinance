@@ -61,6 +61,7 @@ public class EmployeeAllocationServiceImpl implements EmployeeAllocationService 
         Map<Long, Programme> programmesById = programmeRepository
                 .findAllById(allocations.stream()
                         .flatMap(a -> Stream.of(a.getProgrammeId(), a.getProjectId()))
+                        .filter(Objects::nonNull)
                         .collect(Collectors.toSet()))
                 .stream()
                 .collect(Collectors.toMap(Programme::getId, Function.identity()));
@@ -90,7 +91,7 @@ public class EmployeeAllocationServiceImpl implements EmployeeAllocationService 
         EmployeeAllocation allocation = EmployeeAllocation.builder()
                 .employeeId(related.employee().getId())
                 .programmeId(related.programme().getId())
-                .projectId(related.project().getId())
+                .projectId(related.project() != null ? related.project().getId() : null)
                 .role(request.getRole() != null ? request.getRole().trim() : null)
                 .stateIds(related.states().stream().map(StateMaster::getId).collect(Collectors.toSet()))
                 .cityIds(related.cities().stream().map(CityMaster::getId).collect(Collectors.toSet()))
@@ -124,15 +125,18 @@ public class EmployeeAllocationServiceImpl implements EmployeeAllocationService 
                     Map.of("programmeId", "Selected program is a project, not a program"));
         }
 
-        Programme project = programmeRepository.findById(request.getProjectId())
-                .orElseThrow(() -> new ResourceNotFoundException("Programme", request.getProjectId()));
-        if (!ProgrammeTypes.PROJECT.equals(project.getType())) {
-            throw new ValidationException("Project must be a project",
-                    Map.of("projectId", "Selected project is not a project"));
-        }
-        if (!request.getProgrammeId().equals(project.getParentProgrammeId())) {
-            throw new ValidationException("Project does not belong to the selected program",
-                    Map.of("projectId", "Selected project does not belong to the selected program"));
+        Programme project = null;
+        if (request.getProjectId() != null) {
+            project = programmeRepository.findById(request.getProjectId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Programme", request.getProjectId()));
+            if (!ProgrammeTypes.PROJECT.equals(project.getType())) {
+                throw new ValidationException("Project must be a project",
+                        Map.of("projectId", "Selected project is not a project"));
+            }
+            if (!request.getProgrammeId().equals(project.getParentProgrammeId())) {
+                throw new ValidationException("Project does not belong to the selected program",
+                        Map.of("projectId", "Selected project does not belong to the selected program"));
+            }
         }
 
         List<Long> stateIds = request.getStateIds();
@@ -235,7 +239,7 @@ public class EmployeeAllocationServiceImpl implements EmployeeAllocationService 
                 .programmeId(allocation.getProgrammeId())
                 .programmeName(programme.getProgrammeName())
                 .projectId(allocation.getProjectId())
-                .projectName(project.getProgrammeName())
+                .projectName(project != null ? project.getProgrammeName() : null)
                 .role(allocation.getRole())
                 .stateIds(new ArrayList<>(allocation.getStateIds()))
                 .stateNames(states.stream().map(StateMaster::getStateName).toList())

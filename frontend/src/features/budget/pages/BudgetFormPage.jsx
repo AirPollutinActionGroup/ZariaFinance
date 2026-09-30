@@ -6,9 +6,10 @@ import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import ApartmentOutlinedIcon from '@mui/icons-material/ApartmentOutlined';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../core/auth/index.js';
-import { ErrorState, PageHeader } from '../../../shared/components/index.js';
+import { ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
 import { BudgetLineEditor, newLine } from '../components/BudgetLineEditor.jsx';
-import { EDITABLE_STATUSES, createBudget, getBudgetById, updateBudget } from '../data/budgetRepository.js';
+import { useBudget, useBudgetFinancialYears, useSaveBudget } from '../hooks/useBudgets.js';
+import { FINANCIAL_YEAR_STATUS_LABEL } from '../../financial-year/constants.js';
 import { isBudgetValid, validateBudget } from '../lib/budgetMath.js';
 import { isFinancialYearLabel } from '../lib/financialYear.js';
 import { SearchableSelect } from '../../../components/SearchableSelect.jsx';
@@ -19,11 +20,11 @@ import {
   BUDGET_TYPE,
   BUDGET_TYPE_HINT,
   CURRENT_FINANCIAL_YEAR,
-  FINANCIAL_YEARS,
-  ORGANISATION_WIDE,
-  QUARTERS,
   budgetTypeOf,
 } from '../constants.js';
+
+/** Only Draft and Rejected budgets can be edited (the server enforces the same). */
+const EDITABLE = ['DRAFT', 'REJECTED'];
 
 function initialDraft(existing, owner, fyParam) {
   if (existing) {
@@ -56,45 +57,28 @@ function initialDraft(existing, owner, fyParam) {
   };
 }
 
-/**
- * Coerces the editable string inputs into the stored shape. `programme` stays
- * the budget's display scope everywhere (list, detail): the programme name, or
- * "Organisation-wide". State is optional for both types — empty means all states.
- */
-function toPayload(draft) {
-  const isOrg = draft.budgetType === 'ORGANISATION';
-  return {
-    ...draft,
-    name: draft.name.trim(),
-    programmeId: isOrg ? null : draft.programmeId,
-    programme: isOrg ? ORGANISATION_WIDE : draft.programme.trim(),
-    stateId: draft.stateId ?? null,
-    stateName: draft.stateName || '',
-    owner: draft.owner.trim(),
-    notes: draft.notes.trim(),
-    lines: draft.lines.map((line) => ({
-      ...line,
-      description: line.description.trim(),
-      ...Object.fromEntries(QUARTERS.map((q) => [q.key, Number(line[q.key]) || 0])),
-    })),
-  };
-}
-
-/** Create (/budgets/new) and edit (/budgets/:id/edit) a budget. */
-export function BudgetFormPage() {
-  const { id } = useParams();
+/** The budget form itself; `existing` is the loaded budget when editing, null when creating. */
+function BudgetForm({ existing }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const existing = id ? getBudgetById(id) : null;
   // A new budget starts on the FY chosen on the list page (?fy=2026-27); it can still be changed here.
   const [draft, setDraft] = useState(() => initialDraft(existing, user?.name, searchParams.get('fy')));
-  // Keep the starting FY selectable even if it is outside the default previous/current/next range.
-  const fyOptions = [...new Set([...FINANCIAL_YEARS, existing?.financialYear, searchParams.get('fy')])]
-    .filter(isFinancialYearLabel)
-    .sort();
+  // Years come from the Financial Year master. New work goes into an Active or
+  // Upcoming year; a budget being edited keeps its own year even if it has closed.
+  const fyMaster = useBudgetFinancialYears();
+  const fyOptions = fyMaster.options.filter((fy) => fy.status !== 'CLOSED' || fy.label === existing?.financialYear);
+  const selectedFy = fyOptions.find((fy) => fy.label === draft.financialYear) || null;
+  const fyError = fyMaster.isError
+    ? 'Could not load financial years from the server'
+    : fyMaster.isSuccess && !selectedFy
+      ? fyOptions.length
+        ? `FY ${draft.financialYear} isn't open in the Financial Year master — pick another`
+        : 'No open financial years — add one under Financial Year first'
+      : null;
   const [showErrors, setShowErrors] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const saveBudget = useSaveBudget();
 
   // Programme and State come from the real master data (server-backed).
   const programmesQuery = useProgrammes();
@@ -113,58 +97,85 @@ export function BudgetFormPage() {
     queryFn: () => geographyService.listStates(),
     staleTime: 1000 * 60 * 60,
   });
-  const stateOptions = statesQuery.data || [];
+  const stateOptions = useMemo(() => statesQuery.data || [], [statesQuery.data]);
   // Seed budgets only carry the programme name, so fall back to matching on it.
   const selectedProgramme =
     programmeOptions.find((o) => o.value === draft.programmeId) ||
     programmeOptions.find((o) => o.label?.toLowerCase() === draft.programme?.toLowerCase()) ||
     null;
+  // The chosen programme's states, from `stateNames` on the /programmes list,
+  // matched to the state options by name.
+  const isProgrammeBudget = draft.budgetType === 'PROGRAMME';
+  const programmeRecord =
+    isProgrammeBudget && typeof draft.programmeId === 'number'
+      ? (programmesQuery.data || []).find((p) => p.id === draft.programmeId)
+      : null;
+  const programmeStateIds = useMemo(() => {
+    const names = new Set((programmeRecord?.stateNames || []).map((n) => n.trim().toLowerCase()));
+    return new Set(stateOptions.filter((o) => names.has(o.label?.trim().toLowerCase())).map((o) => String(o.value)));
+  }, [programmeRecord, stateOptions]);
+  // The programme's own states are listed first, then every other state — nothing is hidden.
+  // A programme with no states set just shows the plain list.
+  const hasProgrammeStates = programmeStateIds.size > 0;
+  const programmeStatesGroup = `${draft.programme || 'Programme'} runs in`;
+  const stateGroupOf = (option) => (programmeStateIds.has(String(option.value)) ? programmeStatesGroup : 'All other states');
+  const availableStates = hasProgrammeStates
+    ? [
+        ...stateOptions.filter((o) => programmeStateIds.has(String(o.value))),
+        ...stateOptions.filter((o) => !programmeStateIds.has(String(o.value))),
+      ]
+    : stateOptions;
+  const statesLoading = statesQuery.isLoading || (isProgrammeBudget && programmesQuery.isLoading);
+
   const selectedState =
     (draft.stateId != null && stateOptions.find((o) => String(o.value) === String(draft.stateId))) ||
     // Seed budgets carry only the state name.
     (draft.stateName && stateOptions.find((o) => o.label?.toLowerCase() === draft.stateName.toLowerCase())) ||
     null;
+  // Allowed, but worth pointing out: the budget is placed outside where the programme runs.
+  const stateOutsideProgramme = Boolean(selectedState) && hasProgrammeStates && !programmeStateIds.has(String(selectedState.value));
 
   const errors = useMemo(() => validateBudget(draft), [draft]);
   const shown = showErrors ? errors : { header: {}, lines: {}, form: null };
   const backTo = existing ? `/budgets/${existing.id}` : `/budgets?fy=${draft.financialYear}`;
 
-  if (id && !existing) {
-    return <ErrorState error={{ message: `No budget found for "${id}".` }} />;
-  }
-  if (existing && !EDITABLE_STATUSES.includes(existing.status)) {
+  if (existing && !EDITABLE.includes(existing.status)) {
     return (
       <ErrorState
-        error={{ message: `${existing.id} is ${BUDGET_STATUS[existing.status].toLowerCase()} and can no longer be edited.` }}
+        error={{ message: `${existing.budgetCode} is ${BUDGET_STATUS[existing.status].toLowerCase()} and can no longer be edited.` }}
       />
     );
   }
 
   const set = (field) => (e) => setDraft((d) => ({ ...d, [field]: e.target.value }));
 
-  const save = (submit) => {
+  const save = async (submit) => {
     setShowErrors(true);
-    if (!isBudgetValid(errors)) return;
+    setSaveError(null);
+    if (!isBudgetValid(errors) || !selectedFy) return;
     try {
-      const payload = toPayload(draft);
-      const meta = { by: user?.name || 'You', submit };
-      const saved = existing ? updateBudget(existing.id, payload, meta) : createBudget(payload, meta);
+      const saved = await saveBudget.mutateAsync({
+        id: existing?.id ?? null,
+        draft: { ...draft, financialYearId: selectedFy.id },
+        meta: { submit, actor: user?.name || 'You' },
+      });
       navigate(`/budgets/${saved.id}`);
     } catch (err) {
-      setSaveError(err.message);
+      // Server-side rule failures (e.g. an inactive category) come back as a readable message.
+      setSaveError(err.message || 'Could not save the budget.');
     }
   };
 
   return (
     <Box sx={{ maxWidth: 1400 }}>
       <Button startIcon={<ArrowBackIcon />} size="small" sx={{ mb: 2, color: 'text.secondary' }} onClick={() => navigate(backTo)}>
-        {existing ? existing.id : 'Budget'}
+        {existing ? existing.budgetCode : 'Budget'}
       </Button>
 
       <PageHeader
-        eyebrow={`FY ${draft.financialYear}`}
-        title={existing ? `Edit ${existing.id}` : 'New budget'}
-        subtitle="Define the budget header, then add each line with its category, funding source and quarterly phasing."
+        eyebrow={selectedFy ? selectedFy.code : `FY ${draft.financialYear}`}
+        title={existing ? `Edit ${existing.budgetCode}` : 'New budget'}
+        subtitle="Define the budget header, then add each line with its category, book and quarterly phasing."
       />
 
       {existing?.status === 'REJECTED' ? (
@@ -238,10 +249,23 @@ export function BudgetFormPage() {
               <TextField fullWidth label="Budget name *" value={draft.name} onChange={set('name')} error={Boolean(shown.header.name)} helperText={shown.header.name} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <TextField select fullWidth label="Financial year *" value={draft.financialYear} onChange={set('financialYear')} error={Boolean(shown.header.financialYear)} helperText={shown.header.financialYear}>
+              <TextField
+                select
+                fullWidth
+                label="Financial year *"
+                // Only a value that's in the list, so MUI doesn't warn while the master loads.
+                value={selectedFy ? draft.financialYear : ''}
+                onChange={set('financialYear')}
+                disabled={fyMaster.isPending}
+                error={Boolean(shown.header.financialYear || fyError)}
+                helperText={shown.header.financialYear || fyError || (fyMaster.isPending ? 'Loading financial years…' : ' ')}
+              >
                 {fyOptions.map((fy) => (
-                  <MenuItem key={fy} value={fy}>
-                    FY {fy}{fy === CURRENT_FINANCIAL_YEAR ? ' (current)' : ''}
+                  <MenuItem key={fy.id} value={fy.label}>
+                    {fy.code}
+                    <Box component="span" sx={{ ml: 1, color: 'text.secondary', fontSize: 12 }}>
+                      · {FINANCIAL_YEAR_STATUS_LABEL[fy.status] || fy.status}
+                    </Box>
                   </MenuItem>
                 ))}
               </TextField>
@@ -272,13 +296,25 @@ export function BudgetFormPage() {
             <Grid size={{ xs: 12, md: 6 }}>
               <SearchableSelect
                 label="State (location)"
-                options={stateOptions}
+                options={availableStates}
+                groupBy={hasProgrammeStates ? stateGroupOf : undefined}
                 value={selectedState}
                 onChange={(opt) => setDraft((d) => ({ ...d, stateId: opt?.value ?? null, stateName: opt?.label || '' }))}
-                loading={statesQuery.isLoading}
+                loading={statesLoading}
                 placeholder="Leave empty for all states"
                 error={statesQuery.isError ? 'Could not load states — the budget will cover all states' : null}
               />
+              {hasProgrammeStates ? (
+                <Typography
+                  variant="caption"
+                  color={stateOutsideProgramme ? 'warning.main' : 'text.secondary'}
+                  sx={{ display: 'block', mt: -1.5 }}
+                >
+                  {stateOutsideProgramme
+                    ? `${selectedState.label} is outside the states ${draft.programme} runs in.`
+                    : `${draft.programme} runs in ${programmeStateIds.size} ${programmeStateIds.size === 1 ? 'state' : 'states'} — listed first.`}
+                </Typography>
+              ) : null}
             </Grid>
             <Grid size={{ xs: 12, md: draft.budgetType === 'PROGRAMME' ? 12 : 6 }}>
               <TextField fullWidth label="Notes" value={draft.notes} onChange={set('notes')} helperText=" " />
@@ -301,13 +337,26 @@ export function BudgetFormPage() {
         <Button variant="outlined" onClick={() => navigate(backTo)}>
           Cancel
         </Button>
-        <Button variant="outlined" onClick={() => save(false)}>
+        <Button variant="outlined" onClick={() => save(false)} disabled={saveBudget.isPending}>
           Save as draft
         </Button>
-        <Button variant="contained" onClick={() => save(true)}>
-          Save &amp; submit for approval
+        <Button variant="contained" onClick={() => save(true)} disabled={saveBudget.isPending}>
+          {saveBudget.isPending ? 'Saving…' : 'Save & submit for approval'}
         </Button>
       </Stack>
     </Box>
   );
+}
+
+/** Create (/budgets/new) and edit (/budgets/:id/edit) a budget — loads the budget first when editing. */
+export function BudgetFormPage() {
+  const { id } = useParams();
+  const budgetQuery = useBudget(id);
+
+  if (id && budgetQuery.isPending) return <LoadingState label="Loading budget…" />;
+  if (id && budgetQuery.isError) {
+    return <ErrorState error={budgetQuery.error} onRetry={budgetQuery.refetch} />;
+  }
+  // Keyed so switching between budgets (or to /new) starts a fresh form.
+  return <BudgetForm key={id || 'new'} existing={id ? budgetQuery.data : null} />;
 }

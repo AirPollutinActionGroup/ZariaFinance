@@ -49,10 +49,6 @@ import { PaymentModesPage } from '../payment-mode/pages/PaymentModesPage.jsx';
 import { PaymentTypesPage } from '../payment-type/pages/PaymentTypesPage.jsx';
 import { BankDetailsPage } from '../bank-details/pages/BankDetailsPage.jsx';
 import { BankDetailDetailPage } from '../bank-details/pages/BankDetailDetailPage.jsx';
-import { NewTransactionPage } from '../new-transaction/pages/NewTransactionPage.jsx';
-import { NewTransactionListPage } from '../new-transaction/pages/NewTransactionListPage.jsx';
-import { NewTransactionDetailPage } from '../new-transaction/pages/NewTransactionDetailPage.jsx';
-import ReceiptOutlinedIcon from '@mui/icons-material/ReceiptOutlined';
 import { FinancialYearsPage } from '../financial-year/pages/FinancialYearsPage.jsx';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import { OutflowBudgetPage } from '../outflow-budget/pages/OutflowBudgetPage.jsx';
@@ -98,7 +94,6 @@ export const donorManagementModule = {
     { label: 'Bank Details', path: '/bank-details', icon: AccountBalanceOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Financial Year', path: '/financial-years', icon: CalendarMonthOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Payment Type', path: '/payment-types', icon: AccountTreeOutlinedIcon, section: 'FINANCE & PAYMENTS' },
-    { label: 'Payment Window (Cr)', path: '/new-transaction', icon: ReceiptOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Budget', path: '/budgets', icon: RequestQuoteOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Inflow Budget', path: '/inflow-budget', icon: TrendingUpOutlinedIcon, section: 'FINANCE & PAYMENTS' },
     { label: 'Outflow Budget', path: '/outflow-budget', icon: TrendingDownOutlinedIcon, section: 'FINANCE & PAYMENTS' },
@@ -141,9 +136,6 @@ export const donorManagementModule = {
     { path: '/vendor-registration', element: <VendorListPage /> },
     { path: '/vendor-registration/new', element: <VendorCreatePage /> },
     { path: '/vendor-registration/:id', element: <VendorDetailPage /> },
-    { path: '/new-transaction', element: <NewTransactionListPage /> },
-    { path: '/new-transaction/new', element: <NewTransactionPage /> },
-    { path: '/new-transaction/:id', element: <NewTransactionDetailPage /> },
     { path: '/payment-modes', element: <PaymentModesPage /> },
     { path: '/payment-types', element: <PaymentTypesPage /> },
     { path: '/bank-details', element: <BankDetailsPage /> },

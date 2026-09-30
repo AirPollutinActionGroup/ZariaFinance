@@ -1,7 +1,7 @@
 import { Box, Card, Stack, Typography } from '@mui/material';
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate } from '../../../lib/format/date.js';
-import { AS_AT_DATE } from '../constants.js';
+
 
 const MONEY_SX = { fontFamily: 'monospace', fontWeight: 700, fontSize: 25, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' };
 
@@ -38,8 +38,8 @@ function Tile({ accent, dot, label, value, valueColor, children, borderRight, bo
  * disconnected KPI cards plus a separate chart.
  */
 export function BudgetSummaryCard({ kpis, lineCount }) {
-  const { totalBudgeted, totalSpent, totalDebits = 0, totalCredits = 0, totalRemaining, byBook } = kpis;
-  const adjustments = [totalDebits ? `+${formatInrExact(totalDebits)} debit` : '', totalCredits ? `−${formatInrExact(totalCredits)} credit` : ''].filter(Boolean);
+  const { totalBudgeted, totalSpent, totalDebits = 0, totalRemaining, byBook } = kpis;
+  const adjustments = [totalDebits ? `+${formatInrExact(totalDebits)} debit` : ''].filter(Boolean);
   const spentPct = totalBudgeted > 0 ? Math.min(100, Math.round((totalSpent / totalBudgeted) * 100)) : 0;
 
   const lc = byBook.LC || { budgeted: 0, spent: 0 };
@@ -59,7 +59,7 @@ export function BudgetSummaryCard({ kpis, lineCount }) {
           borderBottom={{ xs: '1px solid', sm: 'none' }}
         >
           <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
-            {lineCount} budget lines · approved
+            {lineCount} outflow rows · approved budgets
           </Typography>
         </Tile>
 
@@ -77,7 +77,7 @@ export function BudgetSummaryCard({ kpis, lineCount }) {
           </Box>
           <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>{spentPct}% of budget</Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>as at {formatDate(AS_AT_DATE)}</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>as at {formatDate(new Date())}</Typography>
           </Stack>
           {adjustments.length ? (
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>

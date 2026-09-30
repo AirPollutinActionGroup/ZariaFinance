@@ -2,7 +2,6 @@ export { donorsOf } from '../../credit-notes/lib/filterCreditNotes.js';
 
 export const EMPTY_FILTERS = Object.freeze({
   query: '',
-  status: 'All',
   reason: 'All',
   book: 'All',
   lineId: null,
@@ -24,7 +23,6 @@ export function filterDebitNotes(notes, filters, lineById = {}) {
   const fy = filters.fy;
   return notes.filter((n) => {
     if (fy && (n.date < fy.startDate || n.date > fy.endDate)) return false;
-    if (filters.status !== 'All' && n.status !== filters.status) return false;
     if (filters.reason !== 'All' && n.reason !== filters.reason) return false;
     if (filters.book && filters.book !== 'All' && n.book !== filters.book) return false;
     if (filters.lineId && n.outflowLineId !== filters.lineId) return false;

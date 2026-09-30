@@ -6,7 +6,7 @@ import { formatInrExact } from '../../../lib/format/currency.js';
 import { BOOK } from '../../donation-management/constants.js';
 import { lineTotal, quarterTotals, budgetTotal } from '../lib/budgetMath.js';
 import { QUARTERS } from '../constants.js';
-import { useBudgetCategories } from '../hooks/useBudgetCategories.js';
+import { useBudgetCategories } from '../../masters/hooks/useBudgetCategories.js';
 
 const MONEY_SX = { fontVariantNumeric: 'tabular-nums' };
 
@@ -26,10 +26,14 @@ export function newLine(overrides = {}) {
   };
 }
 
-function LineCard({ line, index, categories, errors = {}, onChange, onDuplicate, onRemove, canRemove }) {
+function LineCard({ line, index, categories, categoriesHint, errors = {}, onChange, onDuplicate, onRemove, canRemove }) {
   const set = (field) => (e) => onChange({ ...line, [field]: e.target.value });
   // Active categories, plus this line's own category if it has since been deactivated (shown, not pickable).
   const categoryOptions = categories.filter((c) => c.status === 'ACTIVE' || c.id === line.category);
+  // Keep a saved category selectable while the list loads (or if it's no longer on the server).
+  if (line.category && !categoryOptions.some((c) => c.id === line.category)) {
+    categoryOptions.unshift({ id: line.category, name: `Category #${line.category}`, status: 'UNKNOWN' });
+  }
 
   return (
     <Card variant="outlined" sx={{ p: 2, borderLeft: '3px solid', borderLeftColor: Object.keys(errors).length ? 'error.main' : 'divider' }}>
@@ -63,11 +67,11 @@ function LineCard({ line, index, categories, errors = {}, onChange, onDuplicate,
             value={line.category}
             onChange={set('category')}
             error={Boolean(errors.category)}
-            helperText={errors.category || (categoryOptions.length === 0 ? 'Add categories in Master → Budget Category' : undefined)}
+            helperText={errors.category || categoriesHint}
           >
             {categoryOptions.map((c) => (
               <MenuItem key={c.id} value={c.id} disabled={c.status !== 'ACTIVE'}>
-                {c.name}{c.status !== 'ACTIVE' ? ' (inactive)' : ''}
+                {c.name}{c.status === 'INACTIVE' ? ' (inactive)' : ''}
               </MenuItem>
             ))}
           </TextField>
@@ -115,7 +119,15 @@ function LineCard({ line, index, categories, errors = {}, onChange, onDuplicate,
 
 /** Editable list of budget lines with running quarter and grand totals. */
 export function BudgetLineEditor({ lines, onChange, errors = {} }) {
-  const categories = useBudgetCategories();
+  const categoriesQuery = useBudgetCategories();
+  const categories = categoriesQuery.data || [];
+  const categoriesHint = categoriesQuery.isPending
+    ? 'Loading categories…'
+    : categoriesQuery.isError
+      ? 'Could not load categories from the server'
+      : categories.some((c) => c.status === 'ACTIVE')
+        ? undefined
+        : 'Add categories in Master → Budget Category';
   const update = (id, next) => onChange(lines.map((l) => (l.id === id ? next : l)));
   const remove = (id) => onChange(lines.filter((l) => l.id !== id));
   const duplicate = (index) => onChange([...lines.slice(0, index + 1), newLine(lines[index]), ...lines.slice(index + 1)]);
@@ -128,6 +140,7 @@ export function BudgetLineEditor({ lines, onChange, errors = {} }) {
           key={line.id}
           line={line}
           categories={categories}
+          categoriesHint={categoriesHint}
           index={index}
           errors={errors[line.id]}
           onChange={(next) => update(line.id, next)}

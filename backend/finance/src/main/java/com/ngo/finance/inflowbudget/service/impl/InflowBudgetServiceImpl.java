@@ -2,98 +2,102 @@ package com.ngo.finance.inflowbudget.service.impl;
 
 import com.ngo.finance.common.exception.ResourceNotFoundException;
 import com.ngo.finance.donor.entity.DonorTrancheCriterion;
-import com.ngo.finance.inflowbudget.dto.request.RecordInflowReceiptRequest;
 import com.ngo.finance.inflowbudget.dto.response.InflowBudgetLineResponse;
-import com.ngo.finance.inflowbudget.entity.InflowReceipt;
 import com.ngo.finance.inflowbudget.mapper.InflowBudgetMapper;
 import com.ngo.finance.inflowbudget.repository.InflowBudgetLineRepository;
-import com.ngo.finance.inflowbudget.repository.InflowReceiptRepository;
 import com.ngo.finance.inflowbudget.service.InflowBudgetService;
+import com.ngo.finance.outflow.entity.CreditNote;
+import com.ngo.finance.outflow.repository.CreditNoteRepository;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
+/**
+ * Inflow Budget lines are the donor tranche schedule. What was received on a
+ * line is the credit notes received against it: a credit note names its
+ * tranche, and a lump-sum credit note (no tranche) counts on its fund
+ * profile's earliest line.
+ */
 @Service
-@Transactional
+@Transactional(readOnly = true)
 public class InflowBudgetServiceImpl implements InflowBudgetService {
 
+    static final String LUMP_SUM = "Lump Sum";
+
+    private static final Comparator<DonorTrancheCriterion> EARLIEST_FIRST = Comparator
+            .comparing(DonorTrancheCriterion::getExpectedReleaseDate, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(DonorTrancheCriterion::getId);
+
     private final InflowBudgetLineRepository repository;
-    private final InflowReceiptRepository receiptRepository;
+    private final CreditNoteRepository creditNoteRepository;
     private final InflowBudgetMapper mapper;
 
     @Autowired
     public InflowBudgetServiceImpl(
             InflowBudgetLineRepository repository,
-            InflowReceiptRepository receiptRepository,
+            CreditNoteRepository creditNoteRepository,
             InflowBudgetMapper mapper) {
         this.repository = repository;
-        this.receiptRepository = receiptRepository;
+        this.creditNoteRepository = creditNoteRepository;
         this.mapper = mapper;
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<InflowBudgetLineResponse> getAllLines() {
         List<DonorTrancheCriterion> criteria = repository.findAllInflowLines();
-        List<Long> criterionIds = criteria.stream().map(DonorTrancheCriterion::getId).toList();
-        Map<Long, List<InflowReceipt>> receiptsByCriterionId = receiptRepository
-                .findByTrancheCriterionIdInOrderByReceivedDateAsc(criterionIds).stream()
-                .collect(Collectors.groupingBy(r -> r.getTrancheCriterion().getId()));
-
+        Map<Long, List<CreditNote>> received = creditNotesByCriterion(criteria);
         return criteria.stream()
-                .map(c -> mapper.toResponse(c, receiptsByCriterionId.getOrDefault(c.getId(), List.of())))
+                .map(c -> mapper.toResponse(c, received.getOrDefault(c.getId(), List.of())))
                 .toList();
     }
 
     @Override
-    @Transactional(readOnly = true)
     public InflowBudgetLineResponse getLineById(Long id) {
-        DonorTrancheCriterion criterion = findCriterion(id);
-        return mapper.toResponse(criterion, receiptsFor(id));
+        DonorTrancheCriterion criterion = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Inflow budget line", id));
+        return mapper.toResponse(criterion, creditNotesByCriterion(fundCriteriaOf(criterion)).getOrDefault(id, List.of()));
     }
 
-    /**
-     * A line can be receipted in more than one instalment (e.g. two separate
-     * transactions against the same tranche), so this adds a new InflowReceipt
-     * row rather than replacing the criterion's totals — each instalment stays
-     * individually visible instead of being squashed into one running total.
-     */
-    @Override
-    public InflowBudgetLineResponse recordReceipt(Long id, RecordInflowReceiptRequest request) {
-        DonorTrancheCriterion criterion = findCriterion(id);
+    /** Credit notes received on each of these lines, keyed by criterion id. */
+    private Map<Long, List<CreditNote>> creditNotesByCriterion(List<DonorTrancheCriterion> criteria) {
+        Map<Long, List<CreditNote>> byId = new HashMap<>();
+        if (criteria.isEmpty()) {
+            return byId;
+        }
+        Map<String, DonorTrancheCriterion> criterionByRef = criteria.stream()
+                .collect(Collectors.toMap(c -> String.valueOf(c.getId()), c -> c, (a, b) -> a));
+        creditNoteRepository.findByTrancheRefIn(criterionByRef.keySet())
+                .forEach(n -> add(byId, criterionByRef.get(n.getTrancheRef()), n));
 
-        InflowReceipt receipt = new InflowReceipt();
-        receipt.setTrancheCriterion(criterion);
-        receipt.setReceivedDate(request.getActualDate());
-        receipt.setReceivedAmount(request.getActualAmount());
-        receipt.setBankReference(request.getReceiptRef());
-        receipt.setReceiptVoucherNo(request.getReceiptNo());
-        receipt.setVarianceReason(request.getVarianceReason());
-        receipt.setTransactionId(request.getTransactionId());
-        receiptRepository.save(receipt);
-
-        log.info("Recorded inflow receipt of {} for tranche criterion {}", request.getActualAmount(), id);
-        return mapper.toResponse(criterion, receiptsFor(id));
+        // Lump sum: the fund profile's earliest line takes the money.
+        Map<String, DonorTrancheCriterion> firstLineByFund = criteria.stream()
+                .collect(Collectors.toMap(
+                        c -> String.valueOf(c.getDonorDisbursementRule().getFundProfile().getId()),
+                        c -> c,
+                        (a, b) -> EARLIEST_FIRST.compare(a, b) <= 0 ? a : b));
+        creditNoteRepository.findByDisbursementTypeAndTrancheRefIsNullAndFundProfileRefIn(LUMP_SUM, firstLineByFund.keySet())
+                .forEach(n -> add(byId, firstLineByFund.get(n.getFundProfileRef()), n));
+        return byId;
     }
 
-    @Override
-    public InflowBudgetLineResponse reverseReceipt(Long id, Long transactionId) {
-        DonorTrancheCriterion criterion = findCriterion(id);
-        receiptRepository.findByTransactionId(transactionId).ifPresent(receiptRepository::delete);
-        log.info("Reversed inflow receipt posted by transaction {} for tranche criterion {}", transactionId, id);
-        return mapper.toResponse(criterion, receiptsFor(id));
+    private static void add(Map<Long, List<CreditNote>> byId, DonorTrancheCriterion criterion, CreditNote note) {
+        if (criterion != null) {
+            byId.computeIfAbsent(criterion.getId(), k -> new ArrayList<>()).add(note);
+        }
     }
 
-    private List<InflowReceipt> receiptsFor(Long criterionId) {
-        return receiptRepository.findByTrancheCriterionIdOrderByReceivedDateAsc(criterionId);
-    }
-
-    private DonorTrancheCriterion findCriterion(Long id) {
-        return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Inflow budget line", id));
+    /** Every line on the same fund profile — needed to place lump-sum credit notes. */
+    private List<DonorTrancheCriterion> fundCriteriaOf(DonorTrancheCriterion criterion) {
+        Long fundId = criterion.getDonorDisbursementRule().getFundProfile().getId();
+        return repository.findAllInflowLines().stream()
+                .filter(c -> Objects.equals(c.getDonorDisbursementRule().getFundProfile().getId(), fundId))
+                .toList();
     }
 }

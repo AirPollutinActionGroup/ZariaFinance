@@ -20,15 +20,14 @@ import { useBankDetails } from '../../bank-details/hooks/useBankDetails.js';
 import { useDonors } from '../../donor-management/hooks/useDonors.js';
 import { useFundProfilesByDonor } from '../../donor-management/hooks/useFundProfiles.js';
 import { useGrantByFundProfileId } from '../../donor-management/hooks/useGrants.js';
-import { donorBook } from '../../donor-management/lib/donorBook.js';
+import { BOOKS, donorBook } from '../../donor-management/lib/donorBook.js';
 import { deriveDisbursementType } from '../../donor-management/lib/disbursement.js';
 import { useInflowBudgetLines } from '../../inflow-budget/hooks/useInflowBudget.js';
-import { useTransactions } from '../../new-transaction/hooks/useTransactions.js';
 import { computeGrantBalance } from '../../debit-notes/lib/grantBalance.js';
-import { BOOKS } from '../../new-transaction/data/mockNewTransaction.js';
-import { getDebitNotes } from '../../debit-notes/data/debitNoteRepository.js';
-import { createCreditNote, getCreditNotes } from '../data/creditNoteRepository.js';
+import { useDebitNotes } from '../../debit-notes/hooks/useDebitNotes.js';
+import { useCreateCreditNote, useCreditNotes } from '../hooks/useCreditNotes.js';
 import { FormSection, Figure, MONEY_SX } from '../components/NoteLayout.jsx';
+import { BankAccountDetails } from '../components/BankAccountDetails.jsx';
 import { ATTACHMENT_ACCEPT, ATTACHMENT_MAX_BYTES } from '../constants.js';
 
 const MAX_MB = ATTACHMENT_MAX_BYTES / (1024 * 1024);
@@ -85,7 +84,7 @@ function FundBalanceStrip({ balance, thisNote, loading, failed }) {
             <Figure label="Grant total" value={loading ? '…' : balance.total != null ? formatInrExact(balance.total) : '—'} />
             <Figure label="Received" value={money(balance.received)} color="success.main" />
             <Figure label="Debited" value={balance.debited ? `− ${money(balance.debited)}` : money(0)} color={balance.debited ? 'error.main' : undefined} />
-            <Figure label="Credited back" value={balance.credited ? `+ ${money(balance.credited)}` : money(0)} color={balance.credited ? 'success.main' : undefined} />
+            <Figure label="Received via credit notes" value={money(balance.credited)} color={balance.credited ? 'success.main' : undefined} />
             <Figure label="Balance available" strong value={money(balance.available)} color={balance.available < 0 ? 'error.main' : 'text.primary'} />
             <Figure label="After this credit" strong value={money(after)} color="success.main" />
           </Box>
@@ -97,8 +96,8 @@ function FundBalanceStrip({ balance, thisNote, loading, failed }) {
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
             {!balance.hasReceipts
               ? balance.hasTranches
-                ? 'Nothing received on this fund yet — record receipts in the Payment Window.'
-                : 'This fund profile has no tranche plan and no Payment Window receipts yet.'
+                ? 'Nothing received on this fund yet.'
+                : 'This fund profile has no tranche plan and no receipts yet.'
               : balance.total
                 ? `${Math.round(received)}% of the grant received so far. This credit goes back to the fund's available balance.`
                 : 'No grant agreement yet — balance is based on receipts only.'}
@@ -117,8 +116,11 @@ export function CreditNoteCreatePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   // Debit notes aren't shown here, but the fund's available balance nets them off.
-  const [debitNotes] = useState(() => getDebitNotes());
-  const [creditNotes] = useState(() => getCreditNotes());
+  const debitNotesQuery = useDebitNotes();
+  const creditNotesQuery = useCreditNotes();
+  const debitNotes = useMemo(() => debitNotesQuery.data || [], [debitNotesQuery.data]);
+  const creditNotes = useMemo(() => creditNotesQuery.data || [], [creditNotesQuery.data]);
+  const createNote = useCreateCreditNote();
 
   const [form, setForm] = useState(initialForm);
   const [submitted, setSubmitted] = useState(false);
@@ -131,7 +133,7 @@ export function CreditNoteCreatePage() {
   const setValue = (field, value) => setForm((f) => ({ ...f, [field]: value }));
   const set = (field) => (e) => setValue(field, e.target.value);
 
-  // ── Master data (server-backed, same as the Payment Window) ─────────────
+  // ── Master data (server-backed) ─────────────────────────────────────────
   const paymentModesQuery = usePaymentModes();
   const paymentModeOptions = useMemo(
     () => (paymentModesQuery.data || []).filter((m) => m.status === 'ACTIVE').map((m) => ({ value: m.id, label: m.name })),
@@ -162,6 +164,8 @@ export function CreditNoteCreatePage() {
         .map((b) => ({ value: b.id, label: `${b.bankName} — ****${String(b.accountNumber).slice(-4)}` })),
     [bankDetailsQuery.data, form.book],
   );
+  // The picked account's full record (IFSC, branch) from the same backend list.
+  const selectedBankAccount = (bankDetailsQuery.data || []).find((b) => b.id === form.bankAccountId) || null;
 
   // ── Fund & Grant ────────────────────────────────────────────────────────
   const donorsQuery = useDonors();
@@ -187,7 +191,7 @@ export function CreditNoteCreatePage() {
   const disbursementRule = currentFundProfile?.disbursementRules?.[0] || null;
   const disbursementTypeLabel = currentFundProfile ? deriveDisbursementType(disbursementRule) : '';
   const isTranched = disbursementTypeLabel === 'Tranches';
-  // A tranched fund needs the tranche this money goes back to (as in the Payment Window).
+  // A tranched fund needs the tranche this money goes back to.
   const trancheOptions = isTranched
     ? (disbursementRule?.trancheCriteria || []).map((t, i) => ({
         value: t.id ?? i,
@@ -195,16 +199,14 @@ export function CreditNoteCreatePage() {
       }))
     : [];
 
-  // Balance available = received on the fund's tranches (Inflow Budget) − net spent from it.
+  // Balance available = received on the fund (Inflow Budget, incl. credit notes) − debit notes.
   const inflowLinesQuery = useInflowBudgetLines();
-  // Payment Window receipts on the fund — counted when the Inflow line hasn't recorded them yet.
-  const transactionsQuery = useTransactions();
   const inflowLinesById = useMemo(() => {
     const map = new Map();
     (inflowLinesQuery.data || []).forEach((line) => map.set(Number(line.id), line));
     return map;
   }, [inflowLinesQuery.data]);
-  // Still owed from the donor, as in the Payment Window: expected − received on the
+  // Still owed from the donor: expected − received on the
   // selected tranche's Inflow Budget line, or across all the fund's criteria for a lump sum.
   const owedOn = (criterionId) => {
     const line = inflowLinesById.get(Number(criterionId));
@@ -227,7 +229,6 @@ export function CreditNoteCreatePage() {
         inflowLinesById,
         notes: debitNotes,
         credits: creditNotes,
-        transactions: transactionsQuery.data || [],
       })
     : null;
 
@@ -277,16 +278,18 @@ export function CreditNoteCreatePage() {
     setValue('file', file);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitted(true);
+    setSaveError(null);
     if (!isValid) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     try {
-      const note = createCreditNote(
-        {
+      const note = await createNote.mutateAsync({
+        actor: user?.name || 'You',
+        input: {
           date: form.date,
           amount,
           book: form.book,
@@ -301,16 +304,14 @@ export function CreditNoteCreatePage() {
           tranche: isTranched ? snapshot(trancheOptions, form.trancheId) : null,
           reference: form.reference,
           remarks: form.remarks,
-          // Frontend-only: the file lives as a browser object URL for this session.
-          attachment: form.file
-            ? { name: form.file.name, size: form.file.size, type: form.file.type, url: URL.createObjectURL(form.file) }
-            : null,
+          // Only the file name is saved for now — there's no file upload service yet.
+          attachment: form.file ? { name: form.file.name } : null,
         },
-        { by: user?.name || 'You' },
-      );
+      });
       navigate(`/credit-notes/${note.id}`, { state: { justIssued: true } });
     } catch (err) {
-      setSaveError(err.message);
+      setSaveError(err.message || 'Could not issue the credit note.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -406,9 +407,9 @@ export function CreditNoteCreatePage() {
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -1, ...MONEY_SX }}>
               {!fundBalance
                 ? 'Select a fund to see its available balance'
-                : inflowLinesQuery.isLoading || transactionsQuery.isLoading
+                : inflowLinesQuery.isLoading
                   ? 'Loading balance…'
-                  : inflowLinesQuery.isError && transactionsQuery.isError
+                  : inflowLinesQuery.isError
                     ? 'Balance not available for this fund profile'
                     : `Available: ${formatInrExact(fundBalance.available)}${thisNote ? ` → after this credit: ${formatInrExact(fundBalance.available + thisNote)}` : ''}`}
             </Typography>
@@ -471,8 +472,8 @@ export function CreditNoteCreatePage() {
               <FundBalanceStrip
                 balance={fundBalance}
                 thisNote={thisNote}
-                loading={inflowLinesQuery.isLoading || transactionsQuery.isLoading || grantQuery.isLoading}
-                failed={inflowLinesQuery.isError && transactionsQuery.isError}
+                loading={inflowLinesQuery.isLoading || grantQuery.isLoading}
+                failed={inflowLinesQuery.isError}
               />
             </Grid>
           ) : null}
@@ -499,6 +500,17 @@ export function CreditNoteCreatePage() {
               disabled={!bankDetailsQuery.isLoading && bankAccountOptions.length === 0}
               placeholder={!bankDetailsQuery.isLoading && bankAccountOptions.length === 0 ? `No active ${form.book} accounts` : undefined}
             />
+            {selectedBankAccount ? (
+              <Box sx={{ mt: -1 }}>
+                <BankAccountDetails record={selectedBankAccount} compact />
+              </Box>
+            ) : bankDetailsQuery.isSuccess && bankAccountOptions.length === 0 ? (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -1 }}>
+                {(bankDetailsQuery.data || []).length
+                  ? `No active ${form.book} accounts — change the Book, or add one in Bank Details.`
+                  : 'No bank accounts yet — add them in Bank Details.'}
+              </Typography>
+            ) : null}
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <TextField
@@ -580,8 +592,16 @@ export function CreditNoteCreatePage() {
           <Button variant="outlined" size="large" onClick={() => navigate(backTo)} sx={{ px: 3, fontWeight: 700 }}>
             Cancel
           </Button>
-          <Button type="submit" variant="contained" color="success" size="large" startIcon={<SaveIcon />} sx={{ px: 4, fontWeight: 700, borderRadius: 2 }}>
-            Issue Credit Note
+          <Button
+            type="submit"
+            variant="contained"
+            color="success"
+            size="large"
+            startIcon={<SaveIcon />}
+            disabled={createNote.isPending}
+            sx={{ px: 4, fontWeight: 700, borderRadius: 2 }}
+          >
+            {createNote.isPending ? 'Issuing…' : 'Issue Credit Note'}
           </Button>
         </Stack>
       </form>

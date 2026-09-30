@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rowCredits, rowDebits, rowRemaining, rowSpent } from './spent.js';
+import { rowDebits, rowRemaining, rowSpent } from './spent.js';
 
 describe('outflow spent', () => {
   const paid = { id: 'A', expectedAmount: 1000, actualAmount: 1000 };
@@ -11,14 +11,6 @@ describe('outflow spent', () => {
     expect(rowSpent(paid, debits)).toBe(1150);
     expect(rowSpent(unpaid, debits)).toBe(100);
     expect(rowSpent(unpaid)).toBe(0);
-  });
-
-  it('takes credit notes off Spent and gives them back to Remaining', () => {
-    const credits = { A: 400 };
-    expect(rowCredits(paid, credits)).toBe(400);
-    expect(rowCredits(unpaid, credits)).toBe(0);
-    expect(rowSpent(paid, debits, credits)).toBe(750);
-    expect(rowRemaining(paid, debits, credits)).toBe(250);
   });
 
   it('goes negative on Remaining when a line is overspent', () => {

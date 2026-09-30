@@ -16,7 +16,7 @@ export function DebitSummaryCard({ summary, period, filtered = false, totalCount
     <Card sx={{ mb: 3.5, overflow: 'hidden' }}>
       <PeriodBar
         period={period}
-        shown={s.issuedCount + s.cancelledCount}
+        shown={s.issuedCount}
         totalCount={totalCount}
         filtered={filtered}
         onClearFilters={onClearFilters}
@@ -29,15 +29,10 @@ export function DebitSummaryCard({ summary, period, filtered = false, totalCount
           </Box>
           <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {plural(s.issuedCount, 'issued note')} · {plural(s.lineCount, 'line')}
+              {plural(s.issuedCount, 'note')} · {plural(s.lineCount, 'line')}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>{fundPct}% to funds</Typography>
           </Stack>
-          {s.creditedBack.count ? (
-            <Caption sx={{ mt: 0.25, color: 'success.main' }}>
-              − {formatInrExact(s.creditedBack.amount)} credited back on {plural(s.creditedBack.count, 'note')}
-            </Caption>
-          ) : null}
         </Tile>
 
         <Tile accent="info.main" label="Charged to funds" value={formatInrExact(s.toFund.amount)}>
@@ -51,16 +46,11 @@ export function DebitSummaryCard({ summary, period, filtered = false, totalCount
           ) : null}
         </Tile>
 
-        <Tile accent="warning.main" label="By budget" value={plural(s.issuedCount, 'note')}>
+        <Tile accent="warning.main" label="By budget" value={plural(s.issuedCount, 'note')} last>
           <SplitRow color="warning.main" label="Over budget" amount={s.overBudget.amount} count={s.overBudget.count} />
           <SplitRow color="text.secondary" label="Within budget" amount={s.withinBudget.amount} count={s.withinBudget.count} />
         </Tile>
 
-        <Tile accent="text.disabled" label="Cancelled" value={s.cancelledCount} valueColor="text.secondary" last>
-          <Caption>
-            {s.cancelledCount ? `${formatInrExact(s.cancelledTotal)} kept on record, not counted` : 'None cancelled'}
-          </Caption>
-        </Tile>
       </Stack>
 
       <BookSplit byBook={s.byBook} total={s.issuedTotal} />

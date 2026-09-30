@@ -1,3 +1,9 @@
+/** The two Books a donor's contribution is recorded in. */
+export const BOOKS = [
+  { value: 'LC', label: 'LC · Local contribution' },
+  { value: 'FC', label: 'FC · Foreign contribution' },
+];
+
 /**
  * A donor's Book (LC / FC). Many donor records have no `book` saved, so fall
  * back the same way the backend does (FundingClassifier.isForeign in

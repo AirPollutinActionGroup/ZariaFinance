@@ -24,12 +24,13 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SaveIcon from '@mui/icons-material/Save';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../core/auth/index.js';
-import { PageHeader, StatusChip } from '../../../shared/components/index.js';
+import { ErrorState, LoadingState, PageHeader, StatusChip } from '../../../shared/components/index.js';
 import { SearchableSelect } from '../../../components/SearchableSelect.jsx';
 import { formatInrExact } from '../../../lib/format/currency.js';
-import { getOutflowRows } from '../../outflow-budget/data/outflowRepository.js';
+import { formatDate } from '../../../lib/format/date.js';
+import { useOutflowRows } from '../../outflow-budget/hooks/useOutflow.js';
 import { rowRemaining, rowSpent } from '../../outflow-budget/lib/spent.js';
-import { FUNDING_SOURCE_TONE, FUNDING_SOURCE_TYPE } from '../../outflow-budget/constants.js';
+import { BUDGET_TYPE, BUDGET_TYPE_TONE } from '../../budget/constants.js';
 import { usePaymentModes } from '../../payment-mode/hooks/usePaymentModes.js';
 import { usePaymentTypeGroups } from '../../payment-type/hooks/usePaymentTypeGroups.js';
 import { usePaymentTypeLedgers } from '../../payment-type/hooks/usePaymentTypeLedgers.js';
@@ -37,17 +38,20 @@ import { useBankDetails } from '../../bank-details/hooks/useBankDetails.js';
 import { useDonors } from '../../donor-management/hooks/useDonors.js';
 import { useFundProfilesByDonor } from '../../donor-management/hooks/useFundProfiles.js';
 import { useGrantByFundProfileId } from '../../donor-management/hooks/useGrants.js';
-import { donorBook } from '../../donor-management/lib/donorBook.js';
+import { BOOKS, donorBook } from '../../donor-management/lib/donorBook.js';
 import { useInflowBudgetLines } from '../../inflow-budget/hooks/useInflowBudget.js';
-import { useTransactions } from '../../new-transaction/hooks/useTransactions.js';
 import { computeGrantBalance } from '../lib/grantBalance.js';
-import { BOOKS, PAYEE_CATEGORIES, PAYEES } from '../../new-transaction/data/mockNewTransaction.js';
-import { createDebitNote, debitTotalsByLine, getDebitNotes } from '../data/debitNoteRepository.js';
-import { creditTotalsByLine, getCreditNotes } from '../../credit-notes/data/creditNoteRepository.js';
+import { useEmployees } from '../../employee-list/hooks/useEmployees.js';
+import { useVendors } from '../../vendor-registration/hooks/useVendors.js';
+import { useCreateDebitNote, useDebitNotes } from '../hooks/useDebitNotes.js';
+import { debitTotalsByLine } from '../lib/debitTotals.js';
+import { useCreditNotes } from '../../credit-notes/hooks/useCreditNotes.js';
 import { Figure, FormSection, MONEY_SX } from '../../credit-notes/components/NoteLayout.jsx';
-import { ATTACHMENT_ACCEPT, ATTACHMENT_MAX_BYTES, DEBIT_NOTE_REASON } from '../constants.js';
+import { ATTACHMENT_ACCEPT, ATTACHMENT_MAX_BYTES, DEBIT_NOTE_REASON, PAYEE_CATEGORIES } from '../constants.js';
 
 const MAX_MB = ATTACHMENT_MAX_BYTES / (1024 * 1024);
+/** Employee Master statuses that can still be paid — must match EMPLOYEE_STATUSES verbatim. */
+const PAYABLE_EMPLOYEE_STATUSES = ['Active', 'On Notice'];
 const todayLocal = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
 
 /** Field → label, for the "still needed" summary. */
@@ -89,7 +93,7 @@ function initialForm(line) {
 /** { value, label } option → the { id, name } snapshot stored on the note. */
 const snapshot = (options, value) => {
   const opt = options.find((o) => o.value === value);
-  return opt ? { id: opt.value, name: opt.label } : null;
+  return opt ? { id: opt.value, name: opt.name ?? opt.label } : null;
 };
 
 /** Available balance on the chosen fund profile, and what's left once this debit is charged to it. */
@@ -119,7 +123,7 @@ function FundBalanceStrip({ balance, thisNote, loading, failed }) {
             <Figure label="Grant total" value={loading ? '…' : balance.total != null ? formatInrExact(balance.total) : '—'} />
             <Figure label="Received" value={money(balance.received)} color="success.main" />
             <Figure label="Debited" value={balance.debited ? `− ${money(balance.debited)}` : money(0)} color={balance.debited ? 'error.main' : undefined} />
-            <Figure label="Credited back" value={balance.credited ? `+ ${money(balance.credited)}` : money(0)} color={balance.credited ? 'success.main' : undefined} />
+            <Figure label="Received via credit notes" value={money(balance.credited)} color={balance.credited ? 'success.main' : undefined} />
             <Figure label="Balance available" strong value={money(balance.available)} color={balance.available < 0 ? 'error.main' : 'text.primary'} />
             <Figure label="After this debit" strong value={money(after)} color={short ? 'error.main' : 'text.primary'} />
           </Box>
@@ -133,8 +137,8 @@ function FundBalanceStrip({ balance, thisNote, loading, failed }) {
               ? `This note is ${formatInrExact(-after)} more than the fund has available.`
               : !balance.hasReceipts
                 ? balance.hasTranches
-                  ? 'Nothing received on this fund yet — record receipts in the Payment Window.'
-                  : 'This fund profile has no tranche plan and no Payment Window receipts yet.'
+                  ? 'Nothing received on this fund yet.'
+                  : 'This fund profile has no tranche plan and no receipts yet.'
                 : balance.total
                   ? `${Math.round(received)}% of the grant received so far.`
                   : 'No grant agreement yet — balance is based on receipts only.'}
@@ -164,8 +168,8 @@ function BudgetStrip({ line, spentBefore, thisNote, remainingAfter }) {
     >
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 1.25, md: 3 }} alignItems={{ md: 'center' }}>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
-          <StatusChip label={FUNDING_SOURCE_TYPE[line.fundingSource]} tone={FUNDING_SOURCE_TONE[line.fundingSource]} />
-          {line.donor ? <Typography variant="caption" color="text.secondary">{line.donor}</Typography> : null}
+          <StatusChip label={BUDGET_TYPE[line.budgetType]} tone={BUDGET_TYPE_TONE[line.budgetType]} />
+          <Typography variant="caption" color="text.secondary">{line.scope} · due {formatDate(line.expectedDate)}</Typography>
         </Stack>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 2, flex: 1 }}>
           <Figure label="Budgeted" value={formatInrExact(budget)} />
@@ -189,19 +193,30 @@ function BudgetStrip({ line, spentBefore, thisNote, remainingAfter }) {
 }
 
 /**
- * Raise a debit note — /debit-notes/new (optionally ?line=BL-04-02 to
- * preselect the outflow line). Party, payment mode, bank account and
- * Group ▸ Ledger use the same master data as the Payment Window (Cr).
+ * Raise a debit note — /debit-notes/new (optionally ?line=BUD-2026-001-BL01-Q2
+ * to preselect the outflow row). Waits for the outflow rows and existing notes
+ * so the preselected row and its Spent are known before the form starts.
  */
 export function DebitNoteCreatePage() {
+  const linesQuery = useOutflowRows();
+  const debitNotesQuery = useDebitNotes();
+  const creditNotesQuery = useCreditNotes();
+  const failed = [linesQuery, debitNotesQuery, creditNotesQuery].find((q) => q.isError);
+
+  if (failed) return <ErrorState error={failed.error} onRetry={failed.refetch} />;
+  if (linesQuery.isPending || debitNotesQuery.isPending || creditNotesQuery.isPending) {
+    return <LoadingState label="Loading outflow lines…" />;
+  }
+  return <DebitNoteForm lines={linesQuery.data} allNotes={debitNotesQuery.data} allCredits={creditNotesQuery.data} />;
+}
+
+/** The form itself. Party, payment mode, bank account and Group ▸ Ledger come from the server-backed master data. */
+function DebitNoteForm({ lines, allNotes, allCredits }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const [lines] = useState(() => getOutflowRows());
-  const [allNotes] = useState(() => getDebitNotes());
+  const createNote = useCreateDebitNote();
   const debitTotals = useMemo(() => debitTotalsByLine(allNotes), [allNotes]);
-  const [allCredits] = useState(() => getCreditNotes());
-  const creditTotals = useMemo(() => creditTotalsByLine(allCredits), [allCredits]);
   const [form, setForm] = useState(() => initialForm(lines.find((l) => l.id === searchParams.get('line')) || null));
   const [submitted, setSubmitted] = useState(false);
   // Fields the user has left — their errors show straight away, before submit.
@@ -213,7 +228,7 @@ export function DebitNoteCreatePage() {
   const setValue = (field, value) => setForm((f) => ({ ...f, [field]: value }));
   const set = (field) => (e) => setValue(field, e.target.value);
 
-  // ── Master data (server-backed, same as the Payment Window) ─────────────
+  // ── Master data (server-backed) ─────────────────────────────────────────
   const paymentModesQuery = usePaymentModes();
   const paymentModeOptions = useMemo(
     () => (paymentModesQuery.data || []).filter((m) => m.status === 'ACTIVE').map((m) => ({ value: m.id, label: m.name })),
@@ -246,12 +261,27 @@ export function DebitNoteCreatePage() {
     [bankDetailsQuery.data, form.book],
   );
 
-  const payeeOptions = useMemo(
-    () => PAYEES.filter((p) => p.category === form.payeeCategory).map((p) => ({ value: p.id, label: p.name })),
-    [form.payeeCategory],
-  );
+  // Payees are the active Employee Master / Vendor Register records (server-backed).
+  // An employee on notice is still on the payroll, so can still be paid.
+  const employeesQuery = useEmployees();
+  const vendorsQuery = useVendors();
+  const payeeQuery = form.payeeCategory === 'EMPLOYEE' ? employeesQuery : vendorsQuery;
+  const payeeOptions = useMemo(() => {
+    if (form.payeeCategory === 'EMPLOYEE') {
+      return (employeesQuery.data || [])
+        .filter((e) => PAYABLE_EMPLOYEE_STATUSES.includes(e.status))
+        .map((e) => ({ value: e.id, name: e.name, label: e.empId ? `${e.name} (${e.empId})` : e.name }));
+    }
+    if (form.payeeCategory === 'VENDOR') {
+      return (vendorsQuery.data || [])
+        .filter((v) => v.status === 'Active')
+        .map((v) => ({ value: v.id, name: v.legalName, label: v.vendorCode ? `${v.legalName} (${v.vendorCode})` : v.legalName }));
+    }
+    return [];
+  }, [form.payeeCategory, employeesQuery.data, vendorsQuery.data]);
+  const payeeNoun = form.payeeCategory === 'EMPLOYEE' ? 'employees' : 'vendors';
 
-  // ── Fund & Grant (server-backed donor-management data, as in the Payment Window) ──
+  // ── Fund & Grant (server-backed donor-management data) ──
   // A donor is booked LC or FC — only offer donors booked the same as the note.
   const donorsQuery = useDonors();
   const donors = useMemo(() => donorsQuery.data || [], [donorsQuery.data]);
@@ -281,8 +311,6 @@ export function DebitNoteCreatePage() {
     (inflowLinesQuery.data || []).forEach((line) => map.set(Number(line.id), line));
     return map;
   }, [inflowLinesQuery.data]);
-  // Payment Window receipts on the fund — counted when the Inflow line hasn't recorded them yet.
-  const transactionsQuery = useTransactions();
   const currentFundProfile = (fundProfilesQuery.data || []).find((f) => f.id === form.fundId) || null;
 
   const grantBalance = currentFundProfile
@@ -292,69 +320,60 @@ export function DebitNoteCreatePage() {
         inflowLinesById,
         notes: allNotes,
         credits: allCredits,
-        transactions: transactionsQuery.data || [],
       })
     : null;
 
-  /** The outflow line names its donor as text; match it to a donor record in the line's book. */
-  const matchDonorId = (line, book = line?.book) => {
-    const name = (line?.donor || '').trim().toLowerCase();
-    if (!name) return '';
-    return donors.find((d) => donorBook(d) === book && (d.donorName || '').trim().toLowerCase() === name)?.id ?? '';
-  };
-  // Offered as a one-click suggestion when the line was preselected before donors loaded.
-  const suggestedDonorId = !form.donorId ? matchDonorId(form.line, form.book) : '';
-  const isRestrictedLine = form.line?.fundingSource === 'RESTRICTED';
 
   // ── Validation ──────────────────────────────────────────────────────────
   const amount = Number(form.amount);
-  const spentNow = form.line ? rowSpent(form.line, debitTotals, creditTotals) : 0;
+  const spentNow = form.line ? rowSpent(form.line, debitTotals) : 0;
   const thisNote = amount > 0 ? amount : 0;
-  const remainingAfter = form.line ? rowRemaining(form.line, debitTotals, creditTotals) - thisNote : 0;
+  const remainingAfter = form.line ? rowRemaining(form.line, debitTotals) - thisNote : 0;
   // Reason is only asked for when this note takes the line over budget.
   const isOverBudget = Boolean(form.line) && remainingAfter < 0;
+  // A debit charged to a fund can't be for more than the fund has available (the server checks the same).
+  const fundAvailable =
+    grantBalance && !inflowLinesQuery.isLoading && !inflowLinesQuery.isError ? Math.max(grantBalance.available, 0) : null;
+  const amountError =
+    amount > 0
+      ? fundAvailable != null && amount > fundAvailable
+        ? fundAvailable > 0
+          ? `Only ${formatInrExact(fundAvailable)} available on this fund`
+          : 'No balance available on this fund'
+        : null
+      : 'Enter an amount greater than zero';
 
   // Keys in on-page order — the "Still needed" summary lists them this way.
   const errors = {
     date: form.date ? null : 'Required',
     book: form.book ? null : 'Required',
     line: form.line ? null : 'Select an outflow line',
-    amount: amount > 0 ? null : 'Enter an amount greater than zero',
+    amount: amountError,
     reason: !isOverBudget || form.reason ? null : 'Over budget — select why',
     payeeCategory: form.payeeCategory ? null : 'Required',
     payeeId: form.payeeId ? null : 'Select a payee',
     paymentModeId: form.paymentModeId ? null : 'Select a payment mode',
     groupId: form.groupId ? null : 'Select a group',
-    // Restricted money must be charged to the donor fund it came from.
-    donorId: !isRestrictedLine || form.donorId ? null : 'Restricted line — select the donor',
-    // A fund profile belongs to a donor — can't pick one without the other.
-    fundId: form.fundId
-      ? null
-      : isRestrictedLine
-        ? 'Restricted line — select the fund profile'
-        : form.donorId
-          ? 'Select the fund profile for this donor'
-          : null,
+    // Donor / fund are optional, but a donor picked needs its fund profile.
+    fundId: form.fundId || !form.donorId ? null : 'Select the fund profile for this donor',
   };
   const isValid = Object.values(errors).every((e) => !e);
   const show = (field) => (submitted || touched[field] ? errors[field] : null);
   const missing = Object.keys(errors).filter((k) => errors[k]).map((k) => FIELD_LABELS[k]);
 
   // ── Handlers ────────────────────────────────────────────────────────────
-  // A new line may change the Book (clearing book-bound picks) and pre-selects the line's donor if it matches.
+  // A new line may change the Book, which clears the book-bound picks (bank account, donor, fund).
   const handleLineChange = (line) =>
     setForm((f) => {
       const book = line?.book || f.book;
       const bookChanged = book !== f.book;
-      const matchedDonor = matchDonorId(line, book);
-      const donorId = matchedDonor || (bookChanged ? '' : f.donorId);
       return {
         ...f,
         line,
         book,
         bankAccountId: bookChanged ? '' : f.bankAccountId,
-        donorId,
-        fundId: donorId === f.donorId ? f.fundId : '',
+        donorId: bookChanged ? '' : f.donorId,
+        fundId: bookChanged ? '' : f.fundId,
       };
     });
   const handleBookChange = (opt) =>
@@ -376,16 +395,18 @@ export function DebitNoteCreatePage() {
     setValue('file', file);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitted(true);
+    setSaveError(null);
     if (!isValid) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     try {
-      const note = createDebitNote(
-        {
+      const note = await createNote.mutateAsync({
+        actor: user?.name || 'You',
+        input: {
           outflowLineId: form.line.id,
           date: form.date,
           amount,
@@ -402,21 +423,21 @@ export function DebitNoteCreatePage() {
           grant: assignedGrant ? { id: assignedGrant.id, name: assignedGrant.grantCode } : null,
           reference: form.reference,
           remarks: form.remarks,
-          // Frontend-only: the file lives as a browser object URL for this session.
-          attachment: form.file
-            ? { name: form.file.name, size: form.file.size, type: form.file.type, url: URL.createObjectURL(form.file) }
-            : null,
+          // Only the file name is saved for now — there's no file upload service yet.
+          attachment: form.file ? { name: form.file.name } : null,
         },
-        { by: user?.name || 'You' },
-      );
+      });
       navigate(`/debit-notes/${note.id}`, { state: { justIssued: true } });
     } catch (err) {
-      setSaveError(err.message);
+      // Server rule failures (e.g. an over-budget note without a reason) come back readable.
+      setSaveError(err.message || 'Could not issue the debit note.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const backTo = searchParams.get('line') ? `/outflow-budget/${searchParams.get('line')}` : '/debit-notes';
-  const mastersFailed = paymentModesQuery.isError || groupsQuery.isError || bankDetailsQuery.isError || donorsQuery.isError;
+  const mastersFailed =
+    paymentModesQuery.isError || groupsQuery.isError || bankDetailsQuery.isError || donorsQuery.isError || employeesQuery.isError || vendorsQuery.isError;
 
   return (
     <Box>
@@ -432,7 +453,7 @@ export function DebitNoteCreatePage() {
 
       {mastersFailed ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          Could not load donors, payment modes, groups or bank accounts from the server. Check the connection and reload this page.
+          Could not load employees, vendors, donors, payment modes, groups or bank accounts from the server. Check the connection and reload this page.
         </Alert>
       ) : null}
       {submitted && !isValid ? (
@@ -486,19 +507,21 @@ export function DebitNoteCreatePage() {
               options={lines}
               value={form.line}
               onChange={(_, line) => handleLineChange(line)}
-              getOptionLabel={(l) => `${l.id} — ${l.line}`}
+              getOptionLabel={(l) => `${l.budgetCode} · ${l.lineCode} · Q${l.quarter} — ${l.line}`}
               isOptionEqualToValue={(a, b) => a.id === b.id}
               renderOption={({ key, ...props }, l) => {
-                const left = rowRemaining(l, debitTotals, creditTotals);
+                const left = rowRemaining(l, debitTotals);
                 return (
                   <Box component="li" key={key} {...props} sx={{ display: 'flex', gap: 1.5 }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        <Box component="span" sx={{ fontFamily: 'monospace', mr: 1 }}>{l.id}</Box>
+                        <Box component="span" sx={{ fontFamily: 'monospace', mr: 1 }}>
+                          {l.budgetCode} · {l.lineCode} · Q{l.quarter}
+                        </Box>
                         {l.line}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {FUNDING_SOURCE_TYPE[l.fundingSource]}{l.donor ? ` · ${l.donor}` : ''} · {l.book}
+                        {l.scope} · {l.categoryName} · {l.book} · due {formatDate(l.expectedDate)}
                       </Typography>
                     </Box>
                     <Typography variant="caption" sx={{ ...MONEY_SX, flexShrink: 0, fontWeight: 600, color: left < 0 ? 'error.main' : 'text.secondary' }}>
@@ -578,9 +601,24 @@ export function DebitNoteCreatePage() {
               options={payeeOptions}
               value={payeeOptions.find((o) => o.value === form.payeeId) || null}
               onChange={(opt) => setValue('payeeId', opt?.value || '')}
-              disabled={!form.payeeCategory}
+              loading={payeeQuery.isLoading}
+              disabled={!form.payeeCategory || (!payeeQuery.isLoading && payeeOptions.length === 0)}
+              placeholder={
+                !form.payeeCategory
+                  ? 'Select a category first'
+                  : !payeeQuery.isLoading && payeeOptions.length === 0
+                    ? `No active ${payeeNoun}`
+                    : undefined
+              }
               error={show('payeeId')}
             />
+            {form.payeeCategory && payeeQuery.isSuccess && payeeOptions.length === 0 ? (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -1 }}>
+                {form.payeeCategory === 'EMPLOYEE'
+                  ? 'No active employees — add or reactivate them in the Employee Master.'
+                  : 'No active vendors — add or activate them in the Vendor Register.'}
+              </Typography>
+            ) : null}
           </Grid>
         </FormSection>
 
@@ -643,15 +681,11 @@ export function DebitNoteCreatePage() {
           number="05"
           icon={VolunteerActivismOutlinedIcon}
           title="Fund & Grant"
-          description={
-            isRestrictedLine
-              ? 'Restricted line — charge the payment to the donor fund it came from.'
-              : 'Optional for unrestricted and corpus lines.'
-          }
+          description="Optional — charge the payment to the donor fund it came from."
         >
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <SearchableSelect
-              label={isRestrictedLine ? 'Donor *' : 'Donor'}
+              label="Donor"
               options={donorOptions}
               value={donorOptions.find((o) => o.value === form.donorId) || null}
               onChange={handleDonorChange}
@@ -660,16 +694,6 @@ export function DebitNoteCreatePage() {
               placeholder={!donorsQuery.isLoading && donorOptions.length === 0 ? `No ${form.book} donors` : undefined}
               error={show('donorId')}
             />
-            {suggestedDonorId ? (
-              <Chip
-                size="small"
-                color="primary"
-                variant="outlined"
-                label={`Use line's donor: ${form.line.donor}`}
-                onClick={() => handleDonorChange({ value: suggestedDonorId })}
-                sx={{ mt: -1 }}
-              />
-            ) : null}
             {!donorsQuery.isLoading && !donorsQuery.isError && donorOptions.length === 0 ? (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -1 }}>
                 {donors.length === 0
@@ -680,7 +704,7 @@ export function DebitNoteCreatePage() {
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <SearchableSelect
-              label={isRestrictedLine || form.donorId ? 'Fund profile *' : 'Fund profile'}
+              label={form.donorId ? 'Fund profile *' : 'Fund profile'}
               options={fundOptions}
               value={fundOptions.find((o) => o.value === form.fundId) || null}
               onChange={handleFundChange}
@@ -699,9 +723,9 @@ export function DebitNoteCreatePage() {
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -1, ...MONEY_SX }}>
                 {!grantBalance
                   ? 'Select a fund to see its available balance'
-                  : inflowLinesQuery.isLoading || transactionsQuery.isLoading
+                  : inflowLinesQuery.isLoading
                     ? 'Loading balance…'
-                    : inflowLinesQuery.isError && transactionsQuery.isError
+                    : inflowLinesQuery.isError
                       ? 'Balance not available for this fund profile'
                       : `Available: ${formatInrExact(grantBalance.available)}${thisNote ? ` → after this debit: ${formatInrExact(grantBalance.available - thisNote)}` : ''}`}
               </Typography>
@@ -723,8 +747,8 @@ export function DebitNoteCreatePage() {
               <FundBalanceStrip
                 balance={grantBalance}
                 thisNote={thisNote}
-                loading={inflowLinesQuery.isLoading || transactionsQuery.isLoading || (Boolean(form.fundId) && grantQuery.isLoading)}
-                failed={inflowLinesQuery.isError && transactionsQuery.isError}
+                loading={inflowLinesQuery.isLoading || (Boolean(form.fundId) && grantQuery.isLoading)}
+                failed={inflowLinesQuery.isError}
               />
             </Grid>
           ) : null}
@@ -781,8 +805,15 @@ export function DebitNoteCreatePage() {
           <Button variant="outlined" size="large" onClick={() => navigate(backTo)} sx={{ px: 3, fontWeight: 700 }}>
             Cancel
           </Button>
-          <Button type="submit" variant="contained" size="large" startIcon={<SaveIcon />} sx={{ px: 4, fontWeight: 700, borderRadius: 2 }}>
-            Issue Debit Note
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            startIcon={<SaveIcon />}
+            disabled={createNote.isPending}
+            sx={{ px: 4, fontWeight: 700, borderRadius: 2 }}
+          >
+            {createNote.isPending ? 'Issuing…' : 'Issue Debit Note'}
           </Button>
         </Stack>
       </form>

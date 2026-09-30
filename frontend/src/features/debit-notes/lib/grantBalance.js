@@ -1,23 +1,22 @@
 /**
  * Available balance on a donor fund / grant.
  *
- *   received  = money in from the donor. Taken as the larger of
- *                 · Σ actual receipts on the fund profile's tranche criteria
- *                   (Inflow Budget lines share the tranche-criterion id), and
- *                 · Σ Payment Window Credit (In) transactions on the fund
- *               — the two record the same receipts, so they're not added; the
- *               larger covers receipts the Inflow line hasn't picked up yet.
- *   debited   = Σ issued debit notes charged to the fund
- *               + Σ legacy Payment Window Debit (Out) transactions on it
- *   credited  = Σ issued credit notes returned to the fund
- *   spent     = debited − credited (can go below zero if more came back than went out)
+ *   received  = Σ actual receipts on the fund profile's tranche criteria
+ *               (Inflow Budget lines share the tranche-criterion id). The
+ *               backend already counts credit notes there — one names its
+ *               tranche, a lump-sum one lands on the fund's earliest line —
+ *               so only credit notes that can't be placed on a line (the fund
+ *               has no tranche plan) are added on top.
+ *   credited  = Σ credit notes received into the fund (part of `received`)
+ *   debited   = Σ debit notes charged to the fund
+ *   spent     = debited
  *   available = received − spent
  *
  * `total` is the grant agreement's committed amount (null when the fund has
  * no grant yet). Outflow payments that aren't debit notes aren't linked to a
  * fund, so they can't be deducted here.
  */
-export function computeGrantBalance({ fundProfile, grant, inflowLinesById, notes = [], credits = [], transactions = [] }) {
+export function computeGrantBalance({ fundProfile, grant, inflowLinesById, notes = [], credits = [] }) {
   const trancheIds = (fundProfile?.disbursementRules || [])
     .flatMap((r) => (r.trancheCriteria || []).map((t) => t.id))
     .filter((id) => id != null);
@@ -28,17 +27,16 @@ export function computeGrantBalance({ fundProfile, grant, inflowLinesById, notes
   }, 0);
 
   const sameId = (a, b) => a != null && b != null && String(a) === String(b);
-  const fundTx = transactions.filter(
-    (t) => fundProfile && (sameId(t.fundProfileId, fundProfile.id) || (grant && sameId(t.grantId, grant.id))),
-  );
-  const sumTx = (type) => fundTx.filter((t) => t.type === type).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  const received = Math.max(inflowReceived, sumTx('CREDIT'));
+  const onThisFund = (n) => fundProfile && sameId(n.fundProfile?.id, fundProfile.id);
+  const sum = (list) => list.reduce((s, n) => s + n.amount, 0);
+  const fundCredits = credits.filter(onThisFund);
+  const onALine = (n) =>
+    trancheIds.some((id) => sameId(n.tranche?.id, id)) || (!n.tranche && n.disbursementType === 'Lump Sum' && trancheIds.length > 0);
 
-  const onThisFund = (n) => n.status === 'ISSUED' && fundProfile && sameId(n.fundProfile?.id, fundProfile.id);
-  const sumOnFund = (list) => list.filter(onThisFund).reduce((sum, n) => sum + n.amount, 0);
-  const debited = sumOnFund(notes) + sumTx('DEBIT');
-  const credited = sumOnFund(credits);
-  const spent = debited - credited;
+  const received = inflowReceived + sum(fundCredits.filter((n) => !onALine(n)));
+  const credited = sum(fundCredits);
+  const debited = sum(notes.filter(onThisFund));
+  const spent = debited;
 
   const total = grant?.totalGrantAmount != null ? Number(grant.totalGrantAmount) : null;
 

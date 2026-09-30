@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  Alert,
   Autocomplete,
   Box,
   Button,
@@ -17,33 +16,28 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../core/auth/index.js';
 import { DataTable, PageHeader, SearchField, StatusChip } from '../../../shared/components/index.js';
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate } from '../../../lib/format/date.js';
 import { downloadCsv, toCsv } from '../../../lib/export/csv.js';
 import { useFinancialYears } from '../../financial-year/hooks/useFinancialYears.js';
 import { BOOK_TONE } from '../../donation-management/constants.js';
-import { BOOKS } from '../../new-transaction/data/mockNewTransaction.js';
-import { cancelCreditNote, getCreditNotes } from '../data/creditNoteRepository.js';
-import { CancelCreditNoteDialog } from '../components/CancelCreditNoteDialog.jsx';
+import { BOOKS } from '../../donor-management/lib/donorBook.js';
+import { useCreditNotes } from '../hooks/useCreditNotes.js';
 import { MONEY_SX } from '../components/NoteLayout.jsx';
 import { CreditSummaryCard } from '../components/CreditSummaryCard.jsx';
 import { summarizeCreditNotes } from '../lib/summarizeCreditNotes.js';
 import { donorsOf, EMPTY_FILTERS, filterCreditNotes, hasActiveFilters } from '../lib/filterCreditNotes.js';
-import { CREDIT_NOTE_STATUS, CREDIT_NOTE_STATUS_TONE } from '../constants.js';
 
 /** All credit notes — /credit-notes. Money that came back, optionally returned to a donor fund. */
 export function CreditNotesPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [notes, setNotes] = useState(() => getCreditNotes());
+  const notesQuery = useCreditNotes();
+  const notes = useMemo(() => notesQuery.data || [], [notesQuery.data]);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [cancelTarget, setCancelTarget] = useState(null);
-  const [message, setMessage] = useState(null);
 
-  // Financial year: null = not touched yet, so it follows the year marked current
-  // (as on the Payment Window); 'All' or an id once the user picks one.
+  // Financial year: null = not touched yet, so it follows the year marked
+  // current; 'All' or an id once the user picks one.
   const [fyChoice, setFyChoice] = useState(null);
   const financialYearsQuery = useFinancialYears();
   const financialYears = useMemo(() => financialYearsQuery.data || [], [financialYearsQuery.data]);
@@ -64,17 +58,6 @@ export function CreditNotesPage() {
   const summary = useMemo(() => summarizeCreditNotes(filtered), [filtered]);
   const filteredIssuedTotal = summary.issuedTotal;
 
-  const handleCancel = (reason) => {
-    cancelCreditNote(cancelTarget.id, { by: user?.name || 'You', note: reason });
-    setNotes(getCreditNotes());
-    setMessage(
-      `${cancelTarget.id} cancelled — ${formatInrExact(cancelTarget.amount)}${
-        cancelTarget.fundProfile ? ` no longer counts towards ${cancelTarget.fundProfile.name}` : ' no longer counts'
-      }.`,
-    );
-    setCancelTarget(null);
-  };
-
   const handleExport = () => {
     const csv = toCsv(
       [
@@ -94,12 +77,7 @@ export function CreditNotesPage() {
         { header: 'Remarks', value: (n) => n.remarks },
         { header: 'Attachment', value: (n) => n.attachment?.name },
         { header: 'Amount (INR)', value: (n) => n.amount },
-        { header: 'Status', value: (n) => CREDIT_NOTE_STATUS[n.status] },
         { header: 'Issued by', value: (n) => n.createdBy },
-        { header: 'Cancelled by', value: (n) => n.cancelledBy || '' },
-        // Older notes only — new ones aren't tied to an outflow line.
-        { header: 'Outflow line', value: (n) => n.outflowLineId || '' },
-        { header: 'Against debit note', value: (n) => n.debitNoteId || '' },
       ],
       filtered,
     );
@@ -132,7 +110,7 @@ export function CreditNotesPage() {
           </Box>
         ) : (
           <Typography variant="body2" color="text.secondary">
-            {n.outflowLineId ? `Line ${n.outflowLineId}` : 'Not returned to a fund'}
+            Not returned to a fund
           </Typography>
         ),
     },
@@ -177,34 +155,10 @@ export function CreditNotesPage() {
       align: 'right',
       sortValue: (n) => n.amount,
       render: (n) => (
-        <Box sx={{ ...MONEY_SX, fontWeight: 700, color: n.status === 'ISSUED' ? 'success.main' : 'text.secondary', textDecoration: n.status === 'CANCELLED' ? 'line-through' : 'none' }}>
+        <Box sx={{ ...MONEY_SX, fontWeight: 700, color: 'success.main' }}>
           {formatInrExact(n.amount)}
         </Box>
       ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      sortValue: (n) => CREDIT_NOTE_STATUS[n.status],
-      render: (n) => <StatusChip label={CREDIT_NOTE_STATUS[n.status]} tone={CREDIT_NOTE_STATUS_TONE[n.status]} />,
-    },
-    {
-      key: 'actions',
-      header: '',
-      align: 'right',
-      render: (n) =>
-        n.status === 'ISSUED' ? (
-          <Button
-            size="small"
-            color="inherit"
-            onClick={(e) => {
-              e.stopPropagation(); // don't open the detail page
-              setCancelTarget(n);
-            }}
-          >
-            Cancel
-          </Button>
-        ) : null,
     },
   ];
 
@@ -214,14 +168,10 @@ export function CreditNotesPage() {
         <TableRow sx={{ '& td': { borderBottom: 'none', bgcolor: 'var(--card2)', color: 'text.primary', fontSize: 13 } }}>
           <TableCell colSpan={5} sx={{ fontWeight: 600 }}>
             Total · {filtered.length} {filtered.length === 1 ? 'note' : 'notes'}
-            <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 1 }}>
-              (issued only — cancelled notes excluded)
-            </Typography>
           </TableCell>
           <TableCell align="right" sx={{ ...MONEY_SX, fontWeight: 700, color: 'success.main' }}>
             {formatInrExact(filteredIssuedTotal)}
           </TableCell>
-          <TableCell colSpan={2} />
         </TableRow>
       </TableFooter>
     ) : null;
@@ -237,12 +187,6 @@ export function CreditNotesPage() {
           </Button>
         }
       />
-
-      {message ? (
-        <Alert severity="success" onClose={() => setMessage(null)} sx={{ mb: 3 }}>
-          {message}
-        </Alert>
-      ) : null}
 
       <CreditSummaryCard
         summary={summary}
@@ -276,15 +220,7 @@ export function CreditNotesPage() {
               ))}
             </TextField>
           </Grid>
-          <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-            <TextField select fullWidth size="small" value={filters.status} onChange={(e) => setFilter('status')(e.target.value)}>
-              <MenuItem value="All">All Statuses</MenuItem>
-              {Object.entries(CREDIT_NOTE_STATUS).map(([code, label]) => (
-                <MenuItem key={code} value={code}>{label}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <TextField
               select
               fullWidth
@@ -327,7 +263,7 @@ export function CreditNotesPage() {
               slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: filters.from || undefined } }}
             />
           </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Stack direction="row" spacing={1} justifyContent={{ sm: 'flex-end' }}>
               {anyFilter ? (
                 <Button size="small" color="inherit" onClick={clearFilters}>
@@ -346,6 +282,9 @@ export function CreditNotesPage() {
         columns={columns}
         rows={filtered}
         getRowKey={(n) => n.id}
+        isLoading={notesQuery.isPending}
+        error={notesQuery.isError ? notesQuery.error : null}
+        onRetry={notesQuery.refetch}
         defaultSort={{ key: 'id', direction: 'desc' }}
         footer={footer}
         onRowClick={(n) => navigate(`/credit-notes/${n.id}`)}
@@ -358,8 +297,6 @@ export function CreditNotesPage() {
               : 'Try another financial year, widening the date range, or clearing filters.'
         }
       />
-
-      <CancelCreditNoteDialog key={cancelTarget?.id ?? 'none'} note={cancelTarget} onClose={() => setCancelTarget(null)} onConfirm={handleCancel} />
     </Box>
   );
 }

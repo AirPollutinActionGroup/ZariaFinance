@@ -13,10 +13,9 @@ const inflowLinesById = new Map([
 describe('computeGrantBalance', () => {
   it('available = received on the fund tranches − issued debit notes on that fund', () => {
     const notes = [
-      { status: 'ISSUED', amount: 50000, fundProfile: { id: 5 } },
-      { status: 'CANCELLED', amount: 99999, fundProfile: { id: 5 } }, // ignored
-      { status: 'ISSUED', amount: 70000, fundProfile: { id: 6 } }, // other fund
-      { status: 'ISSUED', amount: 1000, fundProfile: null },
+      { amount: 50000, fundProfile: { id: 5 } },
+      { amount: 70000, fundProfile: { id: 6 } }, // other fund
+      { amount: 1000, fundProfile: null },
     ];
     expect(computeGrantBalance({ fundProfile, grant: { totalGrantAmount: '1000000' }, inflowLinesById, notes })).toEqual({
       total: 1000000,
@@ -30,37 +29,29 @@ describe('computeGrantBalance', () => {
     });
   });
 
-  it('gives issued credit notes on the fund back to Available, kept apart from debits', () => {
-    const notes = [{ status: 'ISSUED', amount: 50000, fundProfile: { id: 5 } }];
+  it('counts credit notes as received — once, since the Inflow line already includes those on a tranche', () => {
+    const notes = [{ amount: 50000, fundProfile: { id: 5 } }];
     const credits = [
-      { status: 'ISSUED', amount: 8000, fundProfile: { id: 5 } },
-      { status: 'CANCELLED', amount: 99999, fundProfile: { id: 5 } }, // ignored
+      { amount: 8000, fundProfile: { id: 5 }, tranche: { id: '11' } }, // already in line 11's 600000
+      { amount: 3000, fundProfile: { id: 5 }, disbursementType: 'Lump Sum' }, // backend puts it on the earliest line
+      { amount: 999, fundProfile: { id: 6 }, tranche: { id: '11' } }, // other fund
     ];
     const balance = computeGrantBalance({ fundProfile, grant: null, inflowLinesById, notes, credits });
-    expect(balance.debited).toBe(50000);
-    expect(balance.credited).toBe(8000);
-    expect(balance.spent).toBe(42000);
-    expect(balance.available).toBe(558000);
-  });
-
-  it('counts Payment Window receipts on the fund when the Inflow line has none yet', () => {
-    const noInflow = new Map([[11, { actualAmount: null }]]);
-    const transactions = [
-      { type: 'CREDIT', amount: 40, fundProfileId: 5 },
-      { type: 'CREDIT', amount: 25, fundProfileId: '5' },
-      { type: 'CREDIT', amount: 900, fundProfileId: 6 }, // other fund
-      { type: 'DEBIT', amount: 10, fundProfileId: 5 }, // legacy debit counts as spent
-    ];
-    const balance = computeGrantBalance({ fundProfile, grant: null, inflowLinesById: noInflow, transactions });
-    expect(balance.received).toBe(65);
-    expect(balance.debited).toBe(10);
-    expect(balance.available).toBe(55);
-  });
-
-  it("doesn't double count receipts that are on both the Inflow line and the transactions", () => {
-    const transactions = [{ type: 'CREDIT', amount: 600000, grantId: 9 }];
-    const balance = computeGrantBalance({ fundProfile, grant: { id: 9 }, inflowLinesById, transactions });
     expect(balance.received).toBe(600000);
+    expect(balance.credited).toBe(11000);
+    expect(balance.spent).toBe(50000);
+    expect(balance.available).toBe(550000);
+  });
+
+  it('adds credit notes on a fund with no tranche plan straight to received', () => {
+    const balance = computeGrantBalance({
+      fundProfile: { id: 1 },
+      grant: null,
+      inflowLinesById: new Map(),
+      credits: [{ amount: 2500, fundProfile: { id: 1 } }],
+    });
+    expect(balance.received).toBe(2500);
+    expect(balance.available).toBe(2500);
   });
 
   it('handles a fund with no grant and no tranches', () => {

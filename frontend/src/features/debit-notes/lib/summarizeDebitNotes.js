@@ -6,15 +6,13 @@ const add = (b, amount) => {
 };
 
 /**
- * Figures for the Debit Notes summary strip. Only issued notes count towards
- * the money figures; cancelled ones are reported separately.
+ * Figures for the Debit Notes summary strip. Every note counts (there is no
+ * cancel workflow).
  *   overBudget / withinBudget: notes with / without an over-budget reason
- *   toFund:        issued notes charged to a donor fund profile
- *   creditedBack:  credit notes raised against the issued notes
- *                  (`creditedByDebit` = { [debitNoteId]: credited amount })
+ *   toFund:        notes charged to a donor fund profile
  *   byBook:        'LC' | 'FC'
  */
-export function summarizeDebitNotes(notes, creditedByDebit = {}) {
+export function summarizeDebitNotes(notes) {
   const summary = {
     issuedTotal: 0,
     issuedCount: 0,
@@ -24,21 +22,13 @@ export function summarizeDebitNotes(notes, creditedByDebit = {}) {
     toFund: bucket(),
     fundCount: 0,
     donorCount: 0,
-    creditedBack: bucket(),
     byBook: { LC: bucket(), FC: bucket() },
-    cancelledTotal: 0,
-    cancelledCount: 0,
   };
   const lines = new Set();
   const funds = new Set();
   const donors = new Set();
 
   for (const n of notes) {
-    if (n.status !== 'ISSUED') {
-      summary.cancelledTotal += n.amount;
-      summary.cancelledCount += 1;
-      continue;
-    }
     summary.issuedTotal += n.amount;
     summary.issuedCount += 1;
     if (n.outflowLineId) lines.add(n.outflowLineId);
@@ -51,9 +41,6 @@ export function summarizeDebitNotes(notes, creditedByDebit = {}) {
       funds.add(keyOf(n.fundProfile));
     }
     if (n.donor) donors.add(keyOf(n.donor));
-
-    const credited = creditedByDebit[n.id] || 0;
-    if (credited) add(summary.creditedBack, credited);
   }
 
   summary.lineCount = lines.size;

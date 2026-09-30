@@ -3,19 +3,16 @@ import { summarizeCreditNotes } from './summarizeCreditNotes.js';
 
 const greenline = { id: 7, name: 'Greenline CSR' };
 const notes = [
-  { status: 'ISSUED', amount: 4200, book: 'LC', donor: greenline, fundProfile: { id: 1, name: 'Air' }, disbursementType: 'Tranches' },
-  { status: 'ISSUED', amount: 800, book: 'LC', donor: greenline, fundProfile: { id: 2, name: 'Water' }, disbursementType: 'Lump Sum' },
-  { status: 'ISSUED', amount: 1000, book: 'FC', donor: null, fundProfile: null },
-  { status: 'CANCELLED', amount: 9999, book: 'LC', donor: greenline, fundProfile: { id: 1, name: 'Air' } },
+  { amount: 4200, book: 'LC', donor: greenline, fundProfile: { id: 1, name: 'Air' }, disbursementType: 'Tranches' },
+  { amount: 800, book: 'LC', donor: greenline, fundProfile: { id: 2, name: 'Water' }, disbursementType: 'Lump Sum' },
+  { amount: 1000, book: 'FC', donor: null, fundProfile: null },
 ];
 
 describe('summarizeCreditNotes', () => {
-  it('totals issued notes and reports cancelled ones apart', () => {
+  it('totals the notes', () => {
     const s = summarizeCreditNotes(notes);
     expect(s.issuedTotal).toBe(6000);
     expect(s.issuedCount).toBe(3);
-    expect(s.cancelledTotal).toBe(9999);
-    expect(s.cancelledCount).toBe(1);
   });
 
   it('splits by fund, disbursement type and book', () => {

@@ -13,8 +13,9 @@ export const FUNDING_SOURCE_TONE = Object.freeze({
   CORPUS: 'info',
 });
 
+/** Row status from the server: PAID = fully spent (debit notes − credit notes ≥ budgeted). */
 export const PAYMENT_STATUS = Object.freeze({
-  PAID: 'Paid',
+  PAID: 'Fully spent',
   DUE: 'Due',
   PENDING: 'Pending',
   OVERDUE: 'Overdue',
@@ -27,8 +28,5 @@ export const PAYMENT_STATUS_TONE = Object.freeze({
   OVERDUE: 'error',
 });
 
-/** Days past the expected payment date before a still-outstanding row is Overdue rather than Pending. */
+/** Days past the quarter's end before an unspent row is Overdue rather than Pending (server uses the same). */
 export const OVERDUE_THRESHOLD_DAYS = 15;
-
-/** Fixed "as at" reference date for this mock dataset's ageing calculations. */
-export const AS_AT_DATE = '2026-06-30';

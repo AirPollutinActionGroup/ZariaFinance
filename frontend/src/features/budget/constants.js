@@ -1,4 +1,4 @@
-import { financialYearOf, financialYearOptions } from './lib/financialYear.js';
+import { financialYearOf } from './lib/financialYear.js';
 
 /** Approval lifecycle of a budget: Draft → Submitted → Approved | Rejected (→ back to Draft on edit). */
 export const BUDGET_STATUS = Object.freeze({
@@ -45,6 +45,5 @@ export const QUARTERS = Object.freeze([
   { key: 'q4', label: 'Q4', months: 'Jan–Mar' },
 ]);
 
-/** Previous / current / next FY from today's date, until the budget screen is wired to the Financial Year API. */
-export const FINANCIAL_YEARS = Object.freeze(financialYearOptions());
+/** Today's FY label — a fallback only; the Budget pages default to the Financial Year master's active year. */
 export const CURRENT_FINANCIAL_YEAR = financialYearOf();
