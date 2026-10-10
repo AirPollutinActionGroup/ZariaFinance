@@ -29,7 +29,7 @@ const STATE_TONE = { approved: 'success', pending: 'warning', rejected: 'error' 
 
 export function DevSampleUsers({ onPick = null }) {
   if (!env.isDev) return null;
-
+/*
   return (
     <Box
       sx={{
@@ -88,4 +88,5 @@ export function DevSampleUsers({ onPick = null }) {
       </Table>
     </Box>
   );
+  */
 }
