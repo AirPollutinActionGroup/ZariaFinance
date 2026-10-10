@@ -1,5 +1,6 @@
 package com.ngo.finance.donor;
 
+import com.ngo.finance.common.enums.ContributionType;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.common.enums.FundSourceDomicile;
 import com.ngo.finance.donor.enums.FundingBucket;
@@ -24,6 +25,17 @@ public final class FundingClassifier {
         }
         return Boolean.TRUE.equals(donor.getFcraApplicable())
                 || donor.getFundSourceDomicile() == FundSourceDomicile.FOREIGN;
+    }
+
+    /**
+     * The Book (LC / FC) a donor's money is recorded in: its saved book, or —
+     * when none is saved — FC for a foreign contribution, otherwise LC.
+     */
+    public static ContributionType bookOf(DonorMaster donor) {
+        if (donor != null && donor.getBook() != null) {
+            return donor.getBook();
+        }
+        return isForeign(donor) ? ContributionType.FC : ContributionType.LC;
     }
 
     /** Classify a donor into its FC / DC / CSR bucket. */

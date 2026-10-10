@@ -22,6 +22,7 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SaveIcon from '@mui/icons-material/Save';
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../core/auth/index.js';
 import { ErrorState, LoadingState, PageHeader, StatusChip } from '../../../shared/components/index.js';
@@ -45,6 +46,7 @@ import { useEmployees } from '../../employee-list/hooks/useEmployees.js';
 import { useVendors } from '../../vendor-registration/hooks/useVendors.js';
 import { useCreateDebitNote, useDebitNotes } from '../hooks/useDebitNotes.js';
 import { debitTotalsByLine } from '../lib/debitTotals.js';
+import { FundSuggestionDialog } from '../components/FundSuggestionDialog.jsx';
 import { useCreditNotes } from '../../credit-notes/hooks/useCreditNotes.js';
 import { Figure, FormSection, MONEY_SX } from '../../credit-notes/components/NoteLayout.jsx';
 import { ATTACHMENT_ACCEPT, ATTACHMENT_MAX_BYTES, DEBIT_NOTE_REASON, PAYEE_CATEGORIES } from '../constants.js';
@@ -224,6 +226,7 @@ function DebitNoteForm({ lines, allNotes, allCredits }) {
   const touch = (field) => () => setTouched((t) => (t[field] ? t : { ...t, [field]: true }));
   const [saveError, setSaveError] = useState(null);
   const [fileError, setFileError] = useState(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
 
   const setValue = (field, value) => setForm((f) => ({ ...f, [field]: value }));
   const set = (field) => (e) => setValue(field, e.target.value);
@@ -380,6 +383,12 @@ function DebitNoteForm({ lines, allNotes, allCredits }) {
     setForm((f) => ({ ...f, book: opt?.value || '', bankAccountId: '', donorId: '', fundId: '' }));
   const handleDonorChange = (opt) => setForm((f) => ({ ...f, donorId: opt?.value || '', fundId: '' }));
   const handleFundChange = (opt) => setForm((f) => ({ ...f, fundId: opt?.value || '' }));
+  // A suggestion is only applied when the user picks it in the dialog and presses Select.
+  const handleSuggestionSelect = (s) => {
+    setForm((f) => ({ ...f, donorId: s.donorId, fundId: s.fundProfileId }));
+    setTouched((t) => ({ ...t, donorId: true, fundId: true }));
+    setSuggestOpen(false);
+  };
   const handleCategoryChange = (opt) => setForm((f) => ({ ...f, payeeCategory: opt?.value || '', payeeId: '' }));
   const handleGroupChange = (opt) => setForm((f) => ({ ...f, groupId: opt?.value || '', ledgerId: '' }));
 
@@ -683,6 +692,24 @@ function DebitNoteForm({ lines, allNotes, allCredits }) {
           title="Fund & Grant"
           description="Optional — charge the payment to the donor fund it came from."
         >
+          <Grid size={12}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
+              <Button
+                variant="outlined"
+                startIcon={<AutoAwesomeOutlinedIcon />}
+                onClick={() => setSuggestOpen(true)}
+                disabled={!form.line}
+                sx={{ fontWeight: 700, flexShrink: 0 }}
+              >
+                Suggest fund
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                {form.line
+                  ? 'See the 10 donor funds best suited to this line — by programme, state, grant and available balance — and pick one.'
+                  : 'Select the outflow line first to get fund suggestions.'}
+              </Typography>
+            </Stack>
+          </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <SearchableSelect
               label="Donor"
@@ -753,6 +780,17 @@ function DebitNoteForm({ lines, allNotes, allCredits }) {
             </Grid>
           ) : null}
         </FormSection>
+
+        <FundSuggestionDialog
+          open={suggestOpen}
+          onClose={() => setSuggestOpen(false)}
+          onSelect={handleSuggestionSelect}
+          line={form.line}
+          amount={thisNote}
+          date={form.date}
+          book={form.book}
+          currentFundId={form.fundId || null}
+        />
 
         <FormSection
           color="primary"

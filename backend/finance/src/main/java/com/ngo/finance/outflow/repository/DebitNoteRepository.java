@@ -33,4 +33,9 @@ public interface DebitNoteRepository extends JpaRepository<DebitNote, Long> {
     /** Debit notes already charged to a fund profile. */
     @Query("SELECT COALESCE(SUM(d.amount), 0) FROM DebitNote d WHERE d.fundProfileRef = :fundProfileRef")
     BigDecimal sumOnFundProfile(@Param("fundProfileRef") String fundProfileRef);
+
+    /** [fundProfileRef, sum] of debit notes, per fund profile charged. */
+    @Query("SELECT d.fundProfileRef, SUM(d.amount) FROM DebitNote d "
+            + "WHERE d.fundProfileRef IS NOT NULL GROUP BY d.fundProfileRef")
+    List<Object[]> sumByFundProfile();
 }
