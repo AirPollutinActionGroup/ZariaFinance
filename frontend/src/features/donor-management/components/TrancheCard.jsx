@@ -25,6 +25,11 @@ import { formatDate } from '../../../lib/format/date.js';
 import { CriterionFields } from './CriterionFields.jsx';
 import { criterionTypeLabel, emptyCriterion } from '../mappers/disbursementMapper.js';
 
+/** Designation id → its display name, for the collapsed-card summary text. */
+function roleName(options, id) {
+  return options.find((o) => String(o.value) === String(id))?.label || '';
+}
+
 /**
  * Single Tranche Card component matching the exact prototype HTML/UI spec.
  */
@@ -39,7 +44,8 @@ export function TrancheCard({
   lumpSum,
   isFinal: isFinalProp,
   singleCriterion = false,
-  responsibleRoleOptions,
+  verificationRoleOptions = [],
+  responsibleRoleOptions = [],
 }) {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
@@ -162,10 +168,12 @@ export function TrancheCard({
                       />
                       <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: 12.5 }}>
                         {c.milestoneName ? `"${c.milestoneName}"` : ''}
-                        {c.verificationRole ? ` · verified by ${c.verificationRole}` : ''}
+                        {c.verificationRoleId
+                          ? ` · verified by ${roleName(verificationRoleOptions, c.verificationRoleId)}`
+                          : ''}
                         {c.utilisationPercent ? `${c.utilisationPercent}% · ${c.triggerBasis || 'Previous Tranche'}` : ''}
                         {c.hasReminder && c.reminder?.reminderLeadDays
-                          ? ` · reminder ${c.reminder.reminderLeadDays}d before to ${c.reminder.responsibleRole || 'Responsible'}${c.reminder.escalateToDeputy ? ' (escalates)' : ''}`
+                          ? ` · reminder ${c.reminder.reminderLeadDays}d before to ${roleName(responsibleRoleOptions, c.reminder.responsibleRoleId) || 'Responsible'}${c.reminder.escalateToDeputy ? ' (escalates)' : ''}`
                           : ''}
                         {c.met ? ' · met' : ''}
                       </Typography>
@@ -299,9 +307,9 @@ export function TrancheCard({
               name={`${path}.expectedReleaseDate`}
               control={control}
               label="Expected release date *"
+              required
               type="date"
-              disabled={lumpSum || Boolean(tranche?.isFinal)}
-              helperText={tranche?.isFinal ? 'N/A — Final tranche' : undefined}
+              disabled={lumpSum}
               slotProps={{ inputLabel: { shrink: true } }}
             />
           </Grid>
@@ -355,10 +363,7 @@ export function TrancheCard({
                 }
                 label={
                   <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 13 }}>
-                    Mark as the final tranche{' '}
-                    <Typography component="span" variant="caption" sx={{ color: 'text.secondary' }}>
-                      — release date becomes N/A
-                    </Typography>
+                    Mark as the final tranche
                   </Typography>
                 }
               />
@@ -384,6 +389,7 @@ export function TrancheCard({
                 index={i}
                 canRemove={!singleCriterion && criteria.fields.length > 1}
                 onRemove={() => criteria.remove(i)}
+                verificationRoleOptions={verificationRoleOptions}
                 responsibleRoleOptions={responsibleRoleOptions}
               />
             ))}

@@ -9,10 +9,11 @@ import { useEmployees } from '../../employee-list/hooks/useEmployees.js';
 import { useProgramme, useProgrammes } from '../../donor-management/hooks/useProgrammes.js';
 import { geographyService } from '../../donor-management/services/geographyService.js';
 import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
-import { allocationSchema, allocationFormDefaults } from '../validation/allocationSchema.js';
+import { ALLOCATION_TYPE_OPTIONS, allocationSchema, allocationFormDefaults } from '../validation/allocationSchema.js';
 
 const KNOWN_FIELDS = [
   'employeeId',
+  'allocationType',
   'programmeId',
   'projectId',
   'role',
@@ -60,6 +61,8 @@ export function AllocationForm({ onAdd, headroomFor, onCancel, submitting }) {
   });
 
   const selectedEmployeeId = useWatch({ control, name: 'employeeId' });
+  const allocationType = useWatch({ control, name: 'allocationType' });
+  const isProjectAllocation = allocationType === 'Project';
   const selectedProgrammeId = useWatch({ control, name: 'programmeId' });
   const selectedProjectId = useWatch({ control, name: 'projectId' });
   const selectedStateIds = useWatch({ control, name: 'stateIds' }) || [];
@@ -81,18 +84,27 @@ export function AllocationForm({ onAdd, headroomFor, onCancel, submitting }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProgrammeId]);
 
+  // A Program allocation has no project — clear one picked before switching type.
+  useEffect(() => {
+    if (!isProjectAllocation && getValues('projectId')) {
+      setValue('projectId', '');
+    }
+  }, [isProjectAllocation, getValues, setValue]);
+
   // An allocation's state/city must fall within the selected project's own
-  // geography — the list response doesn't carry state/city ids, so the
-  // project's full record is fetched once one is picked (same pattern as
-  // ProgrammeForm's parent-geography restriction).
-  const projectQuery = useProgramme(selectedProjectId || undefined);
+  // geography, or the program's when no project is picked — the list
+  // response doesn't carry state/city ids, so the full record is fetched
+  // (same pattern as ProgrammeForm's parent-geography restriction).
+  const geographySourceId = selectedProjectId || selectedProgrammeId;
+  const geographySourceLabel = selectedProjectId ? 'project' : 'program';
+  const projectQuery = useProgramme(geographySourceId || undefined);
   const projectStateIds = useMemo(
-    () => (selectedProjectId && projectQuery.data ? new Set((projectQuery.data.stateIds || []).map(String)) : null),
-    [selectedProjectId, projectQuery.data],
+    () => (geographySourceId && projectQuery.data ? new Set((projectQuery.data.stateIds || []).map(String)) : null),
+    [geographySourceId, projectQuery.data],
   );
   const projectCityIds = useMemo(
-    () => (selectedProjectId && projectQuery.data ? new Set((projectQuery.data.cityIds || []).map(String)) : null),
-    [selectedProjectId, projectQuery.data],
+    () => (geographySourceId && projectQuery.data ? new Set((projectQuery.data.cityIds || []).map(String)) : null),
+    [geographySourceId, projectQuery.data],
   );
 
   const effectiveStateOptions = useMemo(() => {
@@ -184,33 +196,47 @@ export function AllocationForm({ onAdd, headroomFor, onCancel, submitting }) {
 
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <RhfSelect
-              name="programmeId"
+              name="allocationType"
               control={control}
-              label="Program"
+              label="Allocation type"
               required
-              options={programmeOptions}
-              disabled={programmesQuery.isLoading}
-              helperText={programmeOptions.length === 0 ? 'No active programs configured.' : undefined}
+              options={ALLOCATION_TYPE_OPTIONS}
             />
           </Grid>
 
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <RhfSelect
-              name="projectId"
-              control={control}
-              label="Project"
-              required
-              options={projectOptions}
-              disabled={!selectedProgrammeId}
-              helperText={
-                !selectedProgrammeId
-                  ? 'Select a program first.'
-                  : projectOptions.length === 0
-                    ? 'No projects configured under this program.'
-                    : undefined
-              }
-            />
-          </Grid>
+          {allocationType ? (
+            <Grid size={{ xs: 12, sm: 6, md: isProjectAllocation ? 6 : 4 }}>
+              <RhfSelect
+                name="programmeId"
+                control={control}
+                label="Program"
+                required
+                options={programmeOptions}
+                disabled={programmesQuery.isLoading}
+                helperText={programmeOptions.length === 0 ? 'No active programs configured.' : undefined}
+              />
+            </Grid>
+          ) : null}
+
+          {isProjectAllocation ? (
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <RhfSelect
+                name="projectId"
+                control={control}
+                label="Project"
+                required
+                options={projectOptions}
+                disabled={!selectedProgrammeId}
+                helperText={
+                  !selectedProgrammeId
+                    ? 'Select a program first.'
+                    : projectOptions.length === 0
+                      ? 'No projects configured under this program.'
+                      : undefined
+                }
+              />
+            </Grid>
+          ) : null}
 
           <Grid size={12}>
             <RhfTextField
@@ -228,12 +254,12 @@ export function AllocationForm({ onAdd, headroomFor, onCancel, submitting }) {
               label="State"
               options={effectiveStateOptions}
               helperText={
-                !selectedProjectId
-                  ? 'Select a project first.'
+                !geographySourceId
+                  ? 'Select a program first.'
                   : projectQuery.isLoading
-                    ? 'Loading project…'
+                    ? `Loading ${geographySourceLabel}…`
                     : effectiveStateOptions.length === 0
-                      ? 'This project has no states configured.'
+                      ? `This ${geographySourceLabel} has no states configured.`
                       : undefined
               }
             />
@@ -248,7 +274,7 @@ export function AllocationForm({ onAdd, headroomFor, onCancel, submitting }) {
                 selectedStateIds.length === 0
                   ? 'Select a state first.'
                   : cityOptions.length === 0
-                    ? 'This project has no cities configured for the selected state(s).'
+                    ? `This ${geographySourceLabel} has no cities configured for the selected state(s).`
                     : undefined
               }
             />

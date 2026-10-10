@@ -24,7 +24,8 @@ public class Designation extends AuditEntity {
     @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(name = "department_id", nullable = false)
+    /** Null for an org-level designation with no department (e.g. CFO, Programme Manager). */
+    @Column(name = "department_id")
     private Long departmentId;
 
     @Column(nullable = false)

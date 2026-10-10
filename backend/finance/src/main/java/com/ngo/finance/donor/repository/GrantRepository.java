@@ -15,7 +15,10 @@ public interface GrantRepository extends JpaRepository<GrantAgreement, Long> {
 
     List<GrantAgreement> findByDonorId(Long donorId);
 
-    List<GrantAgreement> findByProgrammeId(Long programmeId);
+    // A fund profile is meant to back at most one grant, but pre-existing data
+    // may still have more than one attached (predates that constraint) — a List
+    // rather than Optional avoids IncorrectResultSizeDataAccessException on those.
+    List<GrantAgreement> findByFundProfileId(Long fundProfileId);
 
     @Query("SELECT g FROM GrantAgreement g WHERE g.grantCode LIKE %:searchTerm% OR g.agreementName LIKE %:searchTerm%")
     List<GrantAgreement> searchByCodeOrName(@Param("searchTerm") String searchTerm);

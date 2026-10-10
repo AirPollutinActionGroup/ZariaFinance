@@ -38,7 +38,7 @@ public class EmployeeAllocation extends AuditEntity {
     @Column(name = "programme_id", nullable = false)
     private Long programmeId;
 
-    @Column(name = "project_id", nullable = false)
+    @Column(name = "project_id")
     private Long projectId;
 
     @Column(length = 255)

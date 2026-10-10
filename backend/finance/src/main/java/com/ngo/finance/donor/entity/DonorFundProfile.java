@@ -1,7 +1,7 @@
 package com.ngo.finance.donor.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
-import com.ngo.finance.donation.enums.FundMode;
+import com.ngo.finance.donor.enums.FundMode;
 import com.ngo.finance.donor.enums.FundClass;
 import com.ngo.finance.donor.enums.ReportingFrequency;
 import com.ngo.finance.programme.entity.Programme;

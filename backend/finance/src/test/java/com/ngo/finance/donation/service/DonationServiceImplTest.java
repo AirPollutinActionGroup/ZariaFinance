@@ -16,12 +16,9 @@ import com.ngo.finance.donation.dto.response.DonationDetailResponse;
 import com.ngo.finance.donation.entity.Donation;
 import com.ngo.finance.donation.entity.TenantTaxConfig;
 import com.ngo.finance.donation.enums.Citizenship;
-import com.ngo.finance.donation.enums.DonationBankAccountType;
-import com.ngo.finance.donation.enums.DonationChannel;
 import com.ngo.finance.donation.enums.DonationType;
-import com.ngo.finance.donation.enums.DonorIdentification;
 import com.ngo.finance.donation.enums.EightyGStatus;
-import com.ngo.finance.donation.enums.FundMode;
+import com.ngo.finance.donor.enums.FundMode;
 import com.ngo.finance.donation.enums.GikIntendedUse;
 import com.ngo.finance.donation.enums.InvestmentMode;
 import com.ngo.finance.donation.enums.UtilisationPeriodType;
@@ -30,12 +27,13 @@ import com.ngo.finance.donation.repository.DonationGikItemRepository;
 import com.ngo.finance.donation.repository.DonationRepository;
 import com.ngo.finance.donation.repository.TenantTaxConfigRepository;
 import com.ngo.finance.donation.service.impl.DonationServiceImpl;
+import com.ngo.finance.donation.util.FinancialYearUtil;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.StateMaster;
-import com.ngo.finance.donor.enums.DonorType;
-import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.common.enums.FundSourceDomicile;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.StateRepository;
+import com.ngo.finance.masters.donortype.entity.DonorTypeMaster;
 import com.ngo.finance.programme.repository.ProgrammeRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -78,14 +76,10 @@ public class DonationServiceImplTest {
 
     private CreateDonationRequest.CreateDonationRequestBuilder baseRequest() {
         return CreateDonationRequest.builder()
-                .receiptDate(LocalDate.of(2026, 4, 12))
-                .channel(DonationChannel.BANK_TRANSFER)
                 .fundMode(FundMode.UNRESTRICTED)
                 .stateIds(List.of(1L))
                 .utilisationPeriodType(UtilisationPeriodType.SINGLE_FY)
-                .currency("INR")
-                .amount(new BigDecimal("25000"))
-                .bankAccountType(DonationBankAccountType.DOMESTIC_CURRENT);
+                .amount(new BigDecimal("25000"));
     }
 
     private void mockOneState() {
@@ -109,47 +103,29 @@ public class DonationServiceImplTest {
     }
 
     @Test
-    void testCreateDonation_AnonymousRecurring_Blocked() {
-        CreateDonationRequest request = baseRequest()
-                .donationType(DonationType.RECURRING)
-                .identification(DonorIdentification.ANONYMOUS)
-                .anonymousCollectionSource("Donation box")
-                .anonymousSourceReference("Box #4, HQ lobby")
-                .build();
-
-        ValidationException ex = assertThrows(ValidationException.class, () -> donationService.createDonation(request));
-        assertTrue(ex.getErrors().containsKey("donationType"));
-    }
-
-    @Test
-    void testCreateDonation_ForeignDonorWrongAccount_Blocked() {
-        DonorMaster foreignDonor = DonorMaster.builder().donorName("Horizon Global Fund")
-                .fundSourceDomicile(FundSourceDomicile.FOREIGN).build();
-        foreignDonor.setId(5L);
-        when(donorRepository.findById(5L)).thenReturn(java.util.Optional.of(foreignDonor));
+    void testCreateDonation_UnknownDonor_NotFound() {
+        when(donorRepository.findById(99L)).thenReturn(java.util.Optional.empty());
 
         CreateDonationRequest request = baseRequest()
                 .donationType(DonationType.MAJOR_GIFT)
-                .identification(DonorIdentification.NAMED)
-                .donorId(5L)
-                .bankAccountType(DonationBankAccountType.DOMESTIC_CURRENT)
+                .donorId(99L)
                 .build();
 
-        ValidationException ex = assertThrows(ValidationException.class, () -> donationService.createDonation(request));
-        assertTrue(ex.getErrors().containsKey("bankAccountType"));
+        assertThrows(com.ngo.finance.common.exception.ResourceNotFoundException.class,
+                () -> donationService.createDonation(request));
     }
 
     @Test
     void testCreateDonation_CorpusWithoutWrittenDirection_Blocked() {
         DonorMaster donor = DonorMaster.builder().donorName("Vikram Nair")
-                .fundSourceDomicile(FundSourceDomicile.DOMESTIC).donorType(DonorType.INDIVIDUAL).build();
+                .fundSourceDomicile(FundSourceDomicile.DOMESTIC)
+                .donorType(DonorTypeMaster.builder().name("Individual").build()).build();
         donor.setId(1L);
         when(donorRepository.findById(1L)).thenReturn(java.util.Optional.of(donor));
         mockOneState();
 
         CreateDonationRequest request = baseRequest()
                 .donationType(DonationType.CORPUS)
-                .identification(DonorIdentification.NAMED)
                 .donorId(1L)
                 .corpusDetail(null)
                 .build();
@@ -161,14 +137,14 @@ public class DonationServiceImplTest {
     @Test
     void testCreateDonation_CorpusFromCsrDonor_Blocked() {
         DonorMaster csrDonor = DonorMaster.builder().donorName("Acme CSR Foundation")
-                .fundSourceDomicile(FundSourceDomicile.DOMESTIC).donorType(DonorType.CORPORATE).build();
+                .fundSourceDomicile(FundSourceDomicile.DOMESTIC)
+                .donorType(DonorTypeMaster.builder().name("Corporate CSR").build()).build();
         csrDonor.setId(2L);
         when(donorRepository.findById(2L)).thenReturn(java.util.Optional.of(csrDonor));
         mockOneState();
 
         CreateDonationRequest request = baseRequest()
                 .donationType(DonationType.CORPUS)
-                .identification(DonorIdentification.NAMED)
                 .donorId(2L)
                 .corpusDetail(CorpusDetailRequest.builder()
                         .writtenDirectionRef("Letter/2026/01")
@@ -191,7 +167,6 @@ public class DonationServiceImplTest {
 
         CreateDonationRequest request = baseRequest()
                 .donationType(DonationType.GIK)
-                .identification(DonorIdentification.NAMED)
                 .donorId(3L)
                 .gikItems(List.of())
                 .build();
@@ -208,12 +183,11 @@ public class DonationServiceImplTest {
         when(donorRepository.findById(3L)).thenReturn(java.util.Optional.of(donor));
         mockOneState();
         mockValidTenantConfig();
-        when(donationRepository.countByReceiptDateBetween(any(), any())).thenReturn(0L);
+        when(donationRepository.countByCreatedAtBetween(any(), any())).thenReturn(0L);
         mockSaveReturnsArgument();
 
         CreateDonationRequest request = baseRequest()
                 .donationType(DonationType.GIK)
-                .identification(DonorIdentification.NAMED)
                 .donorId(3L)
                 .gikItems(List.of(GikItemRequest.builder()
                         .itemDescription("Medicine crates")
@@ -227,7 +201,8 @@ public class DonationServiceImplTest {
         org.mockito.ArgumentCaptor<Donation> captor = org.mockito.ArgumentCaptor.forClass(Donation.class);
         org.mockito.Mockito.verify(donationRepository).save(captor.capture());
         assertEquals(EightyGStatus.NOT_ELIGIBLE_GIFT_IN_KIND, captor.getValue().getEightyGStatus());
-        assertEquals(LocalDate.of(2028, 3, 31), captor.getValue().getGikItems().get(0).getLiquidationDueDate());
+        assertEquals(FinancialYearUtil.secondFyEndAfter(LocalDate.now()),
+                captor.getValue().getGikItems().get(0).getLiquidationDueDate());
     }
 
     @Test
@@ -240,7 +215,6 @@ public class DonationServiceImplTest {
 
         CreateDonationRequest request = baseRequest()
                 .donationType(DonationType.PAYROLL_GIVING)
-                .identification(DonorIdentification.NAMED)
                 .donorId(4L)
                 .amount(new BigDecimal("100000")) // does not match the 80,000 employee sum below
                 .payrollBatch(PayrollBatchRequest.builder()
@@ -265,12 +239,11 @@ public class DonationServiceImplTest {
         when(donorRepository.findById(1L)).thenReturn(java.util.Optional.of(donor));
         mockOneState();
         when(tenantTaxConfigRepository.findAll()).thenReturn(List.of());
-        when(donationRepository.countByReceiptDateBetween(any(), any())).thenReturn(0L);
+        when(donationRepository.countByCreatedAtBetween(any(), any())).thenReturn(0L);
         mockSaveReturnsArgument();
 
         CreateDonationRequest request = baseRequest()
                 .donationType(DonationType.MAJOR_GIFT)
-                .identification(DonorIdentification.NAMED)
                 .donorId(1L)
                 .build();
 
@@ -290,12 +263,11 @@ public class DonationServiceImplTest {
         when(donorRepository.findById(1L)).thenReturn(java.util.Optional.of(donor));
         mockOneState();
         mockValidTenantConfig();
-        when(donationRepository.countByReceiptDateBetween(any(), any())).thenReturn(0L);
+        when(donationRepository.countByCreatedAtBetween(any(), any())).thenReturn(0L);
         mockSaveReturnsArgument();
 
         CreateDonationRequest request = baseRequest()
                 .donationType(DonationType.MAJOR_GIFT)
-                .identification(DonorIdentification.NAMED)
                 .donorId(1L)
                 .build();
 
@@ -305,29 +277,5 @@ public class DonationServiceImplTest {
         org.mockito.Mockito.verify(donationRepository).save(captor.capture());
         assertEquals(Boolean.FALSE, captor.getValue().getTenBdReportable());
         assertTrue(captor.getValue().getTenBdFailureReason().toLowerCase().contains("id"));
-    }
-
-    @Test
-    void test115bbc_AnonymousLimit_ComputedFromFyTotals() {
-        mockOneState();
-        mockValidTenantConfig();
-        when(donationRepository.countByReceiptDateBetween(any(), any())).thenReturn(0L);
-        when(donationRepository.sumReportingAmountInr(any(), any())).thenReturn(new BigDecimal("2000000"));
-        when(donationRepository.sumAnonymousReportingAmountInr(any(), any())).thenReturn(new BigDecimal("250000"));
-        mockSaveReturnsArgument();
-
-        CreateDonationRequest request = baseRequest()
-                .donationType(DonationType.ONE_TIME)
-                .identification(DonorIdentification.ANONYMOUS)
-                .anonymousCollectionSource("Donation box")
-                .anonymousSourceReference("Box #1")
-                .amount(new BigDecimal("250000"))
-                .build();
-
-        // anonymousFyLimit/RunningTotal are set on the response object the mapper returns,
-        // so assert via the response the service returns rather than the entity.
-        DonationDetailResponse response = donationService.createDonation(request);
-        assertEquals(new BigDecimal("250000"), response.getAnonymousFyRunningTotal());
-        assertEquals(new BigDecimal("100000"), response.getAnonymousFyLimit());
     }
 }

@@ -65,41 +65,6 @@ const grantDialogColumns = [
   },
 ];
 
-const availableDialogColumns = [
-  { key: 'grantCode', header: 'Code' },
-  { key: 'agreementName', header: 'Agreement' },
-  { key: 'donorName', header: 'Donor' },
-  {
-    key: 'received',
-    header: 'Received',
-    align: 'right',
-    render: (row) => formatInr(row.receivedAmount ?? (Number(row.totalGrantAmount) * 0.7)),
-  },
-  {
-    key: 'utilised',
-    header: 'Utilised',
-    align: 'right',
-    render: (row) => formatInr(row.utilisedAmount ?? (Number(row.totalGrantAmount) * 0.4)),
-  },
-  {
-    key: 'available',
-    header: 'Available',
-    align: 'right',
-    render: (row) => {
-      const rec = Number(row.receivedAmount ?? (Number(row.totalGrantAmount) * 0.7));
-      const uti = Number(row.utilisedAmount ?? (Number(row.totalGrantAmount) * 0.4));
-      return formatInr(Math.max(0, rec - uti));
-    },
-  },
-  {
-    key: 'isActive',
-    header: 'Status',
-    render: (row) => (
-      <StatusChip label={row.statusLabel || 'Active'} tone={GRANT_ACTIVE_TONE[row.isActive] || 'success'} />
-    ),
-  },
-];
-
 const recentColumns = [
   {
     key: 'agreementName',
@@ -116,12 +81,11 @@ const recentColumns = [
     ),
   },
   { key: 'donorName', header: 'Donor' },
-  { key: 'programmeName', header: 'Programme', render: (row) => row.programmeName || '—' },
   {
     key: 'committed',
     header: 'Committed',
     align: 'right',
-    render: (row) => formatInr(row.reportingAmountInr ?? row.totalGrantAmount),
+    render: (row) => formatInr(row.totalGrantAmount),
   },
   {
     key: 'isActive',
@@ -154,8 +118,8 @@ export function DashboardPage() {
   }
 
   // KPIs and the funding chain come from the server-side summary — received is
-  // real (sum of tranche receipts), utilised is the seeded placeholder. The
-  // summary's field names match what the cards / funding-chain card expect.
+  // the real sum of tranche receipts. The summary's field names match what
+  // the cards / funding-chain card expect.
   const summary = summaryQuery.data;
   const donors = donorsQuery.data;
   const grants = grantsQuery.data;
@@ -236,11 +200,11 @@ export function DashboardPage() {
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 6 }}>
             <StatCard
-              label="Available (unspent, realised)"
-              value={formatInr(funding.available)}
-              hint="received − utilised · see utilisation"
+              label="Funds received (realised)"
+              value={formatInr(funding.received)}
+              hint="sum of actual tranche receipts"
               accent
-              onClick={() => setDialog('available')}
+              onClick={() => setDialog('grants')}
             />
           </Grid>
         </Grid>
@@ -275,14 +239,6 @@ export function DashboardPage() {
         onClose={() => setDialog(null)}
         title={`Grant agreements (${grants.length})`}
         columns={grantDialogColumns}
-        rows={grants}
-        primaryAction={{ label: 'Open Grant Agreements →', onClick: () => navigate('/grants') }}
-      />
-      <RecordsDialog
-        open={dialog === 'available'}
-        onClose={() => setDialog(null)}
-        title={`Available Funds (${grants.length})`}
-        columns={availableDialogColumns}
         rows={grants}
         primaryAction={{ label: 'Open Grant Agreements →', onClick: () => navigate('/grants') }}
       />

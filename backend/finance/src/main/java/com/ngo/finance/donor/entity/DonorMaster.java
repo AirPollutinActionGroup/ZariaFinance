@@ -1,10 +1,10 @@
 package com.ngo.finance.donor.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
-import com.ngo.finance.donor.enums.ContributionType;
-import com.ngo.finance.donor.enums.DonorType;
-import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.common.enums.ContributionType;
+import com.ngo.finance.common.enums.FundSourceDomicile;
 import com.ngo.finance.donor.enums.IdentityDocumentType;
+import com.ngo.finance.masters.donortype.entity.DonorTypeMaster;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -36,9 +36,9 @@ public class DonorMaster extends AuditEntity {
     @Column(nullable = false, length = 255)
     private String donorName;
 
-    @Column(nullable = false, length = 50)
-    @Enumerated(EnumType.STRING)
-    private DonorType donorType;
+    @ManyToOne
+    @JoinColumn(name = "donor_type_id", foreignKey = @ForeignKey(name = "fk_donor_donor_type"))
+    private DonorTypeMaster donorType;
 
     @Column(name = "fund_source_domicile", length = 20)
     @Enumerated(EnumType.STRING)

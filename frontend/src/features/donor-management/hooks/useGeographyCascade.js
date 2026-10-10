@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { geographyService } from '../services/geographyService.js';
 
 function isCountryIndia(country) {
@@ -21,12 +21,23 @@ export function useGeographyCascade(setValue, isDomestic = false) {
   const [loadingStates, setLoadingStates] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
 
+  // Tracks whether isDomestic has actually changed after mount, so switching
+  // Domestic → Foreign clears the stale India default without wiping a
+  // foreign donor's saved country/state/city when the edit form first loads.
+  const wasDomestic = useRef(isDomestic);
+
   // 1. Fetch Countries on Mount & handle isDomestic
   useEffect(() => {
+    const wasActuallyDomestic = wasDomestic.current;
+    wasDomestic.current = isDomestic;
+
     geographyService
       .listCountries()
       .then((data) => {
-        setCountries(data || []);
+        const list = data || [];
+        // A foreign donor's address country can't be India — only offer it
+        // when isDomestic (where it's auto-selected and the field is disabled).
+        setCountries(isDomestic ? list : list.filter((c) => !isCountryIndia(c)));
         if (isDomestic) {
           const india = (data || []).find((c) => isCountryIndia(c)) || { value: 1, label: 'India' };
           setSelectedCountry(india);
@@ -42,6 +53,21 @@ export function useGeographyCascade(setValue, isDomestic = false) {
             .then((statesData) => setStates(statesData || []))
             .catch(() => setStates([]))
             .finally(() => setLoadingStates(false));
+        } else if (wasActuallyDomestic) {
+          // Switching from domestic to foreign: India can no longer be the
+          // address country — clear the stale default instead of leaving it
+          // selected against a list it's now excluded from. Guarded so a
+          // foreign donor's saved country/state/city survive on initial load.
+          setSelectedCountry(null);
+          setSelectedState(null);
+          setSelectedCity(null);
+          setStates([]);
+          setCities([]);
+          if (setValue) {
+            setValue('countryId', '');
+            setValue('stateId', '');
+            setValue('cityId', '');
+          }
         }
       })
       .catch((err) => console.error('Error loading countries:', err));

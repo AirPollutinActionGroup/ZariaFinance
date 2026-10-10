@@ -17,6 +17,7 @@ public interface DonorMapper {
     @Mapping(target = "city", ignore = true)
     @Mapping(target = "state", ignore = true)
     @Mapping(target = "country", ignore = true)
+    @Mapping(target = "donorType", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
@@ -30,12 +31,15 @@ public interface DonorMapper {
     @Mapping(source = "state.stateName", target = "stateName")
     @Mapping(source = "country.id", target = "countryId")
     @Mapping(source = "country.countryName", target = "countryName")
+    @Mapping(source = "donorType.id", target = "donorTypeId")
+    @Mapping(source = "donorType.name", target = "donorTypeName")
     DonorResponse toResponse(DonorMaster entity);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "city", ignore = true)
     @Mapping(target = "state", ignore = true)
     @Mapping(target = "country", ignore = true)
+    @Mapping(target = "donorType", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)

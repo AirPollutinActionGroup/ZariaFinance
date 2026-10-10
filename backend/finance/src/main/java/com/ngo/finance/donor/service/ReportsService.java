@@ -1,7 +1,6 @@
 package com.ngo.finance.donor.service;
 
 import com.ngo.finance.donor.dto.response.FcraRegisterEntry;
-import com.ngo.finance.donor.dto.response.UtilisationComplianceEntry;
 import java.util.List;
 
 /**
@@ -10,6 +9,4 @@ import java.util.List;
 public interface ReportsService {
 
     List<FcraRegisterEntry> getFcraRegister();
-
-    List<UtilisationComplianceEntry> getUtilisationCompliance();
 }

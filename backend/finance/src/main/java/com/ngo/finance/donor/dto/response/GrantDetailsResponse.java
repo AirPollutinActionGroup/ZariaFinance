@@ -27,10 +27,6 @@ public class GrantDetailsResponse {
 
     private String donorName;
 
-    private Long programmeId;
-
-    private String programmeName;
-
     private Long fundProfileId;
 
     private String fundClassCode;
@@ -44,14 +40,6 @@ public class GrantDetailsResponse {
     private LocalDate endDate;
 
     private BigDecimal totalGrantAmount;
-
-    private String grantCurrency;
-
-    private BigDecimal fxLockedRate;
-
-    private BigDecimal reportingAmountInr;
-
-    private BigDecimal utilisedAmount;
 
     // Agreement status (section 1): ACTIVE | COMPLETED | CANCELLED. isActive is
     // the legacy boolean mirror, kept for existing consumers.

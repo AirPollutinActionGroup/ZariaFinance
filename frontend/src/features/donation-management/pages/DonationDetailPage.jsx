@@ -207,14 +207,7 @@ export function DonationDetailPage() {
 
   const donor = donorQuery.data;
 
-  const foreign = donation.currency && donation.currency !== 'INR';
-
-  const donorTypeLabel =
-    donor?.donorTypeLabel ||
-    donor?.donorType ||
-    donation?.donorTypeLabel ||
-    donation?.donorType ||
-    '—';
+  const donorTypeLabel = donor?.donorTypeLabel || donation?.donorTypeLabel || '—';
 
   const donorTypeUpper = String(donorTypeLabel).toUpperCase();
 
@@ -273,7 +266,6 @@ export function DonationDetailPage() {
             <TermRow label="Code">{donation.donationCode}</TermRow>
             <TermRow label="Type">{donation.typeLabel}</TermRow>
             <TermRow label="Receipt date">{formatDate(donation.receiptDate)}</TermRow>
-            <TermRow label="Channel">{donation.channel}</TermRow>
             <TermRow label="Recorded by">{donation.createdBy || '—'}</TermRow>
             <TermRow label="Status" last>
               <StatusChip label={donation.recognitionLabel} tone={RECOGNITION_STATUS_TONE[donation.recognitionStatus] || 'neutral'} />
@@ -413,7 +405,7 @@ export function DonationDetailPage() {
             <TermRow label="Fund mode">
               <StatusChip label={donation.fundModeLabel} tone={FUND_MODE_TONE[donation.fundMode] || 'neutral'} />
             </TermRow>
-            <TermRow label="Fund class">{donation.fundClassCode ? `Class ${donation.fundClassCode}` : '—'}</TermRow>
+            <TermRow label="Fund class">{donation.fundClass ? `Class ${donation.fundClass}` : '—'}</TermRow>
             <TermRow label="Programme">{donation.programmeName || '— not programme-tied —'}</TermRow>
             <TermRow label="Location">{(donation.stateNames || []).join(', ') || '—'}</TermRow>
             <TermRow label="Utilisation period">{donation.utilisationPeriodType}</TermRow>
@@ -424,18 +416,8 @@ export function DonationDetailPage() {
         </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
-          <SectionCard title="Money & banking">
-            <TermRow label="Currency">{donation.currency}</TermRow>
-            <TermRow label="Amount">
-              {foreign ? `${donation.currency} ${Number(donation.amount).toLocaleString('en-IN')}` : formatInr(donation.amount)}
-            </TermRow>
-            <TermRow label="FX rate">{foreign ? String(donation.fxRate) : `— (${donation.currency} gift)`}</TermRow>
-            <TermRow label="Reporting amount (INR)">{formatInr(donation.reportingAmountInr ?? donation.amount)}</TermRow>
-            <TermRow label="Bank account">{donation.bankAccountType}</TermRow>
-            <TermRow label="Transaction ref">{donation.transactionRef || '—'}</TermRow>
-            <TermRow label="Tally voucher ref" last>
-              {donation.tallyVoucherRef || donation.tallyVoucher || '—'}
-            </TermRow>
+          <SectionCard title="Money">
+            <TermRow label="Amount" last>{formatInr(donation.amount)}</TermRow>
           </SectionCard>
         </Grid>
 

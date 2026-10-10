@@ -45,7 +45,6 @@ function Field({ label, value }) {
 const grantColumns = [
   { key: 'grantCode', header: 'Code', width: 110 },
   { key: 'agreementName', header: 'Agreement' },
-  { key: 'programmeName', header: 'Programme' },
   { key: 'startDate', header: 'Start', render: (row) => formatDate(row.startDate) },
   { key: 'endDate', header: 'End', render: (row) => formatDate(row.endDate) },
   {

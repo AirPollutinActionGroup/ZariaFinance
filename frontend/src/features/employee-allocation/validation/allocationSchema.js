@@ -1,10 +1,17 @@
 import { z } from 'zod';
 
+export const ALLOCATION_TYPE_OPTIONS = [
+  { value: 'Program', label: 'Program' },
+  { value: 'Project', label: 'Project' },
+];
+
 export const allocationSchema = z
   .object({
     employeeId: z.union([z.string(), z.number()]).refine((val) => val !== '' && val != null, 'Select an employee'),
+    // Form-only: decides whether a Project is picked under the Program. Not sent to the API.
+    allocationType: z.enum(['Program', 'Project'], { message: 'Select an allocation type' }),
     programmeId: z.union([z.string(), z.number()]).refine((val) => val !== '' && val != null, 'Select a program'),
-    projectId: z.union([z.string(), z.number()]).refine((val) => val !== '' && val != null, 'Select a project'),
+    projectId: z.union([z.string(), z.number()]).optional().nullable(),
     role: z.string().optional(),
     stateIds: z.array(z.union([z.string(), z.number()])).optional(),
     cityIds: z.array(z.union([z.string(), z.number()])).optional(),
@@ -17,6 +24,10 @@ export const allocationSchema = z
     endDate: z.string().optional(),
     remark: z.string().optional(),
   })
+  .refine((data) => data.allocationType !== 'Project' || (data.projectId !== '' && data.projectId != null), {
+    message: 'Select a project',
+    path: ['projectId'],
+  })
   .refine((data) => !data.startDate || !data.endDate || data.endDate >= data.startDate, {
     message: 'End date cannot be before start date',
     path: ['endDate'],
@@ -24,6 +35,7 @@ export const allocationSchema = z
 
 export const allocationFormDefaults = {
   employeeId: '',
+  allocationType: '',
   programmeId: '',
   projectId: '',
   role: '',

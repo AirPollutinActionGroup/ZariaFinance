@@ -3,7 +3,6 @@ package com.ngo.finance.donor.service.impl;
 import com.ngo.finance.donor.dto.response.DashboardSummaryResponse;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.GrantAgreement;
-import com.ngo.finance.donor.entity.GrantTranche;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.GrantRepository;
 import com.ngo.finance.donor.service.DashboardService;
@@ -15,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Computes the dashboard summary from live donor / grant / tranche records.
+ * Computes the dashboard summary from live donor / grant records.
  */
 @Slf4j
 @Service
@@ -36,15 +35,11 @@ public class DashboardServiceImpl implements DashboardService {
         long activeDonors = donors.stream().filter(d -> !isInactive(d)).count();
 
         BigDecimal committed = BigDecimal.ZERO;
-        BigDecimal received = BigDecimal.ZERO;
-        BigDecimal utilised = BigDecimal.ZERO;
         BigDecimal blocked = BigDecimal.ZERO;
         long blockedGrantCount = 0;
 
         for (GrantAgreement grant : grants) {
-            BigDecimal committedAmount = grant.getReportingAmountInr() != null
-                    ? grant.getReportingAmountInr()
-                    : nz(grant.getTotalGrantAmount());
+            BigDecimal committedAmount = nz(grant.getTotalGrantAmount());
 
             if (isInactive(grant.getDonor())) {
                 blocked = blocked.add(committedAmount);
@@ -53,15 +48,6 @@ public class DashboardServiceImpl implements DashboardService {
             }
 
             committed = committed.add(committedAmount);
-            utilised = utilised.add(nz(grant.getUtilisedAmount()));
-            // Tranche receipts are in the grant currency → convert to INR via the locked FX
-            // rate.
-            BigDecimal fx = nz(grant.getFxLockedRate());
-            if (fx.signum() == 0)
-                fx = BigDecimal.ONE;
-            for (GrantTranche tranche : grant.getTranches()) {
-                received = received.add(nz(tranche.getActualAmount()).multiply(fx));
-            }
         }
 
         // Active count excludes blocked grants (active status but on an inactive
@@ -80,10 +66,6 @@ public class DashboardServiceImpl implements DashboardService {
                 .closedGrantCount(closedGrants)
                 .blockedGrantCount(blockedGrantCount)
                 .committed(committed)
-                .received(received)
-                .utilised(utilised)
-                .available(received.subtract(utilised))
-                .open(committed.subtract(received))
                 .blocked(blocked)
                 .build();
     }

@@ -14,6 +14,7 @@ export const queryKeys = {
     all: () => ['grants'],
     list: (filters) => ['grants', 'list', filters || {}],
     detail: (id) => ['grants', 'detail', String(id)],
+    byFundProfile: (fundProfileId) => ['grants', 'byFundProfile', String(fundProfileId)],
   },
   programmes: {
     all: () => ['programmes'],
@@ -23,16 +24,6 @@ export const queryKeys = {
     all: () => ['fundProfiles'],
     byDonor: (donorId) => ['fundProfiles', 'byDonor', String(donorId)],
     detail: (id) => ['fundProfiles', 'detail', String(id)],
-  },
-  documents: {
-    all: () => ['documents'],
-    byGrant: (grantId, documentName) => [
-      'documents',
-      'byGrant',
-      String(grantId),
-      { documentName: documentName || '' },
-    ],
-    detail: (id) => ['documents', 'detail', String(id)],
   },
   donations: {
     all: () => ['donations'],
@@ -81,6 +72,35 @@ export const queryKeys = {
     all: () => ['designations'],
     list: (search) => ['designations', 'list', { search: search || '' }],
   },
+  donorTypes: {
+    all: () => ['donorTypes'],
+    list: (search) => ['donorTypes', 'list', { search: search || '' }],
+  },
+  budgetCategories: {
+    all: () => ['budgetCategories'],
+    list: (search) => ['budgetCategories', 'list', { search: search || '' }],
+  },
+  outflow: {
+    all: () => ['outflow'],
+    list: (financialYear) => ['outflow', 'list', { financialYear: financialYear || '' }],
+    detail: (id) => ['outflow', 'detail', String(id)],
+  },
+  debitNotes: {
+    all: () => ['debitNotes'],
+    list: () => ['debitNotes', 'list'],
+    detail: (code) => ['debitNotes', 'detail', String(code)],
+  },
+  creditNotes: {
+    all: () => ['creditNotes'],
+    list: () => ['creditNotes', 'list'],
+    detail: (code) => ['creditNotes', 'detail', String(code)],
+  },
+  budgets: {
+    all: () => ['budgets'],
+    list: () => ['budgets', 'list'],
+    detail: (id) => ['budgets', 'detail', String(id)],
+    categoryUsage: () => ['budgets', 'categoryUsage'],
+  },
   paymentTypeGroups: {
     all: () => ['paymentTypeGroups'],
     list: (search) => ['paymentTypeGroups', 'list', { search: search || '' }],
@@ -95,6 +115,7 @@ export const queryKeys = {
   bankDetails: {
     all: () => ['bankDetails'],
     list: (search) => ['bankDetails', 'list', { search: search || '' }],
+    detail: (id) => ['bankDetails', 'detail', id],
   },
   employees: {
     all: () => ['employees'],
@@ -105,12 +126,8 @@ export const queryKeys = {
   employeeAllocations: {
     all: () => ['employeeAllocations'],
   },
-  transactions: {
-    all: () => ['transactions'],
-    detail: (code) => ['transactions', 'detail', String(code)],
-  },
-  inflowTranches: {
-    all: () => ['inflowTranches'],
-    detail: (id) => ['inflowTranches', 'detail', String(id)],
+  inflowBudgetLines: {
+    all: () => ['inflowBudgetLines'],
+    detail: (id) => ['inflowBudgetLines', 'detail', String(id)],
   },
 };

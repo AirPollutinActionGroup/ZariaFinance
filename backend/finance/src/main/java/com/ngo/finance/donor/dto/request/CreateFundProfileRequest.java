@@ -1,6 +1,6 @@
 package com.ngo.finance.donor.dto.request;
 
-import com.ngo.finance.donation.enums.FundMode;
+import com.ngo.finance.donor.enums.FundMode;
 import com.ngo.finance.donor.enums.CriterionType;
 import com.ngo.finance.donor.enums.DisbursementType;
 import com.ngo.finance.donor.enums.FundClass;
@@ -9,7 +9,6 @@ import com.ngo.finance.donor.enums.ReportingFrequency;
 import com.ngo.finance.donor.enums.RestrictionRuleType;
 import com.ngo.finance.donor.enums.ScheduleType;
 import com.ngo.finance.donor.enums.TriggerBasis;
-import com.ngo.finance.donor.enums.VerificationRole;
 import com.ngo.finance.donor.validator.annotation.ValidFundProfile;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -38,7 +37,7 @@ public class CreateFundProfileRequest {
     @NotNull(message = "Fund mode is required")
     private FundMode fundMode;
 
-    /** A/B/C restriction class; nullable for edge/pending profiles. */
+    @NotNull(message = "Fund class is required")
     private FundClass fundClass;
 
     private String purpose;
@@ -111,6 +110,9 @@ public class CreateFundProfileRequest {
         @NotNull(message = "Disbursement type is required")
         private DisbursementType disbursementType;
 
+        /** Lump sum only — the single date the whole committed amount is released on. */
+        private LocalDate receivingDate;
+
         @Valid
         @Builder.Default
         private List<TrancheCriterionItem> trancheCriteria = new ArrayList<>();
@@ -127,6 +129,7 @@ public class CreateFundProfileRequest {
         @Positive(message = "Tranche amount must be positive")
         private BigDecimal amountCriteria;
 
+        @NotNull(message = "Expected release date is required")
         private LocalDate expectedReleaseDate;
 
         @Builder.Default
@@ -156,7 +159,8 @@ public class CreateFundProfileRequest {
 
         /** MILESTONE_BASED. */
         private String milestoneName;
-        private VerificationRole verificationSignOffRole;
+        /** Id of an active Designation row; null + otherVerificationSignOffRole means "Other". */
+        private Long verificationSignOffRoleId;
         private String otherVerificationSignOffRole;
         private LocalDate targetDate;
 
@@ -170,7 +174,8 @@ public class CreateFundProfileRequest {
         /** Reminder block — only meaningful when remindSomeone is true. */
         @Builder.Default
         private Boolean remindSomeone = false;
-        private VerificationRole responsibleRole;
+        /** Id of an active Designation row; null + otherResponsibleRole means "Other". */
+        private Long responsibleRoleId;
         private String otherResponsibleRole;
         private Integer reminderLeadTime;
         @Builder.Default

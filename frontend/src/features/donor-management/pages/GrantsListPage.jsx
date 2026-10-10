@@ -19,23 +19,13 @@ const columns = [
   { key: 'grantCode', header: 'Code', width: 110 },
   { key: 'agreementName', header: 'Agreement' },
   { key: 'donorName', header: 'Donor' },
-  { key: 'programmeName', header: 'Programme' },
   { key: 'startDate', header: 'Start', render: (row) => formatDate(row.startDate) },
   { key: 'endDate', header: 'End', render: (row) => formatDate(row.endDate) },
   {
     key: 'totalGrantAmount',
     header: 'Committed',
     align: 'right',
-    render: (row) =>
-      row.grantCurrency && row.grantCurrency !== 'INR'
-        ? `${row.grantCurrency} ${Number(row.totalGrantAmount).toLocaleString('en-IN')}`
-        : formatInr(row.totalGrantAmount),
-  },
-  {
-    key: 'reportingAmountInr',
-    header: 'Reporting (₹)',
-    align: 'right',
-    render: (row) => formatInr(row.reportingAmountInr ?? row.totalGrantAmount),
+    render: (row) => formatInr(row.totalGrantAmount),
   },
   {
     key: 'fundClassCode',

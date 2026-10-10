@@ -5,10 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
 import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
 import { donorSchema, donorFormDefaults } from '../validation/donorSchema.js';
-import { DONOR_TYPE, FUND_SOURCE_DOMICILE, INDIVIDUAL_ID_TYPE, toOptions } from '../constants.js';
+import { FUND_SOURCE_DOMICILE, INDIVIDUAL_ID_TYPE, toOptions } from '../constants.js';
 import { donorService } from '../services/donorService.js';
 import { useState, useEffect } from 'react';
 import { geographyService } from '../services/geographyService.js';
+import { donorTypeService } from '../services/donorTypeService.js';
 
 function getIdNumberLabel(idType) {
   switch (idType) {
@@ -48,26 +49,59 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
     defaultValues: defaultValues || donorFormDefaults,
   });
 
-  const donorType = watch('donorType');
+  const donorTypeId = watch('donorType');
   const idType = watch('idType');
   const fundSourceDomicile = watch('fundSourceDomicile');
-  const isIndividual = donorType === 'INDIVIDUAL';
-  const isCorporate = donorType === 'CORPORATE';
-  const isForeign = fundSourceDomicile === 'FOREIGN';
   const [foreignCountries, setForeignCountries] = useState([]);
+  const [donorTypes, setDonorTypes] = useState([]);
 
-  // Corporate CSR donations are always domestic — lock the field once it's set.
+  // Donor types are a manageable master (see Master Configuration) — load the
+  // active ones for the dropdown instead of a hardcoded list.
   useEffect(() => {
-    if (isCorporate) {
-      setValue('fundSourceDomicile', 'DOMESTIC');
+    donorTypeService
+      .listActiveDonorTypes()
+      .then(setDonorTypes)
+      .catch((err) => console.error('Error loading donor types', err));
+  }, []);
+
+  const selectedDonorType = donorTypes.find((dt) => String(dt.id) === String(donorTypeId));
+  const donorTypeOptions = donorTypes.map((dt) => ({ value: dt.id, label: dt.name }));
+  const isIndividual = (selectedDonorType?.name || '').toUpperCase() === 'INDIVIDUAL';
+  const isForeign = fundSourceDomicile === 'FOREIGN';
+
+  // Fund Source Domicile is constrained by the selected donor type's allowed
+  // values (see Master Configuration → Donor Type); no restriction means both.
+  const allowedDomiciles = selectedDonorType?.allowedFundSourceDomiciles?.length
+    ? selectedDonorType.allowedFundSourceDomiciles
+    : ['DOMESTIC', 'FOREIGN'];
+  const fundSourceDomicileOptions = toOptions(FUND_SOURCE_DOMICILE).filter((opt) =>
+    allowedDomiciles.includes(opt.value));
+  const isDomicileLocked = allowedDomiciles.length === 1;
+
+  // When the donor type only allows one Fund Source Domicile, lock the field to it.
+  useEffect(() => {
+    if (isDomicileLocked) {
+      setValue('fundSourceDomicile', allowedDomiciles[0]);
     }
-  }, [isCorporate, setValue]);
+  }, [isDomicileLocked, allowedDomiciles.join(','), setValue]);
+
+  // Mirror the selected donor type's name into a hidden field — donorSchema's
+  // Individual + foreign passport check needs the name, not the submitted id.
+  useEffect(() => {
+    setValue('donorTypeName', selectedDonorType?.name || '');
+  }, [selectedDonorType?.name, setValue]);
 
   useEffect(() => {
     if (isForeign) {
       geographyService
         .listCountries()
-        .then((list) => setForeignCountries(list.map((c) => ({ value: c.label, label: c.label }))))
+        .then((list) =>
+          setForeignCountries(
+            list
+              .filter((c) => c.label.trim().toUpperCase() !== 'INDIA')
+              .map((c) => ({ value: c.label, label: c.label }))
+          )
+        )
         .catch((err) => console.error('Error loading foreign countries', err));
     }
   }, [isForeign]);
@@ -77,6 +111,9 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
     setValue('book', isForeign ? 'FC' : 'LC');
     if (!isForeign) {
       setValue('registrationNumber', '');
+      setValue('foreignCountryId', '');
+      setValue('foreignFundSourceType', '');
+      setForeignCountries([]);
     }
   }, [isForeign, setValue]);
 
@@ -126,7 +163,7 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                   control={control}
                   label="Donor type"
                   required
-                  options={toOptions(DONOR_TYPE)}
+                  options={donorTypeOptions}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 3 }}>
@@ -135,9 +172,13 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                   control={control}
                   label="Fund source domicile"
                   required
-                  disabled={isCorporate}
-                  helperText={isCorporate ? 'Corporate CSR is always domestic' : ' '}
-                  options={toOptions(FUND_SOURCE_DOMICILE)}
+                  disabled={isDomicileLocked}
+                  helperText={
+                    isDomicileLocked && selectedDonorType
+                      ? `${selectedDonorType.name} is always ${allowedDomiciles[0] === 'FOREIGN' ? 'foreign' : 'domestic'}`
+                      : ' '
+                  }
+                  options={fundSourceDomicileOptions}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 3 }}>

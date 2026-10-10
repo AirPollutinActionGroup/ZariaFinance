@@ -50,14 +50,14 @@ function toReleaseCriterionItem(c) {
     releaseCriteria: c.criterionType || null,
     releaseDate: trimOrNull(c.releaseDate),
     milestoneName: trimOrNull(c.milestoneName),
-    verificationSignOffRole: trimOrNull(c.verificationRole),
+    verificationSignOffRoleId: numOrNull(c.verificationRoleId),
     otherVerificationSignOffRole: trimOrNull(c.otherVerificationRole),
     targetDate: trimOrNull(c.targetDate),
     utilisationPercentage: numOrNull(c.utilisationPercent),
     triggerBasis: trimOrNull(c.triggerBasis),
     description: trimOrNull(c.description),
     remindSomeone: Boolean(c.hasReminder),
-    responsibleRole: c.hasReminder ? trimOrNull(c.reminder?.responsibleRole) : null,
+    responsibleRoleId: c.hasReminder ? numOrNull(c.reminder?.responsibleRoleId) : null,
     otherResponsibleRole: c.hasReminder ? trimOrNull(c.reminder?.otherResponsibleRole) : null,
     reminderLeadTime: c.hasReminder ? numOrNull(c.reminder?.reminderLeadDays) : null,
     repeatReminder: c.hasReminder ? (c.reminder?.repeatReminder || 'ONCE') : null,
@@ -83,7 +83,7 @@ function toCriterionFormValue(c) {
     criterionType: c.releaseCriteria || '',
     releaseDate: c.releaseDate || '',
     milestoneName: c.milestoneName || '',
-    verificationRole: c.verificationSignOffRole || '',
+    verificationRoleId: c.verificationSignOffRoleId ?? '',
     otherVerificationRole: c.otherVerificationSignOffRole || '',
     targetDate: c.targetDate || '',
     utilisationPercent: c.utilisationPercentage ?? '',
@@ -91,7 +91,7 @@ function toCriterionFormValue(c) {
     description: c.description || '',
     hasReminder: Boolean(c.remindSomeone),
     reminder: {
-      responsibleRole: c.responsibleRole || '',
+      responsibleRoleId: c.responsibleRoleId ?? '',
       otherResponsibleRole: c.otherResponsibleRole || '',
       reminderLeadDays: c.reminderLeadTime ?? '',
       repeatReminder: c.repeatReminder || 'ONCE',
@@ -132,6 +132,7 @@ export function toFundProfileRequest(values) {
         {
           totalAmount: numOrNull(values.totalAmount),
           disbursementType: values.disbursementType,
+          receivingDate: values.disbursementType === 'LUMP_SUM' ? trimOrNull(values.receivingDate) : null,
           trancheCriteria:
             values.disbursementType === 'LUMP_SUM'
               ? [
@@ -140,7 +141,7 @@ export function toFundProfileRequest(values) {
                     expectedReleaseDate: trimOrNull(values.receivingDate),
                     frequency: 'MONTHLY',
                     isFinalTranche: true,
-                    releaseCriteria: 'ON_SIGNING',
+                    criteria: [{ releaseCriteria: 'ON_SIGNING' }],
                   },
                 ]
               : (values.tranches || []).map((t) => toTrancheCriterionItem(t, values.frequency)),
@@ -194,7 +195,7 @@ export function toFundProfileFormValues(dto) {
     disbursementType: rule?.disbursementType || 'LUMP_SUM',
     totalAmount: rule?.totalAmount ?? '',
     frequency: trancheCriteria[0]?.frequency || 'QUARTERLY',
-    receivingDate: lumpSum ? (trancheCriteria[0]?.expectedReleaseDate || '') : '',
+    receivingDate: lumpSum ? (rule?.receivingDate || trancheCriteria[0]?.expectedReleaseDate || '') : '',
     tranches: lumpSum ? [] : trancheCriteria.map(toTrancheFormValue),
   };
 }

@@ -6,12 +6,9 @@
 
 export const MODULE_ID = 'donor-management';
 
-export const DONOR_TYPE = Object.freeze({
-  CORPORATE: 'Corporate CSR',
-  INDIVIDUAL: 'Individual',
-  FOUNDATION: 'Foundation',
-  GOVERNMENT: 'Government',
-});
+// Donor type is now a manageable master (see Master Configuration → Donor
+// Type / DonorTypeMaster) fetched at runtime via donorTypeService — no
+// hardcoded mirror of it here anymore.
 
 export const FUND_SOURCE_DOMICILE = Object.freeze({
   DOMESTIC: 'Domestic',
@@ -33,16 +30,6 @@ export const DONOR_ACTIVE_TONE = Object.freeze({
   false: 'neutral',
 });
 
-export const DOCUMENT_TYPE = Object.freeze({
-  AGREEMENT: 'Agreement',
-  MOU: 'MOU',
-  FINANCIAL_STATEMENT: 'Financial Statement',
-  AUDIT_REPORT: 'Audit Report',
-  REPORT: 'Report',
-  DISBURSEMENT: 'Disbursement',
-  UTILIZATION: 'Utilization',
-  OTHER: 'Other',
-});
 
 /** enum object → [{value, label}] for selects. */
 export function toOptions(enumMap) {

@@ -1,4 +1,4 @@
-import { DONOR_TYPE, FUND_SOURCE_DOMICILE } from '../constants.js';
+import { FUND_SOURCE_DOMICILE } from '../constants.js';
 
 /**
  * DonorMapper — translates between backend DTOs (DonorResponse,
@@ -27,7 +27,7 @@ const DOCUMENT_TYPE_TO_ID_TYPE = Object.fromEntries(
 export function fromDonorResponse(dto) {
   return {
     ...dto,
-    donorTypeLabel: DONOR_TYPE[dto.donorType] || dto.donorType || '—',
+    donorTypeLabel: dto.donorTypeName || '—',
     fundSourceDomicileLabel: FUND_SOURCE_DOMICILE[dto.fundSourceDomicile] || dto.fundSourceDomicile || '—',
     contacts: dto.contacts || [],
     idType: DOCUMENT_TYPE_TO_ID_TYPE[dto.documentType] || '',
@@ -49,7 +49,7 @@ export function toCreateDonorRequest(values) {
   return {
     donorCode: values.donorCode.trim(),
     donorName: values.donorName.trim(),
-    donorType: values.donorType,
+    donorTypeId: numberOrNull(values.donorType),
     fundSourceDomicile: values.fundSourceDomicile,
     fcraApplicable: Boolean(values.fcraApplicable),
     book: nullIfBlank(values.book),
@@ -89,7 +89,8 @@ export function toDonorFormValues(donor) {
     id: donor.id || '',
     donorCode: donor.donorCode || '',
     donorName: donor.donorName || '',
-    donorType: donor.donorType || '',
+    donorType: donor.donorTypeId || '',
+    donorTypeName: donor.donorTypeName || '',
     fundSourceDomicile: donor.fundSourceDomicile || '',
     fcraApplicable: Boolean(donor.fcraApplicable),
     book: donor.book || '',

@@ -35,10 +35,7 @@ const columns = [
     key: 'amount',
     header: 'Amount',
     align: 'right',
-    render: (row) =>
-      row.currency && row.currency !== 'INR'
-        ? `${row.currency} ${Number(row.amount).toLocaleString('en-IN')}`
-        : formatInr(row.amount),
+    render: (row) => formatInr(row.amount),
   },
   {
     key: 'fundMode',

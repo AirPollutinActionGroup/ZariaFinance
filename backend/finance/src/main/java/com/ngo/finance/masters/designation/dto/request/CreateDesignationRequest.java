@@ -1,7 +1,6 @@
 package com.ngo.finance.masters.designation.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +18,7 @@ public class CreateDesignationRequest {
     @NotBlank(message = "Designation name is required")
     private String name;
 
-    @NotNull(message = "Department is required")
+    /** Null for an org-level designation with no department (e.g. CFO, Programme Manager). */
     private Long departmentId;
 
     /** Defaults to active when omitted. */

@@ -75,7 +75,17 @@ export function SideNav() {
             {section.label ? (
               <Typography
                 variant="overline"
-                sx={{ px: 1.5, pt: 1, pb: 0.5, display: 'block', fontSize: 9.5 }}
+                sx={{
+                  px: 1.5,
+                  pt: 1,
+                  display: 'block',
+                  fontSize: 9.5,
+                  color: '#000',
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  pb: 0.75,
+                  mb: 0.25,
+                }}
               >
                 {section.label}
               </Typography>

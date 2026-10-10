@@ -5,8 +5,8 @@ import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.DisbursementRu
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.ReleaseCriterionItem;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.TrancheCriterionItem;
 import com.ngo.finance.donor.dto.request.CreateFundProfileRequest.UtilisationRuleItem;
+import com.ngo.finance.donor.enums.DisbursementType;
 import com.ngo.finance.donor.enums.RestrictionRuleType;
-import com.ngo.finance.donor.enums.VerificationRole;
 import com.ngo.finance.donor.validator.annotation.ValidFundProfile;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
@@ -30,6 +30,19 @@ public class FundProfileValidator implements ConstraintValidator<ValidFundProfil
         context.disableDefaultConstraintViolation();
         boolean valid = true;
 
+        if (Boolean.TRUE.equals(value.getProgrammeTied()) && value.getProgrammeId() == null) {
+            error(context, "Programme is required when Programme-tied is enabled", "programmeId");
+            valid = false;
+        }
+
+        if (Boolean.TRUE.equals(value.getMovementAllowed())
+                && !Boolean.TRUE.equals(value.getProgrammeTied())
+                && isBlank(value.getPurpose())) {
+            error(context, "Purpose is required when Movement allowed is enabled and Programme-tied is off",
+                    "purpose");
+            valid = false;
+        }
+
         List<UtilisationRuleItem> utilisationRules = value.getUtilisationRules() == null
                 ? List.of() : value.getUtilisationRules();
         for (int u = 0; u < utilisationRules.size(); u++) {
@@ -38,7 +51,13 @@ public class FundProfileValidator implements ConstraintValidator<ValidFundProfil
 
         List<DisbursementRuleItem> disbursementRules = value.getDisbursementRules() == null
                 ? List.of() : value.getDisbursementRules();
+        if (disbursementRules.isEmpty()) {
+            error(context, "A disbursement schedule is required", "disbursementRules");
+            valid = false;
+        }
         for (int d = 0; d < disbursementRules.size(); d++) {
+            valid = validateDisbursementRule(disbursementRules.get(d), context, d) && valid;
+
             List<TrancheCriterionItem> tranches = disbursementRules.get(d).getTrancheCriteria() == null
                     ? List.of() : disbursementRules.get(d).getTrancheCriteria();
             for (int c = 0; c < tranches.size(); c++) {
@@ -56,6 +75,21 @@ public class FundProfileValidator implements ConstraintValidator<ValidFundProfil
             }
         }
 
+        return valid;
+    }
+
+    /** Total amount committed is always required; the release date only for a lump sum. */
+    private boolean validateDisbursementRule(DisbursementRuleItem item, ConstraintValidatorContext context, int d) {
+        boolean valid = true;
+        if (item.getTotalAmount() == null) {
+            error(context, "Total amount committed is required", "disbursementRules", d, "totalAmount");
+            valid = false;
+        }
+        if (item.getDisbursementType() == DisbursementType.LUMP_SUM
+                && item.getReceivingDate() == null) {
+            error(context, "Expected release date is required", "disbursementRules", d, "receivingDate");
+            valid = false;
+        }
         return valid;
     }
 
@@ -89,14 +123,9 @@ public class FundProfileValidator implements ConstraintValidator<ValidFundProfil
                             "disbursementRules", d, "trancheCriteria", c, "criteria", i, "milestoneName");
                     valid = false;
                 }
-                if (item.getVerificationSignOffRole() == null) {
+                if (item.getVerificationSignOffRoleId() == null && isBlank(item.getOtherVerificationSignOffRole())) {
                     error(context, "Verification sign-off role is required",
                             "disbursementRules", d, "trancheCriteria", c, "criteria", i, "verificationSignOffRole");
-                    valid = false;
-                } else if (item.getVerificationSignOffRole() == VerificationRole.OTHER
-                        && isBlank(item.getOtherVerificationSignOffRole())) {
-                    error(context, "Custom verification role is required",
-                            "disbursementRules", d, "trancheCriteria", c, "criteria", i, "otherVerificationSignOffRole");
                     valid = false;
                 }
             }
@@ -143,14 +172,9 @@ public class FundProfileValidator implements ConstraintValidator<ValidFundProfil
             return false;
         }
 
-        if (item.getResponsibleRole() == null) {
+        if (item.getResponsibleRoleId() == null && isBlank(item.getOtherResponsibleRole())) {
             error(context, "Responsible role is required",
                     "disbursementRules", d, "trancheCriteria", c, "criteria", i, "responsibleRole");
-            valid = false;
-        } else if (item.getResponsibleRole() == VerificationRole.OTHER
-                && isBlank(item.getOtherResponsibleRole())) {
-            error(context, "Custom responsible role is required",
-                    "disbursementRules", d, "trancheCriteria", c, "criteria", i, "otherResponsibleRole");
             valid = false;
         }
         if (item.getReminderLeadTime() == null) {

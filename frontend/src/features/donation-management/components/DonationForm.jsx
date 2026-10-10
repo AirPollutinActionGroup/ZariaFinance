@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -9,6 +10,7 @@ import {
   Grid,
   IconButton,
   InputAdornment,
+  MenuItem,
   Stack,
   TextField,
   Typography,
@@ -27,17 +29,17 @@ import {
 } from '../../../shared/components/index.js';
 import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
 import { formatInrExact } from '../../../lib/format/currency.js';
+import { useFinancialYears } from '../../financial-year/hooks/useFinancialYears.js';
 import { donationSchema, donationFormDefaults } from '../validation/donationSchema.js';
 import {
   ANONYMOUS_ALLOWED_TYPES,
-  BANK_ACCOUNT_TYPE,
   BEQUEST_STATUS,
   CITIZENSHIP,
-  DONATION_CHANNEL,
   DONATION_TYPE,
   DONOR_IDENTIFICATION,
   EMPLOYER_MATCH_ROUTING,
   ESTATE_DOMICILE,
+  FUND_CLASS,
   FUND_MODE,
   GIK_INTENDED_USE,
   GIK_VALUATION_BASIS,
@@ -49,7 +51,6 @@ import {
   toOptions,
 } from '../constants.js';
 
-const CURRENCY_OPTIONS = ['INR', 'USD', 'GBP', 'EUR'].map((c) => ({ value: c, label: c }));
 const dateProps = { type: 'date', slotProps: { inputLabel: { shrink: true } } };
 
 function SectionTitle({ children }) {
@@ -81,6 +82,17 @@ export function DonationForm({
     defaultValues: defaultValues || donationFormDefaults,
   });
 
+  const [financialYearQuickFill, setFinancialYearQuickFill] = useState([]);
+  const financialYearsQuery = useFinancialYears();
+  const financialYearOptions = (financialYearsQuery.data || []).filter((fy) => fy.status !== 'CLOSED');
+
+  // Programme/Project is a UI-only distinction — both live as rows in the same
+  // programme table, so whichever is picked is submitted as the one programmeId
+  // FK. The parent-programme filter here only narrows the Project list; it is
+  // never itself submitted when tying to a Project.
+  const [programmeTieType, setProgrammeTieType] = useState('PROGRAMME');
+  const [projectParentId, setProjectParentId] = useState('');
+
   const gikItems = useFieldArray({ control, name: 'gikItems' });
   const employees = useFieldArray({ control, name: 'payrollBatch.employees' });
 
@@ -88,20 +100,16 @@ export function DonationForm({
   const identification = useWatch({ control, name: 'identification' });
   const donorId = useWatch({ control, name: 'donorId' });
   const isConditionalGift = useWatch({ control, name: 'isConditionalGift' });
-  const currency = useWatch({ control, name: 'currency' });
   const employerMatchRouting = useWatch({ control, name: 'payrollBatch.employerMatchRouting' });
   const employerMoneyRouting = useWatch({ control, name: 'payrollBatch.employerMoneyRouting' });
-  const programmeId = useWatch({ control, name: 'programmeId' });
   const sponsorshipTie = useWatch({ control, name: 'recurringMandate.sponsorshipTie' });
   const watchedCsvFile = useWatch({ control, name: 'payrollBatch.csvFile' });
 
   const selectedDonor = (donors || []).find((d) => String(d.id) === String(donorId));
   const isForeign = selectedDonor?.fundSourceDomicile === 'Foreign' || selectedDonor?.fundSourceDomicile === 'FOREIGN';
-  const foreignDonor = isForeign;
   const bookValue = selectedDonor ? (isForeign ? 'FC · Foreign contribution' : 'LC · Local contribution') : '—';
   const isIndividualOrMajor =
-    selectedDonor?.donorType === 'INDIVIDUAL' ||
-    selectedDonor?.donorType === 'Individual' ||
+    (selectedDonor?.donorTypeName || '').toUpperCase() === 'INDIVIDUAL' ||
     donationType === 'MAJOR_GIFT';
 
   const formattedAddress = selectedDonor
@@ -153,11 +161,6 @@ export function DonationForm({
     }
   }, [selectedDonor?.id, setValue]);
 
-  // Foreign donor's gift can only land in the FCRA designated account — lock, don't just warn.
-  useEffect(() => {
-    if (foreignDonor) setValue('bankAccountType', 'FCRA_DESIGNATED');
-  }, [foreignDonor, setValue]);
-
   // Anonymous donations may only be one of three types — clear an now-invalid selection.
   useEffect(() => {
     if (identification === 'ANONYMOUS' && donationType && !ANONYMOUS_ALLOWED_TYPES.includes(donationType)) {
@@ -196,11 +199,16 @@ export function DonationForm({
     value: String(d.id),
     label: `${d.donorName} — ${d.fundSourceDomicile || 'Domestic'}`,
   }));
+  const programmesOnly = (programmes || []).filter((p) => p.type === 'Programme');
   const programmeOptions = [{ value: '', label: '— not programme-tied —' }]
-    .concat((programmes || []).map((p) => ({ value: String(p.id), label: p.programmeName })))
-    .concat([{ value: 'OTHER', label: 'Other' }]);
+    .concat(programmesOnly.map((p) => ({ value: String(p.id), label: p.programmeName })));
+  const projectsUnderParent = projectParentId
+    ? (programmes || []).filter((p) => p.type === 'Project' && String(p.parentProgrammeId) === String(projectParentId))
+    : [];
+  const projectOptions = [{ value: '', label: '— not project-tied —' }]
+    .concat(projectsUnderParent.map((p) => ({ value: String(p.id), label: p.programmeName })));
   const gikProgrammeOptions = [{ value: '', label: 'Defaults from header — override per line' }]
-    .concat((programmes || []).map((p) => ({ value: String(p.id), label: p.programmeName })))
+    .concat(programmesOnly.map((p) => ({ value: String(p.id), label: p.programmeName })))
     .concat([{ value: 'OTHER', label: 'Other' }]);
   const submit = handleSubmit(
     async (values) => {
@@ -238,35 +246,7 @@ export function DonationForm({
           ) : null}
 
           <section>
-            <SectionTitle>Donation identity</SectionTitle>
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <RhfSelect
-                  name="donationType"
-                  control={control}
-                  label="Donation type"
-                  required
-                  options={typeOptions}
-                  helperText={identification === 'ANONYMOUS' ? 'Restricted for anonymous donations' : undefined}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <RhfTextField name="receiptDate" control={control} label="Receipt date" required {...dateProps} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <RhfSelect
-                  name="channel"
-                  control={control}
-                  label="Channel"
-                  required
-                  options={toOptions(DONATION_CHANNEL)}
-                />
-              </Grid>
-            </Grid>
-          </section>
-
-          <section>
-            <SectionTitle>Donor identification</SectionTitle>
+            <SectionTitle>Classification &amp; fund treatment</SectionTitle>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <RhfSelect name="donorId" control={control} label="Donor" required options={donorOptions} />
@@ -332,37 +312,90 @@ export function DonationForm({
                   </Grid>
                 </>
               ) : null}
-            </Grid>
-          </section>
 
-          <section>
-            <SectionTitle>Fund treatment</SectionTitle>
-            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <RhfSelect
+                  name="donationType"
+                  control={control}
+                  label="Donation type"
+                  required
+                  options={typeOptions}
+                  helperText={identification === 'ANONYMOUS' ? 'Restricted for anonymous donations' : undefined}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <RhfTextField
+                  name="amount"
+                  control={control}
+                  label="Amount"
+                  required
+                  type="number"
+                  slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                />
+              </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
                 <RhfSelect name="fundMode" control={control} label="Fund mode" required options={toOptions(FUND_MODE)} />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
-                <RhfTextField
-                  name="fundClassCode"
+                <RhfSelect
+                  name="fundClass"
                   control={control}
-                  label="Fund class (A/B/C)"
+                  label="Fund class"
+                  options={[{ value: '', label: '— none —' }, ...toOptions(FUND_CLASS)]}
                   helperText="Restriction class, optional"
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
-                <RhfSelect name="programmeId" control={control} label="Programme" options={programmeOptions} />
+                <TextField
+                  select
+                  fullWidth
+                  label="Type"
+                  value={programmeTieType}
+                  onChange={(e) => {
+                    setProgrammeTieType(e.target.value);
+                    setProjectParentId('');
+                    setValue('programmeId', '');
+                  }}
+                >
+                  <MenuItem value="PROGRAMME">Programme</MenuItem>
+                  <MenuItem value="PROJECT">Project</MenuItem>
+                </TextField>
               </Grid>
-              {programmeId === 'OTHER' ? (
+              {programmeTieType === 'PROJECT' ? (
                 <Grid size={{ xs: 12, sm: 4 }}>
-                  <RhfTextField
-                    name="otherProgramme"
-                    control={control}
-                    label="Other programme / purpose"
-                    required
-                    placeholder="Specify programme / purpose"
-                  />
+                  <TextField
+                    select
+                    fullWidth
+                    label="Programme"
+                    value={projectParentId}
+                    onChange={(e) => {
+                      setProjectParentId(e.target.value);
+                      setValue('programmeId', '');
+                    }}
+                    helperText="Pick a programme to filter its projects"
+                  >
+                    {programmeOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Grid>
               ) : null}
+              <Grid size={{ xs: 12, sm: 4 }}>
+                {programmeTieType === 'PROJECT' ? (
+                  <RhfSelect
+                    name="programmeId"
+                    control={control}
+                    label="Project"
+                    options={projectOptions}
+                    disabled={!projectParentId}
+                    helperText={!projectParentId ? 'Pick a programme first' : undefined}
+                  />
+                ) : (
+                  <RhfSelect name="programmeId" control={control} label="Programme" options={programmeOptions} />
+                )}
+              </Grid>
               <Grid size={{ xs: 12 }}>
                 <GeographyMultiSelect
                   name="stateIds"
@@ -380,6 +413,32 @@ export function DonationForm({
                   label="Utilisation period"
                   required
                   options={toOptions(UTILISATION_PERIOD_TYPE)}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Autocomplete
+                  multiple
+                  options={financialYearOptions}
+                  getOptionLabel={(fy) => fy.code}
+                  isOptionEqualToValue={(a, b) => a.id === b.id}
+                  value={financialYearOptions.filter((fy) => financialYearQuickFill.includes(String(fy.id)))}
+                  disabled={financialYearsQuery.isPending}
+                  onChange={(_event, selected) => {
+                    setFinancialYearQuickFill(selected.map((fy) => String(fy.id)));
+                    if (selected.length > 0) {
+                      const minStart = selected.reduce((min, fy) => (fy.startDate < min ? fy.startDate : min), selected[0].startDate);
+                      const maxEnd = selected.reduce((max, fy) => (fy.endDate > max ? fy.endDate : max), selected[0].endDate);
+                      setValue('utilisationStartDate', minStart);
+                      setValue('utilisationEndDate', maxEnd);
+                    }
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Financial year"
+                      helperText="Quick-fill — spans the start/end dates below across the selected financial years"
+                    />
+                  )}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
@@ -416,54 +475,6 @@ export function DonationForm({
                   />
                 </Grid>
               ) : null}
-            </Grid>
-          </section>
-
-          <section>
-            <SectionTitle>Money &amp; banking</SectionTitle>
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 6, sm: 3 }}>
-                <RhfSelect name="currency" control={control} label="Currency" required options={CURRENCY_OPTIONS} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <RhfTextField
-                  name="amount"
-                  control={control}
-                  label="Amount"
-                  required
-                  type="number"
-                  slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
-                />
-              </Grid>
-              {currency && currency !== 'INR' ? (
-                <Grid size={{ xs: 6, sm: 3 }}>
-                  <RhfTextField
-                    name="fxRate"
-                    control={control}
-                    label="FX rate → INR"
-                    type="number"
-                    helperText="RBI reference rate on receipt date"
-                    slotProps={{ htmlInput: { min: 0, step: '0.0001' } }}
-                  />
-                </Grid>
-              ) : null}
-              <Grid size={{ xs: 12, sm: 5 }}>
-                <RhfSelect
-                  name="bankAccountType"
-                  control={control}
-                  label="Bank account received into"
-                  required
-                  options={toOptions(BANK_ACCOUNT_TYPE)}
-                  disabled={foreignDonor}
-                  helperText={foreignDonor ? "Locked — this donor's gift must land in the FCRA account" : undefined}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <RhfTextField name="transactionRef" control={control} label="Transaction reference" helperText="UTR / cheque no." />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <RhfTextField name="tallyVoucherRef" control={control} label="Tally voucher reference" />
-              </Grid>
             </Grid>
           </section>
 

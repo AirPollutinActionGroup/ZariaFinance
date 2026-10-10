@@ -1,6 +1,7 @@
 package com.ngo.finance.donor.service.impl;
 
 import com.ngo.finance.common.exception.ResourceNotFoundException;
+import com.ngo.finance.common.exception.ValidationException;
 import com.ngo.finance.donor.dto.request.ApproveGrantRequest;
 import com.ngo.finance.donor.dto.request.CreateGrantRequest;
 import com.ngo.finance.donor.dto.request.GrantRemarksRequest;
@@ -14,10 +15,7 @@ import com.ngo.finance.donor.mapper.GrantMapper;
 import com.ngo.finance.donor.repository.DonorFundProfileRepository;
 import com.ngo.finance.donor.repository.GrantRepository;
 import com.ngo.finance.donor.service.GrantService;
-import com.ngo.finance.programme.entity.Programme;
-import com.ngo.finance.programme.repository.ProgrammeRepository;
 import com.ngo.finance.userRegister.repository.UserRegisterRepo;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -42,9 +40,6 @@ public class GrantServiceImpl implements GrantService {
     private DonorFundProfileRepository fundProfileRepository;
 
     @Autowired
-    private ProgrammeRepository programmeRepository;
-
-    @Autowired
     private GrantMapper grantMapper;
 
     @Autowired
@@ -59,8 +54,7 @@ public class GrantServiceImpl implements GrantService {
         GrantAgreement grant = grantMapper.toEntity(request);
         grant.setGrantCode(resolveGrantCode(request));
         log.info("Creating new grant with code: {}", grant.getGrantCode());
-        applyFundProfile(grant, request.getFundProfileId(), request.getProgrammeId());
-        applyFinancials(grant, request);
+        applyFundProfile(grant, null, request.getFundProfileId());
         applyStatus(grant, request.getStatus());
         applyApproval(grant, request);
 
@@ -86,8 +80,7 @@ public class GrantServiceImpl implements GrantService {
         grant.setDescription(request.getDescription());
         grant.setAgreementDocumentPath(request.getAgreementDocumentPath());
 
-        applyFundProfile(grant, request.getFundProfileId(), request.getProgrammeId());
-        applyFinancials(grant, request);
+        applyFundProfile(grant, id, request.getFundProfileId());
         applyStatus(grant, request.getStatus());
         applyApproval(grant, request);
 
@@ -97,13 +90,22 @@ public class GrantServiceImpl implements GrantService {
     }
 
     /**
-     * Attach the fund profile and inherit its donor onto the grant. The programme
-     * defaults to the profile's programme, but an explicit {@code programmeId}
-     * (entered on the form) overrides it.
+     * Attach the fund profile and inherit its donor onto the grant. A fund
+     * profile backs at most one grant agreement, so reject it if it is
+     * already attached to a different grant.
      */
-    private void applyFundProfile(GrantAgreement grant, Long fundProfileId, Long programmeId) {
+    private void applyFundProfile(GrantAgreement grant, Long grantId, Long fundProfileId) {
         DonorFundProfile profile = fundProfileRepository.findById(fundProfileId)
                 .orElseThrow(() -> new ResourceNotFoundException("Fund profile", fundProfileId));
+
+        grantRepository.findByFundProfileId(fundProfileId).stream()
+                .filter(existing -> !existing.getId().equals(grantId))
+                .findFirst()
+                .ifPresent(existing -> {
+                    throw new ValidationException(
+                            "Fund profile is already attached to grant agreement " + existing.getGrantCode());
+                });
+
         grant.setFundProfile(profile);
         grant.setDonor(profile.getDonor());
         // Read-only on the form: the total is the profile's active disbursement
@@ -112,14 +114,6 @@ public class GrantServiceImpl implements GrantService {
                 .findFirst()
                 .map(DonorDisbursementRule::getTotalAmount)
                 .orElse(null));
-
-        if (programmeId != null) {
-            Programme programme = programmeRepository.findById(programmeId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Programme", programmeId));
-            grant.setProgramme(programme);
-        } else {
-            grant.setProgramme(profile.getProgramme()); // may be null for untied funds
-        }
     }
 
     /** Use the supplied code, or generate the next ZRY/GA/YYYY/NNN for the agreement year. */
@@ -141,17 +135,6 @@ public class GrantServiceImpl implements GrantService {
     private static int leadingSequence(String suffix) {
         Matcher matcher = LEADING_DIGITS.matcher(suffix);
         return matcher.find() ? Integer.parseInt(matcher.group(1)) : 0;
-    }
-
-    /** Apply currency / FX defaults and compute the INR reporting amount. */
-    private void applyFinancials(GrantAgreement grant, CreateGrantRequest request) {
-        String currency = (request.getGrantCurrency() == null || request.getGrantCurrency().isBlank())
-                ? "INR" : request.getGrantCurrency().trim().toUpperCase();
-        BigDecimal fx = request.getFxLockedRate() != null ? request.getFxLockedRate() : BigDecimal.ONE;
-        grant.setGrantCurrency(currency);
-        grant.setFxLockedRate(fx);
-        grant.setReportingAmountInr(
-                grant.getTotalGrantAmount() != null ? grant.getTotalGrantAmount().multiply(fx) : null);
     }
 
     /**
@@ -227,6 +210,16 @@ public class GrantServiceImpl implements GrantService {
 
     @Override
     @Transactional(readOnly = true)
+    public GrantDetailsResponse getGrantByFundProfileId(Long fundProfileId) {
+        log.debug("Fetching grant for fund profile id: {}", fundProfileId);
+        GrantAgreement grant = grantRepository.findByFundProfileId(fundProfileId).stream()
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Grant for fund profile", fundProfileId));
+        return toDetails(grant);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<GrantListResponse> getAllGrants() {
         log.debug("Fetching all grants");
         return grantRepository.findAll().stream()
@@ -239,15 +232,6 @@ public class GrantServiceImpl implements GrantService {
     public List<GrantListResponse> getGrantsByDonorId(Long donorId) {
         log.debug("Fetching grants for donor id: {}", donorId);
         return grantRepository.findByDonorId(donorId).stream()
-                .map(grantMapper::toListResponse)
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<GrantListResponse> getGrantsByProgrammeId(Long programmeId) {
-        log.debug("Fetching grants for programme id: {}", programmeId);
-        return grantRepository.findByProgrammeId(programmeId).stream()
                 .map(grantMapper::toListResponse)
                 .toList();
     }

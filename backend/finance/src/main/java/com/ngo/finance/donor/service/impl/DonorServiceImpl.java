@@ -1,6 +1,9 @@
 package com.ngo.finance.donor.service.impl;
 
+import com.ngo.finance.common.enums.ContributionType;
+import com.ngo.finance.common.enums.FundSourceDomicile;
 import com.ngo.finance.common.exception.ResourceNotFoundException;
+import com.ngo.finance.common.exception.ValidationException;
 import com.ngo.finance.donor.dto.request.CreateDonorRequest;
 import com.ngo.finance.donor.dto.request.UpdateDonorRequest;
 import com.ngo.finance.donor.dto.response.DonorResponse;
@@ -11,6 +14,8 @@ import com.ngo.finance.donor.repository.CityRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.StateRepository;
 import com.ngo.finance.donor.service.DonorService;
+import com.ngo.finance.masters.donortype.entity.DonorTypeMaster;
+import com.ngo.finance.masters.donortype.repository.DonorTypeMasterRepository;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,11 +46,45 @@ public class DonorServiceImpl implements DonorService {
     @Autowired
     private DonorMapper donorMapper;
 
+    @Autowired
+    private DonorTypeMasterRepository donorTypeMasterRepository;
+
+    /**
+     * Resolves the donor type by id, requires it to be active, and — when the
+     * donor type restricts Fund Source Domicile / Contribution Type — checks
+     * the request's chosen values are among the allowed ones.
+     */
+    private DonorTypeMaster resolveDonorType(Long donorTypeId, FundSourceDomicile fundSourceDomicile,
+            ContributionType book) {
+        DonorTypeMaster donorType = donorTypeMasterRepository.findById(donorTypeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Donor type", donorTypeId));
+        if (!Boolean.TRUE.equals(donorType.getStatus())) {
+            throw new ValidationException("Donor type '" + donorType.getName() + "' is not active");
+        }
+        if (fundSourceDomicile != null
+                && !donorType.getAllowedFundSourceDomiciles().isEmpty()
+                && !donorType.getAllowedFundSourceDomiciles().contains(fundSourceDomicile)) {
+            throw new ValidationException("Fund source domicile '" + fundSourceDomicile
+                    + "' is not allowed for donor type '" + donorType.getName() + "'");
+        }
+        if (book != null
+                && !donorType.getAllowedContributionTypes().isEmpty()
+                && !donorType.getAllowedContributionTypes().contains(book)) {
+            throw new ValidationException("Contribution type '" + book
+                    + "' is not allowed for donor type '" + donorType.getName() + "'");
+        }
+        return donorType;
+    }
+
     @Override
     public DonorResponse createDonor(CreateDonorRequest request) {
         log.info("Creating new donor with code: {}", request.getDonorCode());
 
+        DonorTypeMaster donorType = resolveDonorType(request.getDonorTypeId(), request.getFundSourceDomicile(),
+                request.getBook());
+
         DonorMaster donor = donorMapper.toEntity(request);
+        donor.setDonorType(donorType);
 
         if (request.getCountryId() != null) {
             donor.setCountry(countryRepository.findById(request.getCountryId())
@@ -113,6 +152,14 @@ public class DonorServiceImpl implements DonorService {
         DonorMaster donor = donorRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Donor", id));
 
+        if (request.getDonorTypeId() != null) {
+            FundSourceDomicile effectiveDomicile = request.getFundSourceDomicile() != null
+                    ? request.getFundSourceDomicile()
+                    : donor.getFundSourceDomicile();
+            ContributionType effectiveBook = request.getBook() != null ? request.getBook() : donor.getBook();
+            donor.setDonorType(resolveDonorType(request.getDonorTypeId(), effectiveDomicile, effectiveBook));
+        }
+
         if (request.getCountryId() != null) {
             donor.setCountry(countryRepository.findById(request.getCountryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Country", request.getCountryId())));
@@ -131,7 +178,6 @@ public class DonorServiceImpl implements DonorService {
         donorMapper.updateEntity(CreateDonorRequest.builder()
                 .donorCode(donor.getDonorCode())
                 .donorName(request.getDonorName())
-                .donorType(request.getDonorType())
                 .fundSourceDomicile(request.getFundSourceDomicile())
                 .fcraApplicable(request.getFcraApplicable())
                 .book(request.getBook())

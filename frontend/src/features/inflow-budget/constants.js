@@ -1,33 +1,31 @@
 export const MODULE_ID = 'inflow-budget';
 
-/**
- * Mirrors the grant fund profile's fundMode (donor.enums.FundMode:
- * RESTRICTED | UNRESTRICTED) — never rename these keys, they must match the
- * backend response exactly.
- */
-export const RESTRICTION_TYPE = Object.freeze({
+/** Funding-source language for a budget line. */
+export const FUNDING_SOURCE_TYPE = Object.freeze({
   RESTRICTED: 'Restricted',
   UNRESTRICTED: 'Unrestricted',
+  CORPUS: 'Corpus',
 });
 
-export const RESTRICTION_TONE = Object.freeze({
+export const FUNDING_SOURCE_TONE = Object.freeze({
   RESTRICTED: 'warning',
-  UNRESTRICTED: 'success',
+  UNRESTRICTED: 'neutral',
+  CORPUS: 'info',
 });
 
 export const RECEIPT_STATUS = Object.freeze({
   RECEIVED: 'Received',
-  AWAITED: 'Awaited',
-  SLIPPED: 'Slipped',
+  DUE: 'Due',
+  PENDING: 'Pending',
   OVERDUE: 'Overdue',
 });
 
 export const RECEIPT_STATUS_TONE = Object.freeze({
   RECEIVED: 'success',
-  AWAITED: 'neutral',
-  SLIPPED: 'warning',
+  DUE: 'neutral',
+  PENDING: 'warning',
   OVERDUE: 'error',
 });
 
-/** Days past the expected date before a still-outstanding row is Overdue rather than Slipped. */
-export const OVERDUE_THRESHOLD_DAYS = 30;
+/** Days past the expected receipt date before a still-outstanding row is Overdue rather than Pending. */
+export const OVERDUE_THRESHOLD_DAYS = 15;

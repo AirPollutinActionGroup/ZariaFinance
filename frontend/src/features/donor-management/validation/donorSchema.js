@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DONOR_TYPE, FUND_SOURCE_DOMICILE } from '../constants.js';
+import { FUND_SOURCE_DOMICILE } from '../constants.js';
 
 /**
  * Mirrors CreateDonorRequest bean validation:
@@ -7,11 +7,18 @@ import { DONOR_TYPE, FUND_SOURCE_DOMICILE } from '../constants.js';
  * spocEmail @NotBlank or @NotNull, email/spocEmail @Email; everything else optional.
  * Exception: `address` is required client-side only — CreateDonorRequest does
  * not enforce it server-side.
+ * donorType is now a manageable master (see Master Configuration / DonorTypeMaster)
+ * fetched dynamically and submitted as its id; `donorTypeName` is a hidden,
+ * form-only mirror of the selected donor type's name (kept in sync by
+ * DonorForm) used only for the Individual + foreign passport check below.
  */
 export const donorSchema = z.object({
   donorCode: z.string().trim().min(1, 'Donor code is required'),
   donorName: z.string().trim().min(1, 'Donor name is required'),
-  donorType: z.enum(Object.keys(DONOR_TYPE), { message: 'Donor type is required' }),
+  donorType: z.union([z.number(), z.string()]).refine((v) => v !== '' && v !== null && v !== undefined, {
+    message: 'Donor type is required',
+  }),
+  donorTypeName: z.string().optional(),
   fundSourceDomicile: z.enum(Object.keys(FUND_SOURCE_DOMICILE), {
     message: 'Fund source domicile is required',
   }),
@@ -59,7 +66,7 @@ export const donorSchema = z.object({
     }
   }
   if (
-    data.donorType === 'INDIVIDUAL' &&
+    (data.donorTypeName || '').toUpperCase() === 'INDIVIDUAL' &&
     (data.fundSourceDomicile === 'FOREIGN' || data.fundSourceDomicile === 'Foreign') &&
     (!data.passportNumber || data.passportNumber.trim() === '')
   ) {
@@ -75,6 +82,7 @@ export const donorFormDefaults = {
   donorCode: '',
   donorName: '',
   donorType: '',
+  donorTypeName: '',
   fundSourceDomicile: '',
   fcraApplicable: false,
   book: 'LC',

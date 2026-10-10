@@ -23,8 +23,7 @@ public class CreateEmployeeAllocationRequest {
     @NotNull(message = "Program is required")
     private Long programmeId;
 
-    /** The Project — a Programme row with type=Project, parented under programmeId. */
-    @NotNull(message = "Project is required")
+    /** Optional Project — a Programme row with type=Project, parented under programmeId. */
     private Long projectId;
 
     private String role;

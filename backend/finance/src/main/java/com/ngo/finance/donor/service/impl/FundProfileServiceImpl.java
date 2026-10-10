@@ -5,13 +5,16 @@ import com.ngo.finance.donor.dto.request.CreateFundProfileRequest;
 import com.ngo.finance.donor.dto.response.FundProfileResponse;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
+import com.ngo.finance.donor.entity.GrantAgreement;
 import com.ngo.finance.donor.mapper.FundProfileMapper;
 import com.ngo.finance.donor.repository.DonorFundProfileRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
+import com.ngo.finance.donor.repository.GrantRepository;
 import com.ngo.finance.donor.service.FundProfileService;
 import com.ngo.finance.programme.entity.Programme;
 import com.ngo.finance.programme.repository.ProgrammeRepository;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -37,6 +40,9 @@ public class FundProfileServiceImpl implements FundProfileService {
     @Autowired
     private FundProfileMapper mapper;
 
+    @Autowired
+    private GrantRepository grantRepository;
+
     @Override
     public FundProfileResponse createProfile(Long donorId, CreateFundProfileRequest request) {
         log.info("Creating fund profile for donor id: {}", donorId);
@@ -60,8 +66,18 @@ public class FundProfileServiceImpl implements FundProfileService {
         if (!donorRepository.existsById(donorId)) {
             throw new ResourceNotFoundException("Donor", donorId);
         }
+        // toMap with a merge function: a fund profile is meant to back at most one
+        // grant, but pre-existing data may still have more than one attached to it
+        // (predates that constraint) — keep the first rather than crash on lookup.
+        Map<Long, String> grantCodeByProfileId = grantRepository.findByDonorId(donorId).stream()
+                .filter(grant -> grant.getFundProfile() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        grant -> grant.getFundProfile().getId(), GrantAgreement::getGrantCode,
+                        (first, second) -> first));
+
         return profileRepository.findByDonorId(donorId).stream()
                 .map(mapper::toResponse)
+                .peek(response -> response.setAssignedGrantCode(grantCodeByProfileId.get(response.getId())))
                 .toList();
     }
 

@@ -13,14 +13,16 @@ export const grantApi = {
   /** GET /api/v1/grants/{id} → GrantDetailsResponse. */
   getById: (id) => http.get(`/v1/grants/${id}`),
 
+  /** GET /api/v1/grants/by-fund-profile/{fundProfileId} → GrantDetailsResponse (404 if none). */
+  getByFundProfileId: (fundProfileId) => http.get(`/v1/grants/by-fund-profile/${fundProfileId}`),
+
   /**
-   * GET /api/v1/grants[?donorId=|programmeId=|search=] → GrantListResponse[].
+   * GET /api/v1/grants[?donorId=|search=] → GrantListResponse[].
    * The backend applies exactly one filter, in that priority order.
    */
-  list: ({ donorId, programmeId, search } = {}) => {
+  list: ({ donorId, search } = {}) => {
     const params = {};
     if (donorId != null) params.donorId = donorId;
-    else if (programmeId != null) params.programmeId = programmeId;
     else if (search) params.search = search;
     return http.get('/v1/grants', { params });
   },

@@ -13,6 +13,8 @@ export function SearchableSelect({
   loading = false,
   placeholder = "",
   error,
+  // Optional: (option) => group label. Options must already be sorted by group.
+  groupBy,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
@@ -25,6 +27,7 @@ export function SearchableSelect({
     <Autocomplete
       id={id}
       options={options}
+      groupBy={groupBy}
       freeSolo={freeSolo}
       disabled={disabled}
       loading={loading}

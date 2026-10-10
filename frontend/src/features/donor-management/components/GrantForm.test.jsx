@@ -4,17 +4,9 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GrantForm } from './GrantForm.jsx';
 import { fundProfileService } from '../services/fundProfileService.js';
-import { programmeApi } from '../api/programmeApi.js';
-import { fxRateApi } from '../api/fxRateApi.js';
-import { userRegisterApi } from '../../registration/api/userRegisterApi.js';
 
 vi.mock('../services/fundProfileService.js', () => ({
   fundProfileService: { listByDonor: vi.fn(), getProfile: vi.fn() },
-}));
-vi.mock('../api/programmeApi.js', () => ({ programmeApi: { list: vi.fn() } }));
-vi.mock('../api/fxRateApi.js', () => ({ fxRateApi: { get: vi.fn() } }));
-vi.mock('../../registration/api/userRegisterApi.js', () => ({
-  userRegisterApi: { list: vi.fn(), register: vi.fn() },
 }));
 
 const DONORS = [
@@ -29,7 +21,7 @@ const PROFILES = [
     fundModeLabel: 'Unrestricted',
     programmeName: 'Organisational Core',
     purpose: 'General support',
-    plannedTotalAmount: 4000000,
+    disbursementRules: [{ totalAmount: 4000000 }],
   },
 ];
 
@@ -46,30 +38,18 @@ describe('GrantForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fundProfileService.listByDonor.mockResolvedValue(PROFILES);
-    programmeApi.list.mockResolvedValue([
-      { id: 8, programmeCode: 'PRG-CA', programmeName: 'Clean Air' },
-    ]);
-    userRegisterApi.list.mockResolvedValue([
-      { id: 4, firstName: 'Asha', lastName: 'Rao', username: 'arao' },
-    ]);
-    fxRateApi.get.mockResolvedValue({
-      currency: 'USD',
-      requestedDate: '2026-07-26',
-      rateDate: '2026-07-26',
-      rateToInr: 85.25,
-      source: 'RBI',
-      stale: false,
-    });
   });
 
   it('renders the three sections of the agreement form', () => {
     renderForm();
     expect(screen.getByRole('heading', { name: 'Agreement' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Dates & value' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Approval' })).toBeInTheDocument();
-    // The document has no Notes section — description and document path are gone.
-    expect(screen.queryByLabelText(/description/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/agreement document path/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Notes' })).toBeInTheDocument();
+    // Approval workflow is managed elsewhere — this form has no Approval section.
+    expect(screen.queryByRole('heading', { name: 'Approval' })).not.toBeInTheDocument();
+    // Remarks and the document picker are optional.
+    expect(screen.getByLabelText(/remarks/i)).not.toBeRequired();
+    expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
   });
 
   it('hides the grant code field until one has been minted', () => {
@@ -102,77 +82,21 @@ describe('GrantForm', () => {
     expect(total).toBeDisabled();
     await waitFor(() => expect(total).toHaveValue('₹40,00,000'));
     expect(screen.getByText(/Σ tranche amounts of the fund profile/i)).toBeInTheDocument();
-  });
+  }, 15000);
 
-  it('locks the FX rate to 1 for INR grants', () => {
+  it('has no Currency, FX rate or Reporting amount fields', () => {
     renderForm();
-    const fx = screen.getByLabelText(/fx rate/i);
-    expect(fx).toBeDisabled();
-    expect(fx).toHaveValue(1);
-    expect(fxRateApi.get).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/currency/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/fx rate/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/reporting amount/i)).not.toBeInTheDocument();
   });
 
-  it('auto-fills the FX rate from the reference rate for a foreign currency', async () => {
-    const user = userEvent.setup();
-    renderForm({ defaultValues: { ...defaults(), agreementDate: '2026-07-26' } });
-
-    await user.click(screen.getByRole('combobox', { name: /currency/i }));
-    await user.click(await screen.findByRole('option', { name: 'USD' }));
-
-    await waitFor(() => expect(fxRateApi.get).toHaveBeenCalledWith('USD', '2026-07-26'));
-    const fx = screen.getByLabelText(/fx rate/i);
-    await waitFor(() => expect(fx).toHaveValue(85.25));
-    expect(fx).toBeEnabled();
-    expect(screen.getByText(/RBI rate for 2026-07-26/i)).toBeInTheDocument();
+  it('has no Programme or Project fields — a grant has no programme association', () => {
+    renderForm();
+    expect(screen.queryByLabelText(/^programme$/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^project$/i)).not.toBeInTheDocument();
   });
 
-  it('flags a stale rate rather than silently presenting it as the signing rate', async () => {
-    fxRateApi.get.mockResolvedValue({
-      currency: 'USD',
-      requestedDate: '2026-07-26',
-      rateDate: '2026-01-01',
-      rateToInr: 85,
-      source: 'SEED',
-      stale: true,
-    });
-    const user = userEvent.setup();
-    renderForm({ defaultValues: { ...defaults(), agreementDate: '2026-07-26' } });
-
-    await user.click(screen.getByRole('combobox', { name: /currency/i }));
-    await user.click(await screen.findByRole('option', { name: 'USD' }));
-
-    expect(
-      await screen.findByText(/No rate for 2026-07-26; showing SEED rate of 2026-01-01/i),
-    ).toBeInTheDocument();
-  });
-
-  it('blocks submitting an approved grant with no approver or approval date', async () => {
-    const onSubmit = vi.fn();
-    const user = userEvent.setup();
-    renderForm({
-      onSubmit,
-      defaultValues: {
-        ...defaults(),
-        donorId: '2',
-        fundProfileId: '26',
-        programmeId: '8',
-        agreementName: 'Clean Air 2026',
-        agreementDate: '2026-07-26',
-        startDate: '2026-08-01',
-        endDate: '2027-07-31',
-        approvalStatus: '1',
-      },
-    });
-
-    // Let the prefilled profile's options arrive before submitting, so the
-    // assertion is about validation and not about a half-loaded select.
-    await waitFor(() => expect(fundProfileService.listByDonor).toHaveBeenCalledWith(2));
-    await user.click(screen.getByRole('button', { name: /create grant/i }));
-
-    expect(await screen.findByText(/approved by is required once the grant is approved/i)).toBeInTheDocument();
-    expect(screen.getByText(/approval date is required once the grant is approved/i)).toBeInTheDocument();
-    expect(onSubmit).not.toHaveBeenCalled();
-  });
 });
 
 /** grantFormDefaults, restated locally so a test never depends on form defaults drifting. */
@@ -181,14 +105,11 @@ function defaults() {
     grantCode: '',
     donorId: '',
     fundProfileId: '',
-    programmeId: '',
     agreementName: '',
     status: 'ACTIVE',
     agreementDate: '',
     startDate: '',
     endDate: '',
-    grantCurrency: 'INR',
-    fxLockedRate: '1',
     approvalStatus: '2',
     approvedBy: '',
     approvalDate: '',

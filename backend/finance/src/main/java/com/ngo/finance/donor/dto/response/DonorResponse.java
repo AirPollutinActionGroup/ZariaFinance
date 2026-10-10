@@ -24,7 +24,9 @@ public class DonorResponse {
 
     private String donorName;
 
-    private String donorType;
+    private Long donorTypeId;
+
+    private String donorTypeName;
 
     private String fundSourceDomicile;
 

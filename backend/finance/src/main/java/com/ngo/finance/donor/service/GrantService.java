@@ -20,11 +20,12 @@ public interface GrantService {
 
     GrantDetailsResponse getGrantByCode(String grantCode);
 
+    /** The single grant agreement backed by this fund profile, if any (a profile backs at most one). */
+    GrantDetailsResponse getGrantByFundProfileId(Long fundProfileId);
+
     List<GrantListResponse> getAllGrants();
 
     List<GrantListResponse> getGrantsByDonorId(Long donorId);
-
-    List<GrantListResponse> getGrantsByProgrammeId(Long programmeId);
 
     List<GrantListResponse> searchGrants(String searchTerm);
 

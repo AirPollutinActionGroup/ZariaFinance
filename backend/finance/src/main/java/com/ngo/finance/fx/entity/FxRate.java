@@ -15,9 +15,7 @@ import lombok.NoArgsConstructor;
 /**
  * A cached reference rate to INR for one currency on one date.
  *
- * These are lookups, not ledger entries — a grant locks its rate into
- * {@code grant_agreement.fx_locked_rate} at signing, so a later correction here
- * cannot move an existing grant's reporting amount.
+ * These are lookups, not ledger entries.
  */
 @Entity
 @Table(name = "fx_rate")

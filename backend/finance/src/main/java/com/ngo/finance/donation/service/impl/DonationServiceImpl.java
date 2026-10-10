@@ -19,11 +19,7 @@ import com.ngo.finance.donation.entity.DonationPayrollEmployee;
 import com.ngo.finance.donation.entity.DonationRecurringMandate;
 import com.ngo.finance.donation.entity.TenantTaxConfig;
 import com.ngo.finance.donation.enums.BequestStatus;
-import com.ngo.finance.donation.enums.Book;
-import com.ngo.finance.donation.enums.Citizenship;
-import com.ngo.finance.donation.enums.DonationBankAccountType;
 import com.ngo.finance.donation.enums.DonationType;
-import com.ngo.finance.donation.enums.DonorIdentification;
 import com.ngo.finance.donation.enums.EightyGStatus;
 import com.ngo.finance.donation.enums.GikRealisationStatus;
 import com.ngo.finance.donation.enums.RecognitionStatus;
@@ -36,8 +32,7 @@ import com.ngo.finance.donation.service.DonationService;
 import com.ngo.finance.donation.util.FinancialYearUtil;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.StateMaster;
-import com.ngo.finance.donor.enums.DonorType;
-import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.common.enums.FundSourceDomicile;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.StateRepository;
 import com.ngo.finance.programme.entity.Programme;
@@ -46,8 +41,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -59,16 +54,13 @@ import org.springframework.transaction.annotation.Transactional;
  * Service implementation for Donation operations — the type-routing and the
  * hard-gate business rule engine described in the design spec live here
  * rather than in bean validation, since they're cross-field business rules
- * (e.g. "anonymous + recurring is blocked") rather than simple per-field
- * constraints.
+ * rather than simple per-field constraints. A donor is always required —
+ * there is no anonymous-donation path.
  */
 @Slf4j
 @Service
 @Transactional
 public class DonationServiceImpl implements DonationService {
-
-    private static final List<DonationType> ANONYMOUS_ALLOWED_TYPES =
-            List.of(DonationType.ONE_TIME, DonationType.MAJOR_GIFT, DonationType.GIK);
 
     @Autowired
     private DonationRepository donationRepository;
@@ -101,7 +93,7 @@ public class DonationServiceImpl implements DonationService {
         Donation saved = donationRepository.save(donation);
         log.info("Donation created successfully with id: {} code: {}", saved.getId(), saved.getDonationCode());
 
-        return toDetailResponseWithAnonymousInfo(saved);
+        return donationMapper.toDetailResponse(saved);
     }
 
     @Override
@@ -115,94 +107,36 @@ public class DonationServiceImpl implements DonationService {
 
         Donation saved = donationRepository.save(donation);
         log.info("Donation updated successfully: {}", saved.getId());
-        return toDetailResponseWithAnonymousInfo(saved);
+        return donationMapper.toDetailResponse(saved);
     }
 
-    /** Shared create/update pipeline: identification → book → fund/location → type block → tax chain. */
+    /** Shared create/update pipeline: donor → fund/location → type block → tax chain. */
     private void applyRequest(Donation donation, CreateDonationRequest request, boolean isCreate) {
-        Map<String, String> errors = new HashMap<>();
+        DonorMaster donor = donorRepository.findById(request.getDonorId())
+                .orElseThrow(() -> new ResourceNotFoundException("Donor", request.getDonorId()));
 
-        DonorMaster donor = resolveDonorAndIdentification(donation, request, errors);
-        applyAnonymousTypeGate(request, errors);
-        Book book = resolveBook(donor, request.getIdentification());
-        applyForeignAccountGate(donor, request, errors);
-
-        if (!errors.isEmpty()) {
-            throw new ValidationException("Donation validation failed", errors);
-        }
+        LocalDate receiptDate = LocalDate.now();
 
         donation.setDonationType(request.getDonationType());
-        donation.setReceiptDate(request.getReceiptDate());
-        donation.setChannel(request.getChannel());
-        donation.setBook(book);
         donation.setDonor(donor);
-        donation.setIdentification(request.getIdentification());
-        donation.setAnonymousCollectionSource(request.getAnonymousCollectionSource());
-        donation.setAnonymousSourceReference(request.getAnonymousSourceReference());
         donation.setFundMode(request.getFundMode());
-        donation.setFundClassCode(request.getFundClassCode());
+        donation.setFundClass(request.getFundClass());
         donation.setUtilisationPeriodType(request.getUtilisationPeriodType());
         donation.setUtilisationStartDate(request.getUtilisationStartDate());
         donation.setUtilisationEndDate(request.getUtilisationEndDate());
         donation.setIsConditionalGift(Boolean.TRUE.equals(request.getIsConditionalGift()));
         donation.setConditionDescription(request.getConditionDescription());
-        donation.setTransactionRef(request.getTransactionRef());
-        donation.setTallyVoucherRef(request.getTallyVoucherRef());
-        donation.setBankAccountType(request.getBankAccountType());
 
         applyProgrammeAndLocations(donation, request);
         applyFinancials(donation, request);
-        applyTypeSpecificBlock(donation, request);
+        applyTypeSpecificBlock(donation, request, receiptDate);
         donation.setRecognitionStatus(resolveRecognitionStatus(donation));
 
         if (isCreate) {
-            donation.setDonationCode(generateDonationCode(request.getReceiptDate()));
+            donation.setDonationCode(generateDonationCode(receiptDate));
         }
 
-        applyTaxChain(donation);
-    }
-
-    private DonorMaster resolveDonorAndIdentification(Donation donation, CreateDonationRequest request,
-            Map<String, String> errors) {
-        if (request.getIdentification() == DonorIdentification.NAMED) {
-            if (request.getDonorId() == null) {
-                errors.put("donorId", "Donor is required for a named donation");
-                return null;
-            }
-            return donorRepository.findById(request.getDonorId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Donor", request.getDonorId()));
-        }
-
-        // Anonymous: no donor record is ever created or linked.
-        if (request.getAnonymousCollectionSource() == null || request.getAnonymousCollectionSource().isBlank()) {
-            errors.put("anonymousCollectionSource", "Collection source is required for an anonymous donation");
-        }
-        if (request.getAnonymousSourceReference() == null || request.getAnonymousSourceReference().isBlank()) {
-            errors.put("anonymousSourceReference", "Source reference is required for an anonymous donation");
-        }
-        return null;
-    }
-
-    private void applyAnonymousTypeGate(CreateDonationRequest request, Map<String, String> errors) {
-        if (request.getIdentification() == DonorIdentification.ANONYMOUS
-                && !ANONYMOUS_ALLOWED_TYPES.contains(request.getDonationType())) {
-            errors.put("donationType", "Anonymous donations may only be One-time, Major gift or Gift in kind");
-        }
-    }
-
-    private Book resolveBook(DonorMaster donor, DonorIdentification identification) {
-        if (identification == DonorIdentification.ANONYMOUS || donor == null) {
-            return Book.LC;
-        }
-        return donor.getFundSourceDomicile() == FundSourceDomicile.FOREIGN ? Book.FC : Book.LC;
-    }
-
-    private void applyForeignAccountGate(DonorMaster donor, CreateDonationRequest request,
-            Map<String, String> errors) {
-        boolean foreignDonor = donor != null && donor.getFundSourceDomicile() == FundSourceDomicile.FOREIGN;
-        if (foreignDonor && request.getBankAccountType() != DonationBankAccountType.FCRA_DESIGNATED) {
-            errors.put("bankAccountType", "A foreign donor's gift can only be received into the FCRA designated account");
-        }
+        applyTaxChain(donation, receiptDate);
     }
 
     private void applyProgrammeAndLocations(Donation donation, CreateDonationRequest request) {
@@ -212,7 +146,6 @@ public class DonationServiceImpl implements DonationService {
                     .orElseThrow(() -> new ResourceNotFoundException("Programme", request.getProgrammeId()));
         }
         donation.setProgramme(programme);
-        donation.setOtherProgramme(request.getOtherProgramme());
 
         donation.getLocations().clear();
         List<StateMaster> states = stateRepository.findAllById(request.getStateIds());
@@ -225,16 +158,10 @@ public class DonationServiceImpl implements DonationService {
     }
 
     private void applyFinancials(Donation donation, CreateDonationRequest request) {
-        String currency = (request.getCurrency() == null || request.getCurrency().isBlank())
-                ? "INR" : request.getCurrency().trim().toUpperCase();
-        BigDecimal fx = request.getFxRate() != null ? request.getFxRate() : BigDecimal.ONE;
-        donation.setCurrency(currency);
         donation.setAmount(request.getAmount());
-        donation.setFxRate(fx);
-        donation.setReportingAmountInr(request.getAmount().multiply(fx));
     }
 
-    private void applyTypeSpecificBlock(Donation donation, CreateDonationRequest request) {
+    private void applyTypeSpecificBlock(Donation donation, CreateDonationRequest request, LocalDate receiptDate) {
         donation.getGikItems().clear();
         donation.setCorpusDetail(null);
         donation.setRecurringMandate(null);
@@ -242,7 +169,7 @@ public class DonationServiceImpl implements DonationService {
         donation.setLegacyDetail(null);
 
         switch (request.getDonationType()) {
-            case GIK -> applyGikItems(donation, request);
+            case GIK -> applyGikItems(donation, request, receiptDate);
             case CORPUS -> applyCorpusDetail(donation, request);
             case RECURRING -> applyRecurringMandate(donation, request);
             case PAYROLL_GIVING -> applyPayrollBatch(donation, request);
@@ -253,14 +180,14 @@ public class DonationServiceImpl implements DonationService {
         }
     }
 
-    private void applyGikItems(Donation donation, CreateDonationRequest request) {
+    private void applyGikItems(Donation donation, CreateDonationRequest request, LocalDate receiptDate) {
         if (request.getGikItems() == null || request.getGikItems().isEmpty()) {
             throw new ValidationException("Gift in kind requires at least one line item",
                     Map.of("gikItems", "At least one line item is required"));
         }
         for (GikItemRequest item : request.getGikItems()) {
             LocalDate liquidationDueDate = item.getIntendedUse() == com.ngo.finance.donation.enums.GikIntendedUse.SELL
-                    ? FinancialYearUtil.secondFyEndAfter(request.getReceiptDate())
+                    ? FinancialYearUtil.secondFyEndAfter(receiptDate)
                     : null;
             Programme itemProgramme = null;
             if (item.getProgrammeId() != null) {
@@ -295,8 +222,11 @@ public class DonationServiceImpl implements DonationService {
                     Map.of("corpusDetail", "Written direction reference and document are required"));
         }
         DonorMaster donor = donation.getDonor();
-        boolean csrDonor = donor != null && donor.getDonorType() == DonorType.CORPORATE;
-        if (donation.getBook() == Book.LC && csrDonor) {
+        boolean csrDonor = donor != null && donor.getDonorType() != null
+                && donor.getDonorType().getName() != null
+                && donor.getDonorType().getName().toUpperCase().contains("CSR");
+        boolean domesticBook = donor == null || donor.getFundSourceDomicile() != FundSourceDomicile.FOREIGN;
+        if (domesticBook && csrDonor) {
             throw new ValidationException("CSR funds cannot be given as corpus",
                     Map.of("corpusDetail", "Domestic corpus must come from individuals, not CSR"));
         }
@@ -402,14 +332,15 @@ public class DonationServiceImpl implements DonationService {
         int fyStartYear = FinancialYearUtil.fyStartYear(receiptDate);
         LocalDate fyStart = FinancialYearUtil.fyStart(receiptDate);
         LocalDate fyEnd = FinancialYearUtil.fyEnd(receiptDate);
-        long sequence = donationRepository.countByReceiptDateBetween(fyStart, fyEnd) + 1;
+        LocalDateTime fyStartAt = fyStart.atStartOfDay();
+        LocalDateTime fyEndAt = LocalDateTime.of(fyEnd, LocalTime.MAX);
+        long sequence = donationRepository.countByCreatedAtBetween(fyStartAt, fyEndAt) + 1;
         return String.format("ZRY/DN/%d/%04d", fyStartYear, sequence);
     }
 
     /** 80G eligibility → Form 10BD reportability → Form 10BE lifecycle, in that order. */
-    private void applyTaxChain(Donation donation) {
+    private void applyTaxChain(Donation donation, LocalDate receiptDate) {
         TenantTaxConfig config = tenantTaxConfigRepository.findAll().stream().findFirst().orElse(null);
-        LocalDate receiptDate = donation.getReceiptDate();
 
         boolean orgRegistered80g = config != null
                 && !receiptDate.isBefore(config.getOrg80gValidFrom())
@@ -419,8 +350,6 @@ public class DonationServiceImpl implements DonationService {
             donation.setEightyGStatus(EightyGStatus.NOT_ELIGIBLE_ORG_NOT_REGISTERED);
         } else if (donation.getDonationType() == DonationType.GIK) {
             donation.setEightyGStatus(EightyGStatus.NOT_ELIGIBLE_GIFT_IN_KIND);
-        } else if (donation.getIdentification() == DonorIdentification.ANONYMOUS) {
-            donation.setEightyGStatus(EightyGStatus.NOT_ELIGIBLE_ANONYMOUS);
         } else {
             donation.setEightyGStatus(EightyGStatus.ELIGIBLE_PENDING_ISSUE);
         }
@@ -433,8 +362,6 @@ public class DonationServiceImpl implements DonationService {
         String failureReason = null;
         if (!orgRegistered80g && !orgRegistered35) {
             failureReason = "Organisation does not hold a valid 80G/Section 35 registration on the receipt date";
-        } else if (donation.getIdentification() == DonorIdentification.ANONYMOUS) {
-            failureReason = "Donor is anonymous — no named donor to report";
         } else if (donation.getDonor() == null || donation.getDonor().getDocumentNumber() == null
                 || donation.getDonor().getDocumentNumber().isBlank()) {
             failureReason = "No valid ID number on file for the donor";
@@ -447,26 +374,12 @@ public class DonationServiceImpl implements DonationService {
         donation.setTenBeStatus(donation.getTenBdReportable() ? TenBeStatus.DUE_AFTER_FY_CLOSE : TenBeStatus.NOT_APPLICABLE);
     }
 
-    private DonationDetailResponse toDetailResponseWithAnonymousInfo(Donation donation) {
-        DonationDetailResponse response = donationMapper.toDetailResponse(donation);
-        if (donation.getIdentification() == DonorIdentification.ANONYMOUS) {
-            LocalDate fyStart = FinancialYearUtil.fyStart(donation.getReceiptDate());
-            LocalDate fyEnd = FinancialYearUtil.fyEnd(donation.getReceiptDate());
-            BigDecimal totalFy = donationRepository.sumReportingAmountInr(fyStart, fyEnd);
-            BigDecimal anonymousFy = donationRepository.sumAnonymousReportingAmountInr(fyStart, fyEnd);
-            BigDecimal limit = new BigDecimal("100000").max(totalFy.multiply(new BigDecimal("0.05")));
-            response.setAnonymousFyRunningTotal(anonymousFy);
-            response.setAnonymousFyLimit(limit);
-        }
-        return response;
-    }
-
     @Override
     @Transactional(readOnly = true)
     public DonationDetailResponse getDonationById(Long id) {
         Donation donation = donationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Donation", id));
-        return toDetailResponseWithAnonymousInfo(donation);
+        return donationMapper.toDetailResponse(donation);
     }
 
     @Override
@@ -474,7 +387,7 @@ public class DonationServiceImpl implements DonationService {
     public DonationDetailResponse getDonationByCode(String donationCode) {
         Donation donation = donationRepository.findByDonationCode(donationCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Donation", "code", donationCode));
-        return toDetailResponseWithAnonymousInfo(donation);
+        return donationMapper.toDetailResponse(donation);
     }
 
     @Override
@@ -495,7 +408,6 @@ public class DonationServiceImpl implements DonationService {
         List<Donation> donations = switch (complianceState) {
             case "80G_PENDING" -> donationRepository.findByEightyGStatus(EightyGStatus.ELIGIBLE_PENDING_ISSUE);
             case "10BD_INCOMPLETE" -> donationRepository.findByTenBdReportableFalse();
-            case "ANONYMOUS" -> donationRepository.findByIdentification(DonorIdentification.ANONYMOUS);
             default -> throw new ValidationException("Unknown compliance state: " + complianceState);
         };
         return donations.stream().map(donationMapper::toListResponse).toList();
@@ -528,12 +440,13 @@ public class DonationServiceImpl implements DonationService {
                 .build());
 
         item.setIntendedUse(request.getIntendedUse());
+        LocalDate receiptDate = donation.getCreatedAt() != null ? donation.getCreatedAt().toLocalDate() : LocalDate.now();
         item.setLiquidationDueDate(request.getIntendedUse() == com.ngo.finance.donation.enums.GikIntendedUse.SELL
-                ? FinancialYearUtil.secondFyEndAfter(donation.getReceiptDate())
+                ? FinancialYearUtil.secondFyEndAfter(receiptDate)
                 : null);
         gikItemRepository.save(item);
 
-        return toDetailResponseWithAnonymousInfo(donationRepository.save(donation));
+        return donationMapper.toDetailResponse(donationRepository.save(donation));
     }
 
     @Override
@@ -543,7 +456,7 @@ public class DonationServiceImpl implements DonationService {
 
         if (donation.getEightyGStatus() != EightyGStatus.ELIGIBLE_PENDING_ISSUE) {
             log.warn("Cannot issue 80G receipt for donation {} in status {}", id, donation.getEightyGStatus());
-            return toDetailResponseWithAnonymousInfo(donation);
+            return donationMapper.toDetailResponse(donation);
         }
 
         TenantTaxConfig config = tenantTaxConfigRepository.findAll().stream().findFirst()
@@ -552,13 +465,14 @@ public class DonationServiceImpl implements DonationService {
         config.setReceiptNumberSequence(nextSequence);
         tenantTaxConfigRepository.save(config);
 
-        int fyStartYear = FinancialYearUtil.fyStartYear(donation.getReceiptDate());
+        LocalDate receiptDate = donation.getCreatedAt() != null ? donation.getCreatedAt().toLocalDate() : LocalDate.now();
+        int fyStartYear = FinancialYearUtil.fyStartYear(receiptDate);
         String fyLabel = fyStartYear + "-" + String.format("%02d", (fyStartYear + 1) % 100);
         donation.setEightyGReceiptNumber(String.format("80G/%s/%04d", fyLabel, nextSequence));
         donation.setEightyGIssuedAt(LocalDateTime.now());
         donation.setEightyGStatus(EightyGStatus.ISSUED);
 
-        return toDetailResponseWithAnonymousInfo(donationRepository.save(donation));
+        return donationMapper.toDetailResponse(donationRepository.save(donation));
     }
 
     @Override
@@ -568,7 +482,7 @@ public class DonationServiceImpl implements DonationService {
 
         if (!Boolean.TRUE.equals(donation.getTenBdReportable())) {
             log.warn("Donation {} is not 10BD reportable — no 10BE state to advance", id);
-            return toDetailResponseWithAnonymousInfo(donation);
+            return donationMapper.toDetailResponse(donation);
         }
 
         donation.setTenBeStatus(switch (donation.getTenBeStatus()) {
@@ -577,6 +491,6 @@ public class DonationServiceImpl implements DonationService {
             default -> donation.getTenBeStatus();
         });
 
-        return toDetailResponseWithAnonymousInfo(donationRepository.save(donation));
+        return donationMapper.toDetailResponse(donationRepository.save(donation));
     }
 }

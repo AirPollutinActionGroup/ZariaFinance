@@ -1,8 +1,7 @@
 package com.ngo.finance.donor.dto.request;
 
-import com.ngo.finance.donor.enums.ContributionType;
-import com.ngo.finance.donor.enums.DonorType;
-import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.common.enums.ContributionType;
+import com.ngo.finance.common.enums.FundSourceDomicile;
 import com.ngo.finance.donor.enums.IdentityDocumentType;
 import com.ngo.finance.donor.validator.annotation.UniqueDonorCode;
 import jakarta.persistence.Column;
@@ -32,9 +31,9 @@ public class CreateDonorRequest {
     @NotBlank(message = "Donor name is required")
     private String donorName;
 
+    /** Id of an active {@code DonorTypeMaster} row. */
     @NotNull(message = "Donor type is required")
-    @Enumerated(EnumType.STRING)
-    private DonorType donorType;
+    private Long donorTypeId;
 
     @NotNull(message = "Fund source domicile is required")
     @Enumerated(EnumType.STRING)

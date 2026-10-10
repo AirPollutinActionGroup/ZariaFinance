@@ -11,6 +11,10 @@ import com.ngo.finance.donor.entity.DonorUtilisationRule;
 import com.ngo.finance.donor.entity.SpendableGeography;
 import com.ngo.finance.donor.entity.StateMaster;
 import com.ngo.finance.donor.repository.StateRepository;
+import com.ngo.finance.masters.designation.entity.Designation;
+import com.ngo.finance.masters.designation.repository.DesignationRepository;
+import com.ngo.finance.programme.entity.Programme;
+import com.ngo.finance.programme.repository.ProgrammeRepository;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
@@ -32,6 +36,20 @@ public class FundProfileMapper {
 
     @Autowired
     private StateRepository stateRepository;
+
+    @Autowired
+    private DesignationRepository designationRepository;
+
+    @Autowired
+    private ProgrammeRepository programmeRepository;
+
+    private Designation resolveDesignation(Long id) {
+        if (id == null) {
+            return null;
+        }
+        return designationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Designation", id));
+    }
 
     /** Build a new entity graph from the request. Donor & programme set by the service. */
     public DonorFundProfile toEntity(CreateFundProfileRequest request) {
@@ -97,6 +115,7 @@ public class FundProfileMapper {
                         .fundProfile(profile)
                         .totalAmount(d.getTotalAmount())
                         .disbursementType(d.getDisbursementType())
+                        .receivingDate(d.getReceivingDate())
                         .build();
                 if (d.getTrancheCriteria() != null) {
                     for (CreateFundProfileRequest.TrancheCriterionItem c : d.getTrancheCriteria()) {
@@ -114,14 +133,15 @@ public class FundProfileMapper {
                                 releaseCriteria.setReleaseCriteria(rc.getReleaseCriteria());
                                 releaseCriteria.setReleaseDate(rc.getReleaseDate());
                                 releaseCriteria.setMilestoneName(rc.getMilestoneName());
-                                releaseCriteria.setVerificationSignOffRole(rc.getVerificationSignOffRole());
+                                releaseCriteria.setVerificationSignOffRole(
+                                        resolveDesignation(rc.getVerificationSignOffRoleId()));
                                 releaseCriteria.setOtherVerificationSignOffRole(rc.getOtherVerificationSignOffRole());
                                 releaseCriteria.setTargetDate(rc.getTargetDate());
                                 releaseCriteria.setUtilisationPercentage(rc.getUtilisationPercentage());
                                 releaseCriteria.setTriggerBasis(rc.getTriggerBasis());
                                 releaseCriteria.setDescription(rc.getDescription());
                                 releaseCriteria.setRemindSomeone(rc.getRemindSomeone());
-                                releaseCriteria.setResponsibleRole(rc.getResponsibleRole());
+                                releaseCriteria.setResponsibleRole(resolveDesignation(rc.getResponsibleRoleId()));
                                 releaseCriteria.setOtherResponsibleRole(rc.getOtherResponsibleRole());
                                 releaseCriteria.setReminderLeadTime(rc.getReminderLeadTime());
                                 releaseCriteria.setRepeatReminder(rc.getRepeatReminder());
@@ -163,6 +183,16 @@ public class FundProfileMapper {
                 .map(this::toDisbursementRuleItem)
                 .toList();
 
+        Long parentProgrammeId = null;
+        String parentProgrammeName = null;
+        if (p.getProgramme() != null && p.getProgramme().getParentProgrammeId() != null) {
+            Programme parent = programmeRepository.findById(p.getProgramme().getParentProgrammeId()).orElse(null);
+            if (parent != null) {
+                parentProgrammeId = parent.getId();
+                parentProgrammeName = parent.getProgrammeName();
+            }
+        }
+
         return FundProfileResponse.builder()
                 .id(p.getId())
                 .donorId(p.getDonor() != null ? p.getDonor().getId() : null)
@@ -174,6 +204,9 @@ public class FundProfileMapper {
                 .programmeTied(p.getProgrammeTied())
                 .programmeId(p.getProgramme() != null ? p.getProgramme().getId() : null)
                 .programmeName(p.getProgramme() != null ? p.getProgramme().getProgrammeName() : null)
+                .programmeType(p.getProgramme() != null ? p.getProgramme().getType() : null)
+                .parentProgrammeId(parentProgrammeId)
+                .parentProgrammeName(parentProgrammeName)
                 .reportingFrequency(p.getReportingFrequency() != null ? p.getReportingFrequency().name() : null)
                 .reportingFrequencyLabel(
                         p.getReportingFrequency() != null ? p.getReportingFrequency().getLabel() : null)
@@ -209,6 +242,7 @@ public class FundProfileMapper {
                 .disbursementType(d.getDisbursementType() != null ? d.getDisbursementType().name() : null)
                 .disbursementTypeLabel(
                         d.getDisbursementType() != null ? d.getDisbursementType().getLabel() : null)
+                .receivingDate(d.getReceivingDate())
                 .trancheCriteria(criteria)
                 .allocatedAmount(allocated)
                 .unallocatedAmount(unallocated)
@@ -239,10 +273,10 @@ public class FundProfileMapper {
                 .releaseCriteriaLabel(rc.getReleaseCriteria() != null ? rc.getReleaseCriteria().getLabel() : null)
                 .releaseDate(rc.getReleaseDate())
                 .milestoneName(rc.getMilestoneName())
-                .verificationSignOffRole(
-                        rc.getVerificationSignOffRole() != null ? rc.getVerificationSignOffRole().name() : null)
+                .verificationSignOffRoleId(
+                        rc.getVerificationSignOffRole() != null ? rc.getVerificationSignOffRole().getId() : null)
                 .verificationSignOffRoleLabel(
-                        rc.getVerificationSignOffRole() != null ? rc.getVerificationSignOffRole().getLabel() : null)
+                        rc.getVerificationSignOffRole() != null ? rc.getVerificationSignOffRole().getName() : null)
                 .otherVerificationSignOffRole(rc.getOtherVerificationSignOffRole())
                 .targetDate(rc.getTargetDate())
                 .utilisationPercentage(rc.getUtilisationPercentage())
@@ -250,8 +284,8 @@ public class FundProfileMapper {
                 .triggerBasisLabel(rc.getTriggerBasis() != null ? rc.getTriggerBasis().getLabel() : null)
                 .description(rc.getDescription())
                 .remindSomeone(rc.getRemindSomeone())
-                .responsibleRole(rc.getResponsibleRole() != null ? rc.getResponsibleRole().name() : null)
-                .responsibleRoleLabel(rc.getResponsibleRole() != null ? rc.getResponsibleRole().getLabel() : null)
+                .responsibleRoleId(rc.getResponsibleRole() != null ? rc.getResponsibleRole().getId() : null)
+                .responsibleRoleLabel(rc.getResponsibleRole() != null ? rc.getResponsibleRole().getName() : null)
                 .otherResponsibleRole(rc.getOtherResponsibleRole())
                 .reminderLeadTime(rc.getReminderLeadTime())
                 .repeatReminder(rc.getRepeatReminder() != null ? rc.getRepeatReminder().name() : null)

@@ -1,11 +1,12 @@
 package com.ngo.finance.notification.entity;
 
 import com.ngo.finance.common.entity.AuditEntity;
-import com.ngo.finance.donor.enums.ResponsibleRole;
+import com.ngo.finance.masters.designation.entity.Designation;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.ForeignKey;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,9 +30,10 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode(callSuper = true)
 public class RoleDirectoryEntry extends AuditEntity {
 
-    @Column(nullable = false, unique = true, length = 30)
-    @Enumerated(EnumType.STRING)
-    private ResponsibleRole role;
+    @ManyToOne
+    @JoinColumn(name = "designation_id", nullable = false, unique = true,
+            foreignKey = @ForeignKey(name = "fk_role_directory_designation"))
+    private Designation designation;
 
     /** Null until an administrator assigns a holder. */
     @Column(name = "primary_user_id")

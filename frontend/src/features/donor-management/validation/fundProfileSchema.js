@@ -18,7 +18,7 @@ const criterionSchema = z
     criterionType: z.string().min(1, 'Criterion type is required'),
     releaseDate: z.string().optional(),
     milestoneName: z.string().optional(),
-    verificationRole: z.string().optional(),
+    verificationRoleId: z.union([z.string(), z.number()]).optional(),
     otherVerificationRole: z.string().optional(),
     targetDate: z.string().optional(),
     utilisationPercent: z.union([z.string(), z.number()]).optional(),
@@ -27,7 +27,7 @@ const criterionSchema = z
     hasReminder: z.boolean().optional(),
     reminder: z
       .object({
-        responsibleRole: z.string().optional(),
+        responsibleRoleId: z.union([z.string(), z.number()]).optional(),
         otherResponsibleRole: z.string().optional(),
         reminderLeadDays: z.union([z.string(), z.number()]).optional(),
         repeatReminder: z.string().optional(),
@@ -46,10 +46,8 @@ const criterionSchema = z
         if (isBlank(c.milestoneName)) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Milestone name is required', path: ['milestoneName'] });
         }
-        if (isBlank(c.verificationRole)) {
-          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Verification role is required', path: ['verificationRole'] });
-        } else if (c.verificationRole === 'OTHER' && isBlank(c.otherVerificationRole)) {
-          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Custom verification role is required', path: ['otherVerificationRole'] });
+        if (isBlank(c.verificationRoleId) && isBlank(c.otherVerificationRole)) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Verification role is required', path: ['verificationRoleId'] });
         }
         break;
       case 'UTILISATION_THRESHOLD':
@@ -77,10 +75,8 @@ const criterionSchema = z
           path: ['hasReminder'],
         });
       }
-      if (isBlank(c.reminder?.responsibleRole)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Responsible role is required', path: ['reminder', 'responsibleRole'] });
-      } else if (c.reminder.responsibleRole === 'OTHER' && isBlank(c.reminder.otherResponsibleRole)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Custom responsible role is required', path: ['reminder', 'otherResponsibleRole'] });
+      if (isBlank(c.reminder?.responsibleRoleId) && isBlank(c.reminder?.otherResponsibleRole)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Responsible role is required', path: ['reminder', 'responsibleRoleId'] });
       }
       if (isBlank(c.reminder?.reminderLeadDays)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Reminder lead time is required', path: ['reminder', 'reminderLeadDays'] });
@@ -95,7 +91,7 @@ const trancheSchema = z.object({
     .refine((v) => v !== '' && v !== null && v !== undefined && Number(v) > 0, {
       message: 'Amount must be positive',
     }),
-  expectedReleaseDate: z.string().optional(),
+  expectedReleaseDate: z.string().min(1, 'Expected release date is required'),
   isFinal: z.boolean().optional(),
   criteria: z.array(criterionSchema).min(1, 'A tranche needs a release criterion'),
 });
@@ -103,7 +99,9 @@ const trancheSchema = z.object({
 export const fundProfileSchema = z
   .object({
     fundMode: z.enum(['RESTRICTED', 'UNRESTRICTED'], { message: 'Fund mode is required' }),
-    fundClass: z.enum(['', 'CLASS_A_RESTRICTED', 'CLASS_B_UNRESTRICTED', 'CLASS_C_UNRESTRICTED']).optional(),
+    fundClass: z.enum(['CLASS_A_RESTRICTED', 'CLASS_B_UNRESTRICTED', 'CLASS_C_UNRESTRICTED'], {
+      message: 'Fund class is required',
+    }),
     purpose: z.string().max(2000).optional(),
     programmeTied: z.boolean().optional(),
     programmeId: z.union([z.string(), z.number()]).optional(),
@@ -157,21 +155,19 @@ export const fundProfileSchema = z
       });
     }
 
-    const disbursementActive = !isBlank(data.totalAmount) || (data.tranches || []).length > 0;
-    if (!disbursementActive) {
-      return;
-    }
-
+    // Total amount committed and (for a lump sum) its expected release date are
+    // always mandatory — not just once the section has otherwise been touched.
     if (isBlank(data.totalAmount)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Total amount committed is required', path: ['totalAmount'] });
     }
 
     if (data.disbursementType === 'LUMP_SUM') {
       if (isBlank(data.receivingDate)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Receiving date is required for a lump sum', path: ['receivingDate'] });
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Expected release date is required', path: ['receivingDate'] });
       }
     } else if (data.disbursementType === 'TRANCHES') {
-      if (isBlank(data.frequency)) {
+      const disbursementActive = !isBlank(data.totalAmount) || (data.tranches || []).length > 0;
+      if (disbursementActive && isBlank(data.frequency)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Schedule type is required for tranches', path: ['frequency'] });
       }
     }

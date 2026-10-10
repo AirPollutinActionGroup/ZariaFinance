@@ -8,20 +8,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ngo.finance.donation.dto.request.CreateDonationRequest;
-import com.ngo.finance.donation.enums.DonationBankAccountType;
-import com.ngo.finance.donation.enums.DonationChannel;
 import com.ngo.finance.donation.enums.DonationType;
-import com.ngo.finance.donation.enums.DonorIdentification;
-import com.ngo.finance.donation.enums.FundMode;
 import com.ngo.finance.donation.enums.UtilisationPeriodType;
+import com.ngo.finance.donor.enums.FundMode;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.StateMaster;
-import com.ngo.finance.donor.enums.DonorType;
-import com.ngo.finance.donor.enums.FundSourceDomicile;
+import com.ngo.finance.common.enums.FundSourceDomicile;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.StateRepository;
+import com.ngo.finance.masters.donortype.repository.DonorTypeMasterRepository;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +48,9 @@ public class DonationControllerIntegrationTest {
     @Autowired
     private StateRepository stateRepository;
 
+    @Autowired
+    private DonorTypeMasterRepository donorTypeMasterRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
@@ -60,7 +59,7 @@ public class DonationControllerIntegrationTest {
         DonorMaster donor = donorRepository.save(DonorMaster.builder()
                 .donorCode("DN-DON-TEST-1")
                 .donorName("Test Donation Donor")
-                .donorType(DonorType.INDIVIDUAL)
+                .donorType(donorTypeMasterRepository.searchByName("Individual").get(0))
                 .email("donor-donation-test@example.com")
                 .spocNameOfThePerson("Test Contact")
                 .spocEmail("donor-donation-test@example.com")
@@ -75,17 +74,11 @@ public class DonationControllerIntegrationTest {
 
         CreateDonationRequest request = CreateDonationRequest.builder()
                 .donationType(DonationType.MAJOR_GIFT)
-                .receiptDate(LocalDate.of(2026, 4, 12))
-                .channel(DonationChannel.BANK_TRANSFER)
-                .identification(DonorIdentification.NAMED)
                 .donorId(donor.getId())
                 .fundMode(FundMode.RESTRICTED)
                 .stateIds(List.of(state.getId()))
                 .utilisationPeriodType(UtilisationPeriodType.SINGLE_FY)
-                .currency("INR")
                 .amount(new BigDecimal("2500000"))
-                .bankAccountType(DonationBankAccountType.DOMESTIC_CURRENT)
-                .transactionRef("UTR-TEST-1")
                 .build();
 
         mockMvc.perform(post("/api/v1/donations")
@@ -107,23 +100,16 @@ public class DonationControllerIntegrationTest {
 
     @Test
     @WithMockUser
-    void testCreateAnonymousRecurringDonation_Blocked() throws Exception {
+    void testCreateDonationWithoutDonor_Blocked() throws Exception {
         StateMaster state = stateRepository.findAll().stream().findFirst()
                 .orElseThrow(() -> new IllegalStateException("No seeded state found"));
 
         CreateDonationRequest request = CreateDonationRequest.builder()
                 .donationType(DonationType.RECURRING)
-                .receiptDate(LocalDate.of(2026, 4, 12))
-                .channel(DonationChannel.UPI)
-                .identification(DonorIdentification.ANONYMOUS)
-                .anonymousCollectionSource("Donation box")
-                .anonymousSourceReference("Box #2, HQ lobby")
                 .fundMode(FundMode.UNRESTRICTED)
                 .stateIds(List.of(state.getId()))
                 .utilisationPeriodType(UtilisationPeriodType.SINGLE_FY)
-                .currency("INR")
                 .amount(new BigDecimal("2500"))
-                .bankAccountType(DonationBankAccountType.DOMESTIC_CURRENT)
                 .build();
 
         mockMvc.perform(post("/api/v1/donations")
@@ -131,6 +117,6 @@ public class DonationControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.donationType").exists());
+                .andExpect(jsonPath("$.errors.donorId").exists());
     }
 }

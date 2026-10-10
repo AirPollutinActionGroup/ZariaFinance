@@ -1,24 +1,31 @@
 import { useState, useMemo } from 'react';
 import {
+  Avatar,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
   Grid,
+  IconButton,
   MenuItem,
   Select,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { ConfirmDialog, DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
-import { BOOK } from '../../donation-management/constants.js';
+import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
+import PowerSettingsNewOutlinedIcon from '@mui/icons-material/PowerSettingsNewOutlined';
+import { useNavigate } from 'react-router-dom';
+import { ConfirmDialog, DataTable, PageHeader, SearchField, StatusChip } from '../../../shared/components/index.js';
+import { BOOK, BOOK_TONE } from '../../donation-management/constants.js';
 import { useBankDetails, useCreateBankDetail, useBankDetailLifecycle } from '../hooks/useBankDetails.js';
+
+const STATUS_TONE = { ACTIVE: 'success', INACTIVE: 'error' };
 
 const initialFormState = {
   book: 'LC',
@@ -30,6 +37,7 @@ const initialFormState = {
 };
 
 export function BankDetailsPage() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [bookFilter, setBookFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -90,33 +98,21 @@ export function BankDetailsPage() {
       key: 'book',
       header: 'BOOK',
       width: '10%',
-      render: (row) => (
-        <Box
-          sx={{
-            display: 'inline-block',
-            px: 1.2,
-            py: 0.3,
-            borderRadius: '4px',
-            fontSize: 12,
-            fontWeight: 700,
-            bgcolor: row.book === 'FC' ? '#EEF2F6' : '#F6F7F8',
-            color: row.book === 'FC' ? '#1D4ED8' : '#374151',
-            border: '1px solid',
-            borderColor: row.book === 'FC' ? '#BFDBFE' : '#E5E7EB',
-          }}
-        >
-          {row.book}
-        </Box>
-      ),
+      render: (row) => <StatusChip label={row.book} tone={BOOK_TONE[row.book] || 'neutral'} />,
     },
     {
       key: 'bankName',
       header: 'BANK NAME',
-      width: '18%',
+      width: '20%',
       render: (row) => (
-        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-          {row.bankName}
-        </Typography>
+        <Stack direction="row" spacing={1.25} alignItems="center">
+          <Avatar sx={{ width: 30, height: 30, bgcolor: 'action.selected', color: 'text.secondary' }}>
+            <AccountBalanceOutlinedIcon sx={{ fontSize: 17 }} />
+          </Avatar>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+            {row.bankName}
+          </Typography>
+        </Stack>
       ),
     },
     {
@@ -124,7 +120,7 @@ export function BankDetailsPage() {
       header: 'A/C',
       width: '16%',
       render: (row) => (
-        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600, color: '#17191C' }}>
+        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600, color: 'text.primary' }}>
           {row.accountNumber}
         </Typography>
       ),
@@ -153,52 +149,39 @@ export function BankDetailsPage() {
       key: 'status',
       header: 'STATUS',
       width: '10%',
-      render: (row) => (
-        <Chip
-          label={row.statusLabel}
-          color={row.status === 'ACTIVE' ? 'success' : 'error'}
-          size="small"
-          variant="outlined"
-          sx={{ fontWeight: 600, minWidth: 70 }}
-        />
-      ),
+      render: (row) => <StatusChip label={row.statusLabel} tone={STATUS_TONE[row.status] || 'neutral'} />,
     },
     {
       key: 'action',
       header: 'ACTION',
-      width: '10%',
+      width: '8%',
+      align: 'right',
       render: (row) => (
-        <Button
-          size="small"
-          variant="outlined"
-          color={row.status === 'ACTIVE' ? 'warning' : 'success'}
-          onClick={() => setItemToToggle(row)}
-          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5 }}
-        >
-          Change Status
-        </Button>
+        <Tooltip title={row.status === 'ACTIVE' ? 'Deactivate account' : 'Activate account'}>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              setItemToToggle(row);
+            }}
+            sx={{
+              color: row.status === 'ACTIVE' ? 'warning.main' : 'success.main',
+            }}
+          >
+            <PowerSettingsNewOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
       ),
     },
   ];
 
   return (
-    <Box sx={{ maxWidth: 1100 }}>
+    <Box>
       <PageHeader
         title="Bank Details"
         subtitle="Manage statutory bank accounts and domestic/foreign book associations"
         actions={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setOpenAddDialog(true)}
-            sx={{
-              bgcolor: '#17191C',
-              color: '#FFFFFF',
-              fontWeight: 600,
-              px: 2.5,
-              '&:hover': { bgcolor: '#232629' },
-            }}
-          >
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenAddDialog(true)}>
             Add Bank Details
           </Button>
         }
@@ -260,6 +243,7 @@ export function BankDetailsPage() {
         isLoading={bankDetailsQuery.isPending}
         error={bankDetailsQuery.isError ? bankDetailsQuery.error : null}
         onRetry={bankDetailsQuery.refetch}
+        onRowClick={(row) => navigate(`/bank-details/${row.id}`)}
         emptyTitle="No bank details found"
         emptyDescription="Try adjusting your search query or filters."
       />
@@ -386,13 +370,7 @@ export function BankDetailsPage() {
                 !form.branchName.trim() ||
                 createBankDetail.isPending
               }
-              sx={{
-                bgcolor: '#17191C',
-                color: '#FFFFFF',
-                fontWeight: 600,
-                textTransform: 'none',
-                '&:hover': { bgcolor: '#232629' },
-              }}
+              sx={{ textTransform: 'none' }}
             >
               Save Bank Details
             </Button>
