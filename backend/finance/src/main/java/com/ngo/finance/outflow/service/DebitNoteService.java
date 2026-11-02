@@ -7,7 +7,6 @@ import com.ngo.finance.outflow.dto.request.CreateDebitNoteRequest;
 import com.ngo.finance.outflow.dto.response.NoteResponse;
 import com.ngo.finance.outflow.entity.DebitNote;
 import com.ngo.finance.outflow.mapper.NoteMapper;
-import com.ngo.finance.outflow.repository.CreditNoteRepository;
 import com.ngo.finance.outflow.repository.DebitNoteRepository;
 import com.ngo.finance.outflow.service.OutflowScheduleService.OutflowRow;
 import java.math.BigDecimal;
@@ -34,7 +33,7 @@ public class DebitNoteService {
 
     private final DebitNoteRepository debitNoteRepository;
 
-    private final CreditNoteRepository creditNoteRepository;
+    private final FundBalanceService fundBalanceService;
 
     private final OutflowScheduleService outflowScheduleService;
 
@@ -111,8 +110,7 @@ public class DebitNoteService {
         if (fundRef == null) {
             return;
         }
-        BigDecimal available = creditNoteRepository.sumOnFundProfile(fundRef)
-                .subtract(debitNoteRepository.sumOnFundProfile(fundRef));
+        BigDecimal available = fundBalanceService.balanceOf(fundRef).available();
         if (request.getAmount().compareTo(available) > 0) {
             String fund = RefDto.nameOf(request.getFundProfile());
             throw new ValidationException(available.signum() > 0

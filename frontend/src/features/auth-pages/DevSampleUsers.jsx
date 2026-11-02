@@ -27,8 +27,11 @@ const SAMPLE_USERS = [
 
 const STATE_TONE = { approved: 'success', pending: 'warning', rejected: 'error' };
 
+// Flip to true to show the cheat-sheet again in dev builds.
+const SHOW_SAMPLE_USERS = false;
+
 export function DevSampleUsers({ onPick = null }) {
-  if (!env.isDev) return null;
+  if (!env.isDev || !SHOW_SAMPLE_USERS) return null;
 
   return (
     <Box

@@ -1,6 +1,5 @@
 package com.ngo.finance.inflowbudget.mapper;
 
-import com.ngo.finance.common.enums.ContributionType;
 import com.ngo.finance.donor.entity.DonorDisbursementRule;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
@@ -81,9 +80,6 @@ public class InflowBudgetMapper {
     }
 
     private String resolveBook(DonorMaster donor) {
-        if (donor.getBook() != null) {
-            return donor.getBook().getShortName();
-        }
-        return FundingClassifier.isForeign(donor) ? ContributionType.FC.getShortName() : ContributionType.LC.getShortName();
+        return FundingClassifier.bookOf(donor).getShortName();
     }
 }
