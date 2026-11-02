@@ -1,8 +1,9 @@
-package com.ngo.finance.outflow.service;
+package com.ngo.finance.transaction.service;
 
 import com.ngo.finance.common.exception.ResourceNotFoundException;
 import com.ngo.finance.common.exception.ValidationException;
 import com.ngo.finance.outflow.dto.RefDto;
+import com.ngo.finance.outflow.service.OutflowScheduleService;
 import com.ngo.finance.outflow.service.OutflowScheduleService.OutflowRow;
 
 /** Small rules shared by the debit and credit note services. */

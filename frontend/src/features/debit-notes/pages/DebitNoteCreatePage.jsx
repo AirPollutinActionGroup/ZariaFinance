@@ -45,6 +45,8 @@ import { useEmployees } from '../../employee-list/hooks/useEmployees.js';
 import { useVendors } from '../../vendor-registration/hooks/useVendors.js';
 import { useCreateDebitNote, useDebitNotes } from '../hooks/useDebitNotes.js';
 import { debitTotalsByLine } from '../lib/debitTotals.js';
+import { FundSuggestionsDialog } from '../components/FundSuggestionsDialog.jsx';
+import { FundSuggestionBanner } from '../components/FundSuggestionBanner.jsx';
 import { useCreditNotes } from '../../credit-notes/hooks/useCreditNotes.js';
 import { Figure, FormSection, MONEY_SX } from '../../credit-notes/components/NoteLayout.jsx';
 import { ATTACHMENT_ACCEPT, ATTACHMENT_MAX_BYTES, DEBIT_NOTE_REASON, PAYEE_CATEGORIES } from '../constants.js';
@@ -224,6 +226,7 @@ function DebitNoteForm({ lines, allNotes, allCredits }) {
   const touch = (field) => () => setTouched((t) => (t[field] ? t : { ...t, [field]: true }));
   const [saveError, setSaveError] = useState(null);
   const [fileError, setFileError] = useState(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
 
   const setValue = (field, value) => setForm((f) => ({ ...f, [field]: value }));
   const set = (field) => (e) => setValue(field, e.target.value);
@@ -350,12 +353,12 @@ function DebitNoteForm({ lines, allNotes, allCredits }) {
     line: form.line ? null : 'Select an outflow line',
     amount: amountError,
     reason: !isOverBudget || form.reason ? null : 'Over budget — select why',
+    // Donor / fund are optional, but a donor picked needs its fund profile.
+    fundId: form.fundId || !form.donorId ? null : 'Select the fund profile for this donor',
     payeeCategory: form.payeeCategory ? null : 'Required',
     payeeId: form.payeeId ? null : 'Select a payee',
     paymentModeId: form.paymentModeId ? null : 'Select a payment mode',
     groupId: form.groupId ? null : 'Select a group',
-    // Donor / fund are optional, but a donor picked needs its fund profile.
-    fundId: form.fundId || !form.donorId ? null : 'Select the fund profile for this donor',
   };
   const isValid = Object.values(errors).every((e) => !e);
   const show = (field) => (submitted || touched[field] ? errors[field] : null);
@@ -380,6 +383,8 @@ function DebitNoteForm({ lines, allNotes, allCredits }) {
     setForm((f) => ({ ...f, book: opt?.value || '', bankAccountId: '', donorId: '', fundId: '' }));
   const handleDonorChange = (opt) => setForm((f) => ({ ...f, donorId: opt?.value || '', fundId: '' }));
   const handleFundChange = (opt) => setForm((f) => ({ ...f, fundId: opt?.value || '' }));
+  // A picked suggestion fills Donor → Fund profile; the grant follows from the fund as usual.
+  const handleSuggestionPick = (s) => setForm((f) => ({ ...f, donorId: s.donorId, fundId: s.fundProfileId }));
   const handleCategoryChange = (opt) => setForm((f) => ({ ...f, payeeCategory: opt?.value || '', payeeId: '' }));
   const handleGroupChange = (opt) => setForm((f) => ({ ...f, groupId: opt?.value || '', ledgerId: '' }));
 
@@ -585,104 +590,24 @@ function DebitNoteForm({ lines, allNotes, allCredits }) {
           ) : null}
         </FormSection>
 
-        <FormSection color="primary" number="03" icon={PersonOutlineIcon} title="Party" description="Who the money was paid to.">
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <SearchableSelect
-              label="Payee category *"
-              options={PAYEE_CATEGORIES}
-              value={PAYEE_CATEGORIES.find((o) => o.value === form.payeeCategory) || null}
-              onChange={handleCategoryChange}
-              error={show('payeeCategory')}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 8 }}>
-            <SearchableSelect
-              label="Payee *"
-              options={payeeOptions}
-              value={payeeOptions.find((o) => o.value === form.payeeId) || null}
-              onChange={(opt) => setValue('payeeId', opt?.value || '')}
-              loading={payeeQuery.isLoading}
-              disabled={!form.payeeCategory || (!payeeQuery.isLoading && payeeOptions.length === 0)}
-              placeholder={
-                !form.payeeCategory
-                  ? 'Select a category first'
-                  : !payeeQuery.isLoading && payeeOptions.length === 0
-                    ? `No active ${payeeNoun}`
-                    : undefined
-              }
-              error={show('payeeId')}
-            />
-            {form.payeeCategory && payeeQuery.isSuccess && payeeOptions.length === 0 ? (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -1 }}>
-                {form.payeeCategory === 'EMPLOYEE'
-                  ? 'No active employees — add or reactivate them in the Employee Master.'
-                  : 'No active vendors — add or activate them in the Vendor Register.'}
-              </Typography>
-            ) : null}
-          </Grid>
-        </FormSection>
-
-        <FormSection color="primary" number="04" icon={PaymentsOutlinedIcon} title="Payment Details" description="How it was paid and which ledger it books to.">
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <SearchableSelect
-              label="Payment mode *"
-              options={paymentModeOptions}
-              value={paymentModeOptions.find((o) => o.value === form.paymentModeId) || null}
-              onChange={(opt) => setValue('paymentModeId', opt?.value || '')}
-              loading={paymentModesQuery.isLoading}
-              error={show('paymentModeId')}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <SearchableSelect
-              label="Bank account"
-              options={bankAccountOptions}
-              value={bankAccountOptions.find((o) => o.value === form.bankAccountId) || null}
-              onChange={(opt) => setValue('bankAccountId', opt?.value || '')}
-              loading={bankDetailsQuery.isLoading}
-              disabled={!bankDetailsQuery.isLoading && bankAccountOptions.length === 0}
-              placeholder={!bankDetailsQuery.isLoading && bankAccountOptions.length === 0 ? `No active ${form.book} accounts` : undefined}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <TextField
-              fullWidth
-              label="Reference no."
-              placeholder="Bill no. / UTR / Cheque no."
-              value={form.reference}
-              onChange={set('reference')}
-              helperText=" "
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <SearchableSelect
-              label="Group / payment group *"
-              options={groupOptions}
-              value={groupOptions.find((o) => o.value === form.groupId) || null}
-              onChange={handleGroupChange}
-              loading={groupsQuery.isLoading}
-              error={show('groupId')}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <SearchableSelect
-              label="Ledger / payment type"
-              options={ledgerOptions}
-              value={ledgerOptions.find((o) => o.value === form.ledgerId) || null}
-              onChange={(opt) => setValue('ledgerId', opt?.value || '')}
-              disabled={!form.groupId || ledgerOptions.length === 0}
-              placeholder={form.groupId ? undefined : 'Select a group first'}
-            />
-          </Grid>
-        </FormSection>
-
         <FormSection
           color="primary"
-          number="05"
+          number="03"
           icon={VolunteerActivismOutlinedIcon}
           title="Fund & Grant"
           description="Optional — charge the payment to the donor fund it came from."
         >
+          <Grid size={12} sx={{ mb: 0.5 }}>
+            <FundSuggestionBanner
+              line={form.line}
+              amount={thisNote}
+              date={form.date}
+              book={form.book}
+              fundPicked={Boolean(form.fundId)}
+              onUse={handleSuggestionPick}
+              onSeeAll={() => setSuggestOpen(true)}
+            />
+          </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <SearchableSelect
               label="Donor"
@@ -752,6 +677,106 @@ function DebitNoteForm({ lines, allNotes, allCredits }) {
               />
             </Grid>
           ) : null}
+          <FundSuggestionsDialog
+            open={suggestOpen}
+            onClose={() => setSuggestOpen(false)}
+            onSelect={handleSuggestionPick}
+            line={form.line}
+            amount={thisNote}
+            date={form.date}
+            book={form.book}
+          />
+        </FormSection>
+
+        <FormSection color="primary" number="04" icon={PersonOutlineIcon} title="Party" description="Who the money was paid to.">
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <SearchableSelect
+              label="Payee category *"
+              options={PAYEE_CATEGORIES}
+              value={PAYEE_CATEGORIES.find((o) => o.value === form.payeeCategory) || null}
+              onChange={handleCategoryChange}
+              error={show('payeeCategory')}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 8 }}>
+            <SearchableSelect
+              label="Payee *"
+              options={payeeOptions}
+              value={payeeOptions.find((o) => o.value === form.payeeId) || null}
+              onChange={(opt) => setValue('payeeId', opt?.value || '')}
+              loading={payeeQuery.isLoading}
+              disabled={!form.payeeCategory || (!payeeQuery.isLoading && payeeOptions.length === 0)}
+              placeholder={
+                !form.payeeCategory
+                  ? 'Select a category first'
+                  : !payeeQuery.isLoading && payeeOptions.length === 0
+                    ? `No active ${payeeNoun}`
+                    : undefined
+              }
+              error={show('payeeId')}
+            />
+            {form.payeeCategory && payeeQuery.isSuccess && payeeOptions.length === 0 ? (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -1 }}>
+                {form.payeeCategory === 'EMPLOYEE'
+                  ? 'No active employees — add or reactivate them in the Employee Master.'
+                  : 'No active vendors — add or activate them in the Vendor Register.'}
+              </Typography>
+            ) : null}
+          </Grid>
+        </FormSection>
+
+        <FormSection color="primary" number="05" icon={PaymentsOutlinedIcon} title="Payment Details" description="How it was paid and which ledger it books to.">
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <SearchableSelect
+              label="Payment mode *"
+              options={paymentModeOptions}
+              value={paymentModeOptions.find((o) => o.value === form.paymentModeId) || null}
+              onChange={(opt) => setValue('paymentModeId', opt?.value || '')}
+              loading={paymentModesQuery.isLoading}
+              error={show('paymentModeId')}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <SearchableSelect
+              label="Bank account"
+              options={bankAccountOptions}
+              value={bankAccountOptions.find((o) => o.value === form.bankAccountId) || null}
+              onChange={(opt) => setValue('bankAccountId', opt?.value || '')}
+              loading={bankDetailsQuery.isLoading}
+              disabled={!bankDetailsQuery.isLoading && bankAccountOptions.length === 0}
+              placeholder={!bankDetailsQuery.isLoading && bankAccountOptions.length === 0 ? `No active ${form.book} accounts` : undefined}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <TextField
+              fullWidth
+              label="Reference no."
+              placeholder="Bill no. / UTR / Cheque no."
+              value={form.reference}
+              onChange={set('reference')}
+              helperText=" "
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <SearchableSelect
+              label="Group / payment group *"
+              options={groupOptions}
+              value={groupOptions.find((o) => o.value === form.groupId) || null}
+              onChange={handleGroupChange}
+              loading={groupsQuery.isLoading}
+              error={show('groupId')}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <SearchableSelect
+              label="Ledger / payment type"
+              options={ledgerOptions}
+              value={ledgerOptions.find((o) => o.value === form.ledgerId) || null}
+              onChange={(opt) => setValue('ledgerId', opt?.value || '')}
+              disabled={!form.groupId || ledgerOptions.length === 0}
+              placeholder={form.groupId ? undefined : 'Select a group first'}
+            />
+          </Grid>
         </FormSection>
 
         <FormSection

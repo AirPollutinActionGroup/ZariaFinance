@@ -1,8 +1,8 @@
-package com.ngo.finance.outflow.api;
+package com.ngo.finance.transaction.api;
 
-import com.ngo.finance.outflow.dto.request.CreateDebitNoteRequest;
-import com.ngo.finance.outflow.dto.response.NoteResponse;
-import com.ngo.finance.outflow.service.DebitNoteService;
+import com.ngo.finance.transaction.dto.request.CreateDebitNoteRequest;
+import com.ngo.finance.transaction.dto.response.NoteResponse;
+import com.ngo.finance.transaction.service.DebitNoteService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

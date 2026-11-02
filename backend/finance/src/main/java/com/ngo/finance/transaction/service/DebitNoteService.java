@@ -1,15 +1,16 @@
-package com.ngo.finance.outflow.service;
+package com.ngo.finance.transaction.service;
 
 import com.ngo.finance.common.exception.ResourceNotFoundException;
 import com.ngo.finance.common.exception.ValidationException;
 import com.ngo.finance.outflow.dto.RefDto;
-import com.ngo.finance.outflow.dto.request.CreateDebitNoteRequest;
-import com.ngo.finance.outflow.dto.response.NoteResponse;
-import com.ngo.finance.outflow.entity.DebitNote;
-import com.ngo.finance.outflow.mapper.NoteMapper;
-import com.ngo.finance.outflow.repository.CreditNoteRepository;
-import com.ngo.finance.outflow.repository.DebitNoteRepository;
+import com.ngo.finance.outflow.service.OutflowScheduleService;
 import com.ngo.finance.outflow.service.OutflowScheduleService.OutflowRow;
+import com.ngo.finance.transaction.dto.request.CreateDebitNoteRequest;
+import com.ngo.finance.transaction.dto.response.NoteResponse;
+import com.ngo.finance.transaction.entity.DebitNote;
+import com.ngo.finance.transaction.mapper.NoteMapper;
+import com.ngo.finance.transaction.repository.CreditNoteRepository;
+import com.ngo.finance.transaction.repository.DebitNoteRepository;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.util.List;

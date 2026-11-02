@@ -1,6 +1,6 @@
-package com.ngo.finance.outflow.repository;
+package com.ngo.finance.transaction.repository;
 
-import com.ngo.finance.outflow.entity.DebitNote;
+import com.ngo.finance.transaction.entity.DebitNote;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;

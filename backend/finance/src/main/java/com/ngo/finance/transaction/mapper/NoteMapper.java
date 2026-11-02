@@ -1,11 +1,11 @@
-package com.ngo.finance.outflow.mapper;
+package com.ngo.finance.transaction.mapper;
 
 import com.ngo.finance.budget.entity.BudgetLine;
 import com.ngo.finance.outflow.dto.RefDto;
-import com.ngo.finance.outflow.dto.response.NoteResponse;
-import com.ngo.finance.outflow.entity.CreditNote;
-import com.ngo.finance.outflow.entity.DebitNote;
 import com.ngo.finance.outflow.service.OutflowScheduleService;
+import com.ngo.finance.transaction.dto.response.NoteResponse;
+import com.ngo.finance.transaction.entity.CreditNote;
+import com.ngo.finance.transaction.entity.DebitNote;
 import org.springframework.stereotype.Component;
 
 /**

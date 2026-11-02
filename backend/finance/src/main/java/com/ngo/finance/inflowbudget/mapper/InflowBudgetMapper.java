@@ -1,15 +1,15 @@
 package com.ngo.finance.inflowbudget.mapper;
 
 import com.ngo.finance.common.enums.ContributionType;
+import com.ngo.finance.donor.FundingClassifier;
 import com.ngo.finance.donor.entity.DonorDisbursementRule;
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import com.ngo.finance.donor.entity.DonorMaster;
 import com.ngo.finance.donor.entity.DonorTrancheCriterion;
-import com.ngo.finance.donor.FundingClassifier;
 import com.ngo.finance.donor.enums.FundMode;
 import com.ngo.finance.inflowbudget.dto.response.InflowBudgetLineResponse;
-import com.ngo.finance.outflow.entity.CreditNote;
 import com.ngo.finance.programme.entity.Programme;
+import com.ngo.finance.transaction.entity.CreditNote;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Comparator;

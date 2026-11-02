@@ -1,12 +1,12 @@
-package com.ngo.finance.outflow.service;
+package com.ngo.finance.transaction.service;
 
 import com.ngo.finance.common.exception.ResourceNotFoundException;
 import com.ngo.finance.outflow.dto.RefDto;
-import com.ngo.finance.outflow.dto.request.CreateCreditNoteRequest;
-import com.ngo.finance.outflow.dto.response.NoteResponse;
-import com.ngo.finance.outflow.entity.CreditNote;
-import com.ngo.finance.outflow.mapper.NoteMapper;
-import com.ngo.finance.outflow.repository.CreditNoteRepository;
+import com.ngo.finance.transaction.dto.request.CreateCreditNoteRequest;
+import com.ngo.finance.transaction.dto.response.NoteResponse;
+import com.ngo.finance.transaction.entity.CreditNote;
+import com.ngo.finance.transaction.mapper.NoteMapper;
+import com.ngo.finance.transaction.repository.CreditNoteRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -30,62 +30,62 @@ const STATE_TONE = { approved: 'success', pending: 'warning', rejected: 'error' 
 export function DevSampleUsers({ onPick = null }) {
   if (!env.isDev) return null;
 
-  return (
-    <Box
-      sx={{
-        mt: 3,
-        border: '1px dashed',
-        borderColor: 'divider',
-        borderRadius: 2,
-        p: 1.5,
-        bgcolor: 'action.hover',
-      }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-        <Chip label="DEV" size="small" color="warning" sx={{ fontWeight: 700, height: 18 }} />
-        <Typography variant="caption" color="text.secondary">
-          Sample users (dev only){onPick ? ' — click a row to fill the form' : ''}
-        </Typography>
-      </Box>
+  // return (
+  //   <Box
+  //     sx={{
+  //       mt: 3,
+  //       border: '1px dashed',
+  //       borderColor: 'divider',
+  //       borderRadius: 2,
+  //       p: 1.5,
+  //       bgcolor: 'action.hover',
+  //     }}
+  //   >
+  //     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+  //       <Chip label="DEV" size="small" color="warning" sx={{ fontWeight: 700, height: 18 }} />
+  //       <Typography variant="caption" color="text.secondary">
+  //         Sample users (dev only){onPick ? ' — click a row to fill the form' : ''}
+  //       </Typography>
+  //     </Box>
 
-      <Table size="small" sx={{ '& td, & th': { px: 1, py: 0.5, borderColor: 'divider' } }}>
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ fontSize: 11 }}>Username</TableCell>
-            <TableCell sx={{ fontSize: 11 }}>Password</TableCell>
-            <TableCell sx={{ fontSize: 11 }}>Role</TableCell>
-            <TableCell sx={{ fontSize: 11 }} align="right">
-              Status
-            </TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {SAMPLE_USERS.map((user) => (
-            <TableRow
-              key={user.username}
-              hover={Boolean(onPick)}
-              onClick={onPick ? () => onPick(user) : undefined}
-              sx={{
-                cursor: onPick ? 'pointer' : 'default',
-                '&:last-child td': { border: 0 },
-              }}
-            >
-              <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{user.username}</TableCell>
-              <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{user.password}</TableCell>
-              <TableCell sx={{ fontSize: 12 }}>{user.role}</TableCell>
-              <TableCell align="right">
-                <Chip
-                  label={user.state}
-                  size="small"
-                  color={STATE_TONE[user.state]}
-                  variant="outlined"
-                  sx={{ height: 18, fontSize: 10, textTransform: 'capitalize' }}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Box>
-  );
+  //     <Table size="small" sx={{ '& td, & th': { px: 1, py: 0.5, borderColor: 'divider' } }}>
+  //       <TableHead>
+  //         <TableRow>
+  //           <TableCell sx={{ fontSize: 11 }}>Username</TableCell>
+  //           <TableCell sx={{ fontSize: 11 }}>Password</TableCell>
+  //           <TableCell sx={{ fontSize: 11 }}>Role</TableCell>
+  //           <TableCell sx={{ fontSize: 11 }} align="right">
+  //             Status
+  //           </TableCell>
+  //         </TableRow>
+  //       </TableHead>
+  //       <TableBody>
+  //         {SAMPLE_USERS.map((user) => (
+  //           <TableRow
+  //             key={user.username}
+  //             hover={Boolean(onPick)}
+  //             onClick={onPick ? () => onPick(user) : undefined}
+  //             sx={{
+  //               cursor: onPick ? 'pointer' : 'default',
+  //               '&:last-child td': { border: 0 },
+  //             }}
+  //           >
+  //             <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{user.username}</TableCell>
+  //             <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{user.password}</TableCell>
+  //             <TableCell sx={{ fontSize: 12 }}>{user.role}</TableCell>
+  //             <TableCell align="right">
+  //               <Chip
+  //                 label={user.state}
+  //                 size="small"
+  //                 color={STATE_TONE[user.state]}
+  //                 variant="outlined"
+  //                 sx={{ height: 18, fontSize: 10, textTransform: 'capitalize' }}
+  //               />
+  //             </TableCell>
+  //           </TableRow>
+  //         ))}
+  //       </TableBody>
+  //     </Table>
+  //   </Box>
+  // );
 }

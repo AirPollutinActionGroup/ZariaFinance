@@ -1,4 +1,4 @@
-package com.ngo.finance.outflow.dto.response;
+package com.ngo.finance.transaction.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.ngo.finance.outflow.dto.RefDto;
