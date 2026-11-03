@@ -29,4 +29,9 @@ public interface CreditNoteRepository extends JpaRepository<CreditNote, Long> {
     @Query("SELECT COALESCE(SUM(c.amount), 0) FROM CreditNote c WHERE c.fundProfileRef = :fundProfileRef")
     BigDecimal sumOnFundProfile(@Param("fundProfileRef") String fundProfileRef);
 
+    /** [fundProfileRef, sum] of credit notes, per fund profile received into. */
+    @Query("SELECT c.fundProfileRef, SUM(c.amount) FROM CreditNote c "
+            + "WHERE c.fundProfileRef IS NOT NULL GROUP BY c.fundProfileRef")
+    List<Object[]> sumByFundProfile();
+
 }

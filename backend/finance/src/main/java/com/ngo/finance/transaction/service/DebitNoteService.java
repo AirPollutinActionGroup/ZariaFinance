@@ -9,7 +9,6 @@ import com.ngo.finance.transaction.dto.request.CreateDebitNoteRequest;
 import com.ngo.finance.transaction.dto.response.NoteResponse;
 import com.ngo.finance.transaction.entity.DebitNote;
 import com.ngo.finance.transaction.mapper.NoteMapper;
-import com.ngo.finance.transaction.repository.CreditNoteRepository;
 import com.ngo.finance.transaction.repository.DebitNoteRepository;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
@@ -35,7 +34,7 @@ public class DebitNoteService {
 
     private final DebitNoteRepository debitNoteRepository;
 
-    private final CreditNoteRepository creditNoteRepository;
+    private final FundBalanceService fundBalanceService;
 
     private final OutflowScheduleService outflowScheduleService;
 
@@ -112,8 +111,7 @@ public class DebitNoteService {
         if (fundRef == null) {
             return;
         }
-        BigDecimal available = creditNoteRepository.sumOnFundProfile(fundRef)
-                .subtract(debitNoteRepository.sumOnFundProfile(fundRef));
+        BigDecimal available = fundBalanceService.balanceOf(fundRef).available();
         if (request.getAmount().compareTo(available) > 0) {
             String fund = RefDto.nameOf(request.getFundProfile());
             throw new ValidationException(available.signum() > 0
