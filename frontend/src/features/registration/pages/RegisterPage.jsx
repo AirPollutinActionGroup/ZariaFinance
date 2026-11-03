@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { AuthLayout } from '../../auth-pages/AuthLayout.jsx';
-import { DevSampleUsers } from '../../auth-pages/DevSampleUsers.jsx';
 import { RhfTextField } from '../../../shared/components/index.js';
 import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
 import { registrationService } from '../services/registrationService.js';
@@ -107,8 +106,6 @@ export function RegisterPage() {
           </Typography>
         </Stack>
       </form>
-
-      {import.meta.env.DEV ? <DevSampleUsers /> : null}
     </AuthLayout>
   );
 }

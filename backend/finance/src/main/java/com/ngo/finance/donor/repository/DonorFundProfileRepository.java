@@ -2,7 +2,6 @@ package com.ngo.finance.donor.repository;
 
 import com.ngo.finance.donor.entity.DonorFundProfile;
 import java.util.List;
-import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,8 +12,4 @@ public interface DonorFundProfileRepository extends JpaRepository<DonorFundProfi
 
     @Query("SELECT p FROM DonorFundProfile p WHERE p.donor.id = :donorId ORDER BY p.createdAt DESC")
     List<DonorFundProfile> findByDonorId(@Param("donorId") Long donorId);
-
-    /** Every fund profile with its donor, programme and spendable states — for debit note suggestions. */
-    @EntityGraph(attributePaths = {"donor", "programme", "geographies", "geographies.state"})
-    List<DonorFundProfile> findAllByOrderByIdAsc();
 }

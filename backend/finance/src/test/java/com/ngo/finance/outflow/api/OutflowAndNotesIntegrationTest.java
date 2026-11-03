@@ -17,10 +17,10 @@ import com.ngo.finance.common.enums.ContributionType;
 import com.ngo.finance.financialYear.entity.FinancialYear;
 import com.ngo.finance.financialYear.repository.FinancialYearRepository;
 import com.ngo.finance.outflow.dto.RefDto;
-import com.ngo.finance.outflow.dto.request.CreateCreditNoteRequest;
-import com.ngo.finance.outflow.dto.request.CreateDebitNoteRequest;
 import com.ngo.finance.programme.entity.Programme;
 import com.ngo.finance.programme.repository.ProgrammeRepository;
+import com.ngo.finance.transaction.dto.request.CreateCreditNoteRequest;
+import com.ngo.finance.transaction.dto.request.CreateDebitNoteRequest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -267,5 +267,15 @@ public class OutflowAndNotesIntegrationTest {
 
         // A debit not charged to any fund isn't limited by a fund balance.
         post("/api/v1/debit-notes", debit(q1Row, "50", null)).andExpect(status().isCreated());
+    }
+
+    @Test
+    public void testFundSuggestions_ForARow_UnknownRowIs404() throws Exception {
+        mockMvc.perform(get("/api/v1/debit-notes/fund-suggestions")
+                        .param("outflowLineId", q1Row).param("amount", "100").param("date", "2026-06-10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+        mockMvc.perform(get("/api/v1/debit-notes/fund-suggestions").param("outflowLineId", "BUD-1999-999-BL01-Q1"))
+                .andExpect(status().isNotFound());
     }
 }
