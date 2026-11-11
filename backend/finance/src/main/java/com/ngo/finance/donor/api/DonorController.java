@@ -44,6 +44,12 @@ public class DonorController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @GetMapping("/next-code")
+    @Operation(summary = "Suggest the donor code for the next new donor")
+    public ResponseEntity<java.util.Map<String, String>> nextDonorCode() {
+        return ResponseEntity.ok(java.util.Map.of("donorCode", donorService.nextDonorCode()));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get donor by ID")
     public ResponseEntity<DonorResponse> getDonor(@PathVariable Long id) {

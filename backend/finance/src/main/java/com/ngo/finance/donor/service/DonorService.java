@@ -16,6 +16,9 @@ public interface DonorService {
 
     DonorResponse getDonorByCode(String donorCode);
 
+    /** The code the next new donor should get, e.g. DNR-CD-015. */
+    String nextDonorCode();
+
     List<DonorResponse> getAllDonors();
 
     List<DonorResponse> searchDonors(String searchTerm);

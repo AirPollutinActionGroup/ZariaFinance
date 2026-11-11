@@ -109,6 +109,24 @@ public class DonorServiceImpl implements DonorService {
         return donorMapper.toResponse(savedDonor);
     }
 
+    private static final String DONOR_CODE_PREFIX = "DNR-CD-";
+
+    /** DNR-CD-{nnn}: one more than the highest existing number, starting at 001. */
+    @Override
+    @Transactional(readOnly = true)
+    public String nextDonorCode() {
+        int next = donorRepository.findTopByDonorCodeStartingWithOrderByDonorCodeDesc(DONOR_CODE_PREFIX)
+                .map(d -> d.getDonorCode().substring(DONOR_CODE_PREFIX.length()))
+                .filter(n -> n.matches("\\d+"))
+                .map(n -> Integer.parseInt(n) + 1)
+                .orElse(1);
+        String code = DONOR_CODE_PREFIX + String.format("%03d", next);
+        while (donorRepository.findByDonorCode(code).isPresent()) {
+            code = DONOR_CODE_PREFIX + String.format("%03d", ++next);
+        }
+        return code;
+    }
+
     @Override
     @Transactional(readOnly = true)
     public DonorResponse getDonorById(Long id) {
