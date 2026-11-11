@@ -60,6 +60,14 @@ public class DonorControllerIntegrationTest {
 
     @Test
     @WithMockUser
+    public void testNextDonorCode_ReturnsAFreeCode() throws Exception {
+        mockMvc.perform(get("/api/v1/donors/next-code"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.donorCode").value(org.hamcrest.Matchers.matchesPattern("DNR-CD-\\d{3,}")));
+    }
+
+    @Test
+    @WithMockUser
     public void testGetAllDonors_Success() throws Exception {
         mockMvc.perform(get("/api/v1/donors"))
                 .andExpect(status().isOk())

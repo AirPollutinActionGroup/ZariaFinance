@@ -11,6 +11,9 @@ export const donorApi = {
   /** GET /api/v1/donors/{id} → DonorResponse. */
   getById: (id) => http.get(`/v1/donors/${id}`),
 
+  /** GET /api/v1/donors/next-code → { donorCode }. */
+  nextCode: () => http.get('/v1/donors/next-code'),
+
   /** GET /api/v1/donors[?search=] → DonorResponse[]. */
   list: (search) =>
     http.get('/v1/donors', { params: search ? { search } : undefined }),
