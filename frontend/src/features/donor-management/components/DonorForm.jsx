@@ -55,6 +55,17 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
   const [foreignCountries, setForeignCountries] = useState([]);
   const [donorTypes, setDonorTypes] = useState([]);
 
+  // New donor: fill in the next free donor code (DNR-CD-nnn); the user can still change it.
+  useEffect(() => {
+    if (mode === 'edit') return;
+    donorService
+      .nextDonorCode()
+      .then((code) => {
+        if (code) setValue('donorCode', code, { shouldValidate: true });
+      })
+      .catch((err) => console.error('Error loading next donor code', err));
+  }, [mode, setValue]);
+
   // Donor types are a manageable master (see Master Configuration) — load the
   // active ones for the dropdown instead of a hardcoded list.
   useEffect(() => {
@@ -151,7 +162,7 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                   label="Donor code"
                   required
                   disabled={mode === 'edit'}
-                  helperText={mode === 'edit' ? 'Code cannot change after creation' : ' '}
+                  helperText={mode === 'edit' ? 'Code cannot change after creation' : 'Auto-filled with the next free code'}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 8 }}>

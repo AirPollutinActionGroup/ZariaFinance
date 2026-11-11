@@ -25,14 +25,19 @@ import ApartmentIcon from '@mui/icons-material/Apartment';
 import BadgeIcon from '@mui/icons-material/Badge';
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism';
 import CategoryIcon from '@mui/icons-material/Category';
+import TuneIcon from '@mui/icons-material/Tune';
+import { useSearchParams } from 'react-router-dom';
 import { BudgetCategoryTab } from '../components/BudgetCategoryTab.jsx';
+import { FundSuggestionWeightsTab } from '../components/FundSuggestionWeightsTab.jsx';
 import { ConfirmDialog, DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
 import { useCreateDepartment, useDepartmentLifecycle, useDepartments } from '../hooks/useDepartments.js';
 import { useCreateDesignation, useDesignationLifecycle, useDesignations } from '../hooks/useDesignations.js';
 import { useCreateDonorType, useDonorTypeLifecycle, useDonorTypes } from '../hooks/useDonorTypes.js';
 
 export function MasterPage() {
-  const [activeTab, setActiveTab] = useState(0);
+  // ?tab=fund-suggestion opens that tab directly (linked from the debit note's fund suggestions).
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => (searchParams.get('tab') === 'fund-suggestion' ? 4 : 0));
 
   // Departments State
   const [deptSearch, setDeptSearch] = useState('');
@@ -381,7 +386,7 @@ export function MasterPage() {
     <Box>
       <PageHeader
         title="Master Configuration"
-        subtitle="Manage organisational departments, designations, donor types, budget categories and master registers"
+        subtitle="Manage organisational departments, designations, donor types, budget categories, fund suggestion weights and master registers"
         actions={
           activeTab === 0 ? (
             <Button
@@ -407,7 +412,7 @@ export function MasterPage() {
             >
               Add Donor Type
             </Button>
-          ) : (
+          ) : activeTab === 3 ? (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -415,7 +420,7 @@ export function MasterPage() {
             >
               Add Budget Category
             </Button>
-          )
+          ) : null
         }
       />
 
@@ -437,6 +442,7 @@ export function MasterPage() {
           <Tab icon={<BadgeIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Designation" />
           <Tab icon={<VolunteerActivismIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Donor Type" />
           <Tab icon={<CategoryIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Budget Category" />
+          <Tab icon={<TuneIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Fund Suggestion" />
         </Tabs>
       </Box>
 
@@ -552,6 +558,9 @@ export function MasterPage() {
       {activeTab === 3 && (
         <BudgetCategoryTab createOpen={newBudgetCategoryOpen} onCreateClose={() => setNewBudgetCategoryOpen(false)} />
       )}
+
+      {/* TAB 5: FUND SUGGESTION WEIGHTS */}
+      {activeTab === 4 && <FundSuggestionWeightsTab />}
 
       {/* DIALOG: ADD DEPARTMENT */}
       <Dialog open={newDeptOpen} onClose={() => setNewDeptOpen(false)} maxWidth="xs" fullWidth>

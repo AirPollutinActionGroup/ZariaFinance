@@ -8,7 +8,7 @@ import com.ngo.finance.budget.repository.BudgetRepository;
 import com.ngo.finance.common.exception.ResourceNotFoundException;
 import com.ngo.finance.common.exception.ValidationException;
 import com.ngo.finance.outflow.dto.response.OutflowRowResponse;
-import com.ngo.finance.outflow.repository.DebitNoteRepository;
+import com.ngo.finance.transaction.repository.DebitNoteRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;

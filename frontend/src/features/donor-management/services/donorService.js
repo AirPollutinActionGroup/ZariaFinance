@@ -19,6 +19,11 @@ export const donorService = {
     return fromDonorResponse(await donorApi.getById(id));
   },
 
+  async nextDonorCode() {
+    const { donorCode } = await donorApi.nextCode();
+    return donorCode;
+  },
+
   async createDonor(formValues) {
     return fromDonorResponse(await donorApi.create(toCreateDonorRequest(formValues)));
   },

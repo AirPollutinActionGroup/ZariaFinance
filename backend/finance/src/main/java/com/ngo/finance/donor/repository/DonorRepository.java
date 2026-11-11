@@ -12,6 +12,8 @@ public interface DonorRepository extends JpaRepository<DonorMaster, Long> {
 
     Optional<DonorMaster> findByEmail(String email);
 
+    Optional<DonorMaster> findTopByDonorCodeStartingWithOrderByDonorCodeDesc(String prefix);
+
     @Query("SELECT d FROM DonorMaster d WHERE d.isActive = true ORDER BY d.createdAt DESC")
     java.util.List<DonorMaster> findAllActive();
 

@@ -89,7 +89,8 @@ export const queryKeys = {
     all: () => ['debitNotes'],
     list: () => ['debitNotes', 'list'],
     detail: (code) => ['debitNotes', 'detail', String(code)],
-    suggestions: (params) => ['debitNotes', 'suggestions', params],
+    fundSuggestions: (params) => ['debitNotes', 'fundSuggestions', params || {}],
+    fundSuggestionWeights: () => ['debitNotes', 'fundSuggestionWeights'],
   },
   creditNotes: {
     all: () => ['creditNotes'],
