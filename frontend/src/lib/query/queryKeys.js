@@ -22,6 +22,7 @@ export const queryKeys = {
   },
   fundProfiles: {
     all: () => ['fundProfiles'],
+    list: () => ['fundProfiles', 'list'],
     byDonor: (donorId) => ['fundProfiles', 'byDonor', String(donorId)],
     detail: (id) => ['fundProfiles', 'detail', String(id)],
   },

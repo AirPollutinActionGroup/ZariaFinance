@@ -95,6 +95,7 @@ public class GrantControllerIntegrationTest {
                 .build());
 
         DonorFundProfile profile = DonorFundProfile.builder()
+                .profileCode("FP-TEST-" + suffix)
                 .donor(donor)
                 .programme(programme)
                 .fundMode(FundMode.RESTRICTED)

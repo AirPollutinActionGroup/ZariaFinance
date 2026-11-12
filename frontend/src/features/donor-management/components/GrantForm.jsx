@@ -72,7 +72,7 @@ export function GrantForm({
     const assignedElsewhere = p.assignedGrantCode && String(p.id) !== String(fundProfileId);
     return {
       value: String(p.id),
-      label: `${p.fundClassCode ? `Class ${p.fundClassCode}` : 'Unclassed'} · ${p.fundModeLabel} · ${
+      label: `${p.profileCode ? `${p.profileCode} · ` : ''}${p.fundClassCode ? `Class ${p.fundClassCode}` : 'Unclassed'} · ${p.fundModeLabel} · ${
         p.programmeName || 'Untied'
       }${p.purpose ? ` — ${p.purpose}` : ''}${assignedElsewhere ? ` (used by ${p.assignedGrantCode})` : ''}`,
       disabled: assignedElsewhere,

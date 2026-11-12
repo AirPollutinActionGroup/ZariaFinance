@@ -5,11 +5,14 @@ import com.ngo.finance.donor.dto.response.FundProfileResponse;
 import java.util.List;
 
 /**
- * Service for Donor Fund Profile operations (create / list-by-donor / get / update).
+ * Service for Donor Fund Profile operations (create / list / list-by-donor / get / update).
  */
 public interface FundProfileService {
 
     FundProfileResponse createProfile(Long donorId, CreateFundProfileRequest request);
+
+    /** Every fund profile across all donors, newest first. */
+    List<FundProfileResponse> getAllProfiles();
 
     List<FundProfileResponse> getProfilesByDonor(Long donorId);
 

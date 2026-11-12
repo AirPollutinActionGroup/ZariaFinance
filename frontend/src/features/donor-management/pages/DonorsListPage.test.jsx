@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../../../core/auth/AuthContext.jsx';
@@ -48,7 +48,8 @@ describe('DonorsListPage', () => {
     renderPage({ name: 'T', role: ROLES.FINANCE_OFFICER, status: USER_STATUS.APPROVED });
 
     expect(await screen.findByText('Tata Foundation')).toBeInTheDocument();
-    expect(screen.getByText('Domestic')).toBeInTheDocument();
+    // The fund source chip in the table row ("Domestic" also labels a count in the summary strip).
+    expect(within(screen.getByRole('table')).getByText('Domestic')).toBeInTheDocument();
     // Finance officer holds EDIT → the create action is visible.
     expect(screen.getByRole('button', { name: /new donor/i })).toBeInTheDocument();
   });

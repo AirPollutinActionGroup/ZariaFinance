@@ -12,6 +12,9 @@ import { GrantCreatePage } from './pages/GrantCreatePage.jsx';
 import { GrantDetailPage } from './pages/GrantDetailPage.jsx';
 import { GrantEditPage } from './pages/GrantEditPage.jsx';
 import { FundProfileFormPage } from './pages/FundProfileFormPage.jsx';
+import { FundProfilesListPage } from './pages/FundProfilesListPage.jsx';
+import { FundProfileDetailPage } from './pages/FundProfileDetailPage.jsx';
+import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
 import { ReportsPage } from './pages/ReportsPage.jsx';
 import { ProgrammesListPage } from './pages/ProgrammesListPage.jsx';
 import { ProgrammeCreatePage } from './pages/ProgrammeCreatePage.jsx';
@@ -79,6 +82,7 @@ export const donorManagementModule = {
   navSection: 'CORE LAYERS',
   navItems: [
     { label: 'Donors Registry', path: '/donors', icon: VolunteerActivismOutlinedIcon, section: 'DONOR & GRANTS' },
+    { label: 'Fund Profiles', path: '/fund-profiles', icon: RuleOutlinedIcon, section: 'DONOR & GRANTS' },
     { label: 'Grants Agreements', path: '/grants', icon: HandshakeOutlinedIcon, section: 'DONOR & GRANTS' },
     //{ label: 'Donations', path: '/donations', icon: VolunteerActivismOutlinedIcon, section: 'DONOR & GRANTS' },
     { label: 'Programmes', path: '/programmes', icon: CategoryOutlinedIcon, section: 'DONOR & GRANTS' },
@@ -106,6 +110,8 @@ export const donorManagementModule = {
     { path: '/donors/:id', element: <DonorDetailPage /> },
     { path: '/donors/:id/edit', element: <DonorEditPage /> },
     { path: '/donors/:donorId/fund-profiles/new', element: <FundProfileFormPage /> },
+    { path: '/fund-profiles', element: <FundProfilesListPage /> },
+    { path: '/fund-profiles/:id', element: <FundProfileDetailPage /> },
     { path: '/fund-profiles/:id/edit', element: <FundProfileFormPage /> },
     { path: '/grants', element: <GrantsListPage /> },
     { path: '/grants/new', element: <GrantCreatePage /> },
