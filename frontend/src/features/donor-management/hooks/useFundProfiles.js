@@ -2,6 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../../lib/query/queryKeys.js';
 import { fundProfileService } from '../services/fundProfileService.js';
 
+export function useAllFundProfiles() {
+  return useQuery({
+    queryKey: queryKeys.fundProfiles.list(),
+    queryFn: () => fundProfileService.listAll(),
+  });
+}
+
 export function useFundProfilesByDonor(donorId) {
   return useQuery({
     queryKey: queryKeys.fundProfiles.byDonor(donorId),
@@ -22,8 +29,7 @@ export function useCreateFundProfile(donorId) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (formValues) => fundProfileService.createProfile(donorId, formValues),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.fundProfiles.byDonor(donorId) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.fundProfiles.all() }),
   });
 }
 

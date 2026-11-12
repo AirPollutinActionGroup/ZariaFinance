@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   Card,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -28,6 +29,8 @@ function compareValues(a, b) {
  * columns: [{ key, header, align?, width?, render?(row), sortValue?(row) }]
  * A column with `sortValue` gets a clickable, sortable header; `defaultSort`
  * ({ key, direction: 'asc' | 'desc' }) sets the initial order.
+ * `actions` sits beside the title (e.g. an Add button); `dense` uses smaller
+ * rows and a smaller title for tables embedded in a detail page.
  * Handles the four canonical states (loading / error / empty / data) so
  * every list page behaves identically.
  */
@@ -41,6 +44,8 @@ export function DataTable({
   emptyTitle = 'Nothing here yet',
   emptyDescription = '',
   title = null,
+  actions = null,
+  dense = false,
   onRowClick,
   defaultSort = null,
   footer = null,
@@ -62,16 +67,31 @@ export function DataTable({
 
   return (
     <Card>
-      {title ? (
-        <Typography variant="h4" component="h2" sx={{ px: 2.5, pt: 2.5, pb: 1.5 }}>
-          {title}
-        </Typography>
+      {title || actions ? (
+        <Stack
+          direction="row"
+          sx={{
+            px: 2.5,
+            pt: dense ? 1.75 : 2.5,
+            pb: dense ? 1.25 : 1.5,
+            gap: 2,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          {title ? (
+            <Typography variant={dense ? 'h6' : 'h4'} component="h2">
+              {title}
+            </Typography>
+          ) : <span />}
+          {actions}
+        </Stack>
       ) : null}
       {rows.length === 0 ? (
-        <EmptyState title={emptyTitle} description={emptyDescription} />
+        <EmptyState title={emptyTitle} description={emptyDescription} compact={dense} />
       ) : (
         <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size="medium">
+          <Table size={dense ? 'small' : 'medium'}>
             <TableHead>
               <TableRow>
                 {columns.map((col) => (

@@ -42,6 +42,10 @@ import lombok.ToString;
 @ToString(exclude = { "donor", "programme", "geographies", "utilisationRules", "disbursementRules" })
 public class DonorFundProfile extends AuditEntity {
 
+    /** System-generated FP-{year}-{nnn}; assigned once on create and never changed. */
+    @Column(name = "profile_code", length = 30, nullable = false, unique = true, updatable = false)
+    private String profileCode;
+
     @ManyToOne
     @JoinColumn(name = "donor_id", nullable = false, foreignKey = @ForeignKey(name = "fk_profile_donor"))
     private DonorMaster donor;

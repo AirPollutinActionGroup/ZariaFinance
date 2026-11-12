@@ -36,6 +36,13 @@ export function toOptions(enumMap) {
   return Object.entries(enumMap).map(([value, label]) => ({ value, label }));
 }
 
+/** DonorFundProfile.fundClass enum name -> the short A/B/C restriction code. */
+export const FUND_CLASS_SHORT = Object.freeze({
+  CLASS_A_RESTRICTED: 'A',
+  CLASS_B_UNRESTRICTED: 'B',
+  CLASS_C_UNRESTRICTED: 'C',
+});
+
 /** Tone for the fund-profile restriction class A/B/C. */
 export const FUND_CLASS_CODE_TONE = Object.freeze({
   A: 'error',

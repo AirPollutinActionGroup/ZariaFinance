@@ -268,7 +268,8 @@ export function FundProfileFormPage() {
       .map((p) => ({ value: String(p.id), label: p.programmeName })),
   ];
 
-  const backTo = donorId ? `/donors/${donorId}` : '/donors';
+  // Edits return to the profile's own page; a new profile returns to its donor.
+  const backTo = isEdit ? `/fund-profiles/${id}` : donorId ? `/donors/${donorId}` : '/fund-profiles';
 
   const DISBURSEMENT_ERROR_FIELDS = ['totalAmount', 'disbursementType', 'receivingDate', 'frequency', 'tranches'];
 
@@ -297,6 +298,7 @@ export function FundProfileFormPage() {
   return (
     <>
       <PageHeader
+        eyebrow={isEdit ? profileQuery.data?.profileCode : 'Code assigned automatically on save'}
         title={isEdit ? 'Edit fund profile' : 'New fund profile'}
         subtitle="How this donor's money may be used — mode, class, movement and reporting rules"
       />

@@ -23,7 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
  * REST Controller for Donor Fund Profile operations.
  *
  * Profiles are created and listed under a donor
- * ({@code /donors/{donorId}/fund-profiles}); a single profile is addressed
+ * ({@code /donors/{donorId}/fund-profiles}); the full register across all
+ * donors is {@code /fund-profiles}, and a single profile is addressed
  * directly ({@code /fund-profiles/{id}}).
  */
 @Slf4j
@@ -54,6 +55,13 @@ public class FundProfileController {
     public ResponseEntity<List<FundProfileResponse>> getProfilesByDonor(@PathVariable Long donorId) {
         log.info("GET /api/v1/donors/{}/fund-profiles - Listing fund profiles", donorId);
         return ResponseEntity.ok(fundProfileService.getProfilesByDonor(donorId));
+    }
+
+    @GetMapping("/fund-profiles")
+    @Operation(summary = "List all fund profiles across donors")
+    public ResponseEntity<List<FundProfileResponse>> getAllProfiles() {
+        log.info("GET /api/v1/fund-profiles - Listing all fund profiles");
+        return ResponseEntity.ok(fundProfileService.getAllProfiles());
     }
 
     @GetMapping("/fund-profiles/{id}")

@@ -54,7 +54,8 @@ export function TrancheCard({
   const received = Boolean(tranche?.received);
 
   const tag = `T${index + 1}`;
-  const title = lumpSum ? 'Lump sum release' : (tranche?.trancheName || 'New tranche');
+  // trancheName is a form-only label (never persisted), so a saved tranche falls back to its position.
+  const title = lumpSum ? 'Lump sum release' : (tranche?.trancheName || `Tranche ${index + 1}`);
 
   // COLLAPSED SUMMARY CARD
   if (!expanded) {
@@ -256,7 +257,10 @@ export function TrancheCard({
         <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: 14 }}>
           {title}
         </Typography>
-        <Box sx={{ ml: 'auto' }}>
+        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 14 }}>
+            {formatInrExact(Number(tranche?.amount) || 0)}
+          </Typography>
           {!lumpSum && !received ? (
             <Button
               size="small"

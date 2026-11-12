@@ -13,8 +13,10 @@ import com.ngo.finance.donor.repository.GrantRepository;
 import com.ngo.finance.donor.service.FundProfileService;
 import com.ngo.finance.programme.entity.Programme;
 import com.ngo.finance.programme.repository.ProgrammeRepository;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class FundProfileServiceImpl implements FundProfileService {
+
+    private static final String PROFILE_CODE_PREFIX = "FP-";
 
     @Autowired
     private DonorFundProfileRepository profileRepository;
@@ -52,6 +56,7 @@ public class FundProfileServiceImpl implements FundProfileService {
 
         DonorFundProfile profile = mapper.toEntity(request);
         profile.setDonor(donor);
+        profile.setProfileCode(nextProfileCode(LocalDate.now().getYear()));
         applyProgramme(request, profile);
 
         DonorFundProfile saved = profileRepository.save(profile);
@@ -66,26 +71,43 @@ public class FundProfileServiceImpl implements FundProfileService {
         if (!donorRepository.existsById(donorId)) {
             throw new ResourceNotFoundException("Donor", donorId);
         }
-        // toMap with a merge function: a fund profile is meant to back at most one
-        // grant, but pre-existing data may still have more than one attached to it
-        // (predates that constraint) — keep the first rather than crash on lookup.
-        Map<Long, String> grantCodeByProfileId = grantRepository.findByDonorId(donorId).stream()
-                .filter(grant -> grant.getFundProfile() != null)
-                .collect(java.util.stream.Collectors.toMap(
-                        grant -> grant.getFundProfile().getId(), GrantAgreement::getGrantCode,
-                        (first, second) -> first));
+        return toResponsesWithGrantCodes(
+                profileRepository.findByDonorId(donorId), grantRepository.findByDonorId(donorId));
+    }
 
-        return profileRepository.findByDonorId(donorId).stream()
-                .map(mapper::toResponse)
-                .peek(response -> response.setAssignedGrantCode(grantCodeByProfileId.get(response.getId())))
-                .toList();
+    @Override
+    @Transactional(readOnly = true)
+    public List<FundProfileResponse> getAllProfiles() {
+        log.debug("Fetching all fund profiles");
+        return toResponsesWithGrantCodes(profileRepository.findAllNewestFirst(), grantRepository.findAll());
     }
 
     @Override
     @Transactional(readOnly = true)
     public FundProfileResponse getProfileById(Long id) {
         log.debug("Fetching fund profile with id: {}", id);
-        return mapper.toResponse(findOrThrow(id));
+        FundProfileResponse response = mapper.toResponse(findOrThrow(id));
+        grantRepository.findByFundProfileId(id).stream().findFirst()
+                .ifPresent(grant -> response.setAssignedGrantCode(grant.getGrantCode()));
+        return response;
+    }
+
+    /** Maps profiles to responses, stamping each with the code of the grant it backs (if any). */
+    private List<FundProfileResponse> toResponsesWithGrantCodes(
+            List<DonorFundProfile> profiles, List<GrantAgreement> grants) {
+        // toMap with a merge function: a fund profile is meant to back at most one
+        // grant, but pre-existing data may still have more than one attached to it
+        // (predates that constraint) — keep the first rather than crash on lookup.
+        Map<Long, String> grantCodeByProfileId = grants.stream()
+                .filter(grant -> grant.getFundProfile() != null)
+                .collect(Collectors.toMap(
+                        grant -> grant.getFundProfile().getId(), GrantAgreement::getGrantCode,
+                        (first, second) -> first));
+
+        return profiles.stream()
+                .map(mapper::toResponse)
+                .peek(response -> response.setAssignedGrantCode(grantCodeByProfileId.get(response.getId())))
+                .toList();
     }
 
     @Override
@@ -97,6 +119,21 @@ public class FundProfileServiceImpl implements FundProfileService {
         DonorFundProfile saved = profileRepository.save(profile);
         log.info("Fund profile updated: {}", saved.getId());
         return mapper.toResponse(saved);
+    }
+
+    /**
+     * FP-{year}-{nnn}: one more than the highest number used this year. Parsed
+     * numerically (not string-sorted) so FP-2026-1000 still follows FP-2026-999.
+     */
+    String nextProfileCode(int year) {
+        String prefix = PROFILE_CODE_PREFIX + year + "-";
+        int next = profileRepository.findProfileCodesByPrefix(prefix).stream()
+                .map(code -> code.substring(prefix.length()))
+                .filter(suffix -> suffix.matches("\\d+"))
+                .mapToInt(Integer::parseInt)
+                .max()
+                .orElse(0) + 1;
+        return prefix + String.format("%03d", next);
     }
 
     private DonorFundProfile findOrThrow(Long id) {
