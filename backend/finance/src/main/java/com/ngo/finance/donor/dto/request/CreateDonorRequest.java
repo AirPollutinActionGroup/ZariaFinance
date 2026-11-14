@@ -2,7 +2,6 @@ package com.ngo.finance.donor.dto.request;
 
 import com.ngo.finance.common.enums.ContributionType;
 import com.ngo.finance.common.enums.FundSourceDomicile;
-import com.ngo.finance.donor.enums.IdentityDocumentType;
 import com.ngo.finance.donor.validator.annotation.UniqueDonorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.EnumType;
@@ -51,8 +50,8 @@ public class CreateDonorRequest {
 
     private String passportId;
 
-    @Enumerated(EnumType.STRING)
-    private IdentityDocumentType documentType;
+    /** Code of an active Document Type master row (e.g. PAN_CARD). */
+    private String documentType;
 
     private String documentNumber;
 

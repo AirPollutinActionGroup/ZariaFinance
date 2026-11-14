@@ -3,7 +3,6 @@ package com.ngo.finance.donor.entity;
 import com.ngo.finance.common.entity.AuditEntity;
 import com.ngo.finance.common.enums.ContributionType;
 import com.ngo.finance.common.enums.FundSourceDomicile;
-import com.ngo.finance.donor.enums.IdentityDocumentType;
 import com.ngo.finance.masters.donortype.entity.DonorTypeMaster;
 
 import jakarta.persistence.Column;
@@ -61,9 +60,9 @@ public class DonorMaster extends AuditEntity {
     @Column(name = "passport_id", length = 20)
     private String passportId;
 
+    /** Code of a Document Type master row (e.g. PAN_CARD); null when no document is held. */
     @Column(name = "document_type", length = 50)
-    @Enumerated(EnumType.STRING)
-    private IdentityDocumentType documentType;
+    private String documentType;
 
     @Column(name = "document_number", length = 50)
     private String documentNumber;

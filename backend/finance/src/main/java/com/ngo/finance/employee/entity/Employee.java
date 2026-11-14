@@ -83,4 +83,27 @@ public class Employee extends AuditEntity {
 
     @Column(columnDefinition = "TEXT")
     private String remark;
+
+    // PAN and the salary bank account — all optional.
+
+    @Column(name = "pan_number", length = 10)
+    private String panNumber;
+
+    @Column(name = "account_holder_name", length = 255)
+    private String accountHolderName;
+
+    @Column(name = "bank_name", length = 255)
+    private String bankName;
+
+    @Column(name = "account_type", length = 20)
+    private String accountType;
+
+    @Column(name = "account_number", length = 18)
+    private String accountNumber;
+
+    @Column(name = "ifsc_code", length = 11)
+    private String ifscCode;
+
+    @Column(name = "branch_name", length = 255)
+    private String branchName;
 }

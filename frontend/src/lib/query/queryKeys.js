@@ -77,6 +77,10 @@ export const queryKeys = {
     all: () => ['donorTypes'],
     list: (search) => ['donorTypes', 'list', { search: search || '' }],
   },
+  documentTypes: {
+    all: () => ['documentTypes'],
+    list: (search, activeOnly) => ['documentTypes', 'list', { search: search || '', activeOnly: Boolean(activeOnly) }],
+  },
   budgetCategories: {
     all: () => ['budgetCategories'],
     list: (search) => ['budgetCategories', 'list', { search: search || '' }],
@@ -128,6 +132,8 @@ export const queryKeys = {
   },
   employeeAllocations: {
     all: () => ['employeeAllocations'],
+    list: () => ['employeeAllocations', 'list'],
+    history: (employeeId) => ['employeeAllocations', 'history', String(employeeId)],
   },
   inflowBudgetLines: {
     all: () => ['inflowBudgetLines'],

@@ -222,7 +222,7 @@ public class ProgrammeServiceImpl implements ProgrammeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Programme", id));
         programme.setIsActive(false);
         if (ProgrammeStatuses.ACTIVE.equals(programme.getStatus())) {
-            programme.setStatus(ProgrammeStatuses.CLOSE);
+            programme.setStatus(ProgrammeStatuses.TERMINATE);
         }
     }
 

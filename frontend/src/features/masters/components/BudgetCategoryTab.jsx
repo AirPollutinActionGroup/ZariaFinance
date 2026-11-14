@@ -3,18 +3,25 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   MenuItem,
-  Select,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import { ConfirmDialog, DataTable, SearchField } from '../../../shared/components/index.js';
+import AddIcon from '@mui/icons-material/Add';
+import { ConfirmDialog, DataTable } from '../../../shared/components/index.js';
+import {
+  MasterToolbar,
+  NameCell,
+  actionsColumn,
+  applyStatusFilter,
+  statusColumn,
+  toggleDialogText,
+} from './MasterListParts.jsx';
 import {
   useBudgetCategories,
   useBudgetCategoryLifecycle,
@@ -28,10 +35,10 @@ const EMPTY_FORM = { name: '', description: '', status: 'ACTIVE' };
 /**
  * Master Configuration → Budget Category (server-backed, /api/v1/budget-categories).
  * Same layout as the Department / Designation / Donor Type tabs.
- * `createOpen` / `onCreateClose` are driven by the page header's
+ * `createOpen` / `onCreateClose` are driven by the toolbar's
  * "Add Budget Category" button.
  */
-export function BudgetCategoryTab({ createOpen, onCreateClose }) {
+export function BudgetCategoryTab({ createOpen, onCreateClose, onCreate }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [editing, setEditing] = useState(null); // category being edited
@@ -53,8 +60,7 @@ export function BudgetCategoryTab({ createOpen, onCreateClose }) {
 
   const rows = useMemo(() => {
     const list = categoriesQuery.data || [];
-    const filtered = statusFilter === 'All' ? list : list.filter((c) => c.status === statusFilter);
-    return filtered.map((c, index) => ({ ...c, srNo: index + 1 }));
+    return applyStatusFilter(list, statusFilter);
   }, [categoriesQuery.data, statusFilter]);
 
   const openEdit = (category) => {
@@ -93,95 +99,51 @@ export function BudgetCategoryTab({ createOpen, onCreateClose }) {
 
   const columns = [
     {
-      key: 'srNo',
-      header: 'S.NO',
-      width: '8%',
-      align: 'center',
-      render: (r) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.srNo}</Typography>,
-    },
-    {
       key: 'name',
-      header: 'CATEGORY NAME',
-      width: '22%',
-      align: 'center',
-      render: (r) => (
-        <Typography variant="body2" sx={{ fontWeight: 700 }}>{r.name}</Typography>
-      ),
-    },
-    {
-      key: 'description',
-      header: 'DESCRIPTION',
-      width: '30%',
-      align: 'center',
-      render: (r) => <Typography variant="body2" color="text.secondary">{r.description || '—'}</Typography>,
+      header: 'Category',
+      sortValue: (r) => r.name,
+      render: (r) => <NameCell name={r.name} sub={r.description} />,
     },
     {
       key: 'usage',
-      header: 'USED IN',
-      width: '12%',
-      align: 'center',
+      header: 'Used in',
+      sortValue: (r) => usage[r.id] || 0,
       render: (r) => (
-        <Typography variant="body2">
-          {usage[r.id] ? `${usage[r.id]} budget ${usage[r.id] === 1 ? 'line' : 'lines'}` : '—'}
+        <Typography variant="body2" color={usage[r.id] ? 'text.primary' : 'text.secondary'} sx={{ whiteSpace: 'nowrap' }}>
+          {usage[r.id] ? `${usage[r.id]} budget ${usage[r.id] === 1 ? 'line' : 'lines'}` : 'Not used yet'}
         </Typography>
       ),
     },
-    {
-      key: 'status',
-      header: 'STATUS',
-      width: '12%',
-      align: 'center',
-      render: (r) => (
-        <Chip
-          label={r.statusLabel}
-          color={r.status === 'ACTIVE' ? 'success' : 'error'}
-          size="small"
-          variant="outlined"
-          sx={{ fontWeight: 600, minWidth: 80 }}
-        />
-      ),
-    },
-    {
-      key: 'action',
-      header: 'ACTION',
-      width: '16%',
-      align: 'center',
-      render: (r) => (
-        <Stack direction="row" spacing={1} justifyContent="center">
-          <Button size="small" variant="outlined" onClick={() => openEdit(r)} sx={{ textTransform: 'none', fontWeight: 600 }}>
-            Edit
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color={r.status === 'ACTIVE' ? 'warning' : 'success'}
-            onClick={() => setToToggle(r)}
-            sx={{ textTransform: 'none', fontWeight: 600 }}
-          >
-            Change Status
-          </Button>
-        </Stack>
-      ),
-    },
+    statusColumn,
+    actionsColumn({ onEdit: openEdit, onToggle: setToToggle }),
   ];
+
+  const toggleText = toggleDialogText(
+    toToggle,
+    'budget category',
+    toToggle && usage[toToggle.id]
+      ? `It is used on ${usage[toToggle.id]} budget ${usage[toToggle.id] === 1 ? 'line' : 'lines'}; those keep it, but new lines can't pick it.`
+      : '',
+  );
 
   return (
     <Box>
-      <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Box sx={{ maxWidth: 380, flex: 1, minWidth: 240 }}>
-          <SearchField value={search} onChange={setSearch} placeholder="Search category name…" />
-        </Box>
-        <Select size="small" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 140, borderRadius: 2 }}>
-          <MenuItem value="All">All Statuses</MenuItem>
-          <MenuItem value="ACTIVE">Active</MenuItem>
-          <MenuItem value="INACTIVE">Inactive</MenuItem>
-        </Select>
-      </Stack>
+      <MasterToolbar
+        search={search}
+        onSearch={setSearch}
+        placeholder="Search categories…"
+        status={statusFilter}
+        onStatus={setStatusFilter}
+        rows={categoriesQuery.data || []}
+        action={<Button variant="contained" startIcon={<AddIcon />} onClick={onCreate}>New budget category</Button>}
+      />
 
       <DataTable
+        dense
         columns={columns}
         rows={rows}
         getRowKey={(r) => r.id}
+        defaultSort={{ key: 'name', direction: 'asc' }}
         isLoading={categoriesQuery.isPending}
         error={categoriesQuery.isError ? categoriesQuery.error : null}
         onRetry={categoriesQuery.refetch}
@@ -191,7 +153,7 @@ export function BudgetCategoryTab({ createOpen, onCreateClose }) {
 
       <Dialog open={dialogOpen} onClose={saving ? undefined : closeDialog} maxWidth="xs" fullWidth>
         <form onSubmit={handleSave}>
-          <DialogTitle sx={{ fontWeight: 700 }}>{editing ? 'Edit Budget Category' : 'Add New Budget Category'}</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>{editing ? 'Edit budget category' : 'New budget category'}</DialogTitle>
           <DialogContent>
             <Stack spacing={2.5} sx={{ pt: 1 }}>
               <TextField
@@ -246,19 +208,9 @@ export function BudgetCategoryTab({ createOpen, onCreateClose }) {
 
       <ConfirmDialog
         open={Boolean(toToggle)}
-        title="Change Budget Category Status"
-        description={
-          toToggle
-            ? `Are you sure you want to change the status of "${toToggle.name}" from ${toToggle.statusLabel.toLowerCase()} to ${
-                toToggle.status === 'ACTIVE' ? 'inactive' : 'active'
-              }?${
-                toToggle.status === 'ACTIVE' && usage[toToggle.id]
-                  ? ` It is used on ${usage[toToggle.id]} budget ${usage[toToggle.id] === 1 ? 'line' : 'lines'}; those keep it, but new lines can't pick it.`
-                  : ''
-              }`
-            : ''
-        }
-        confirmLabel="Confirm"
+        title={toggleText.title}
+        description={toggleText.description}
+        confirmLabel={toggleText.confirmLabel}
         confirmColor={toToggle?.status === 'ACTIVE' ? 'warning' : 'primary'}
         busy={lifecycle.isPending}
         onConfirm={handleConfirmToggle}

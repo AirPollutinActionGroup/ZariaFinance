@@ -5,43 +5,50 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { RhfSelect, RhfTextField } from '../../../shared/components/index.js';
 import { applyServerErrors } from '../../../lib/forms/applyServerErrors.js';
 import { donorSchema, donorFormDefaults } from '../validation/donorSchema.js';
-import { FUND_SOURCE_DOMICILE, INDIVIDUAL_ID_TYPE, toOptions } from '../constants.js';
+import { FUND_SOURCE_DOMICILE, toOptions } from '../constants.js';
+import { documentTypeAppliesTo, documentTypeService } from '../../masters/services/documentTypeService.js';
 import { donorService } from '../services/donorService.js';
 import { useState, useEffect } from 'react';
 import { geographyService } from '../services/geographyService.js';
 import { donorTypeService } from '../services/donorTypeService.js';
 
-function getIdNumberLabel(idType) {
-  switch (idType) {
-    case 'PAN': return 'PAN Card Number';
-    case 'AADHAR': return 'Aadhaar Number';
-    case 'VOTER_ID': return 'Voter ID Number';
-    case 'DRIVING_LICENSE': return 'Driving License Number';
-    case 'PASSPORT': return 'Passport ID';
-    case 'FOREIGN_TAX_ID': return 'Foreign Tax Identifier';
-    default: return 'ID number';
-  }
+/*
+ * ID types come from the Document Type master (codes such as PAN_CARD). The
+ * six built-in codes keep their tailored label / hint / length; any type added
+ * in Master Configuration gets a generic "<name> number" field.
+ */
+const ID_FIELD = {
+  PAN_CARD: { label: 'PAN Card Number', placeholder: 'e.g. ABCDE1234F (10 chars)', maxLength: 10, upper: true },
+  AADHAAR_CARD: { label: 'Aadhaar Number', placeholder: '12-digit Aadhaar number', maxLength: 12, digits: true },
+  VOTER_ID: { label: 'Voter ID Number', placeholder: 'e.g. ABC1234567', upper: true },
+  DRIVING_LICENSE: { label: 'Driving License Number', placeholder: 'e.g. DL-1420110012345', upper: true },
+  PASSPORT_ID: { label: 'Passport ID', placeholder: 'e.g. A12345678 (9 chars)', maxLength: 9, upper: true },
+  FOREIGN_TAX_ID: { label: 'Foreign Tax Identifier', placeholder: 'e.g. SSN / Tax ID', maxLength: 15 },
+};
+
+function idField(idType, typeName) {
+  if (ID_FIELD[idType]) return ID_FIELD[idType];
+  // "GST Number" stays "GST Number"; "CIN Certificate" becomes "CIN Certificate number".
+  const label = !typeName
+    ? 'ID number'
+    : /\b(number|no\.?|id)$/i.test(typeName.trim())
+      ? typeName.trim()
+      : `${typeName.trim()} number`;
+  return { label, placeholder: label, upper: true };
 }
 
-function getIdNumberPlaceholder(idType) {
-  switch (idType) {
-    case 'PAN': return 'e.g. ABCDE1234F (10 chars)';
-    case 'AADHAR': return '12-digit Aadhaar number';
-    case 'VOTER_ID': return 'e.g. ABC1234567';
-    case 'DRIVING_LICENSE': return 'e.g. DL-1420110012345';
-    case 'PASSPORT': return 'e.g. A12345678 (9 chars)';
-    case 'FOREIGN_TAX_ID': return 'e.g. SSN / Tax ID';
-    default: return 'ID number';
-  }
+function idSlotProps(field) {
+  return {
+    htmlInput: {
+      ...(field.maxLength ? { maxLength: field.maxLength } : {}),
+      ...(field.upper ? { style: { textTransform: 'uppercase' } } : {}),
+    },
+  };
 }
 
-function getIdNumberSlotProps(idType) {
-  if (idType === 'PAN') return { htmlInput: { maxLength: 10, style: { textTransform: 'uppercase' } } };
-  if (idType === 'AADHAR') return { htmlInput: { maxLength: 12 } };
-  if (idType === 'PASSPORT') return { htmlInput: { maxLength: 9, style: { textTransform: 'uppercase' } } };
-  if (idType === 'FOREIGN_TAX_ID') return { htmlInput: { maxLength: 15 } };
-  return { htmlInput: { style: { textTransform: 'uppercase' } } };
-}
+/** Aadhaar keeps digits only; other numbers keep letters and digits, upper-cased. */
+const formatIdNumber = (field, value) =>
+  field.digits ? value.replace(/\D/g, '') : value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 
 export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitError, onCancel }) {
   const { control, handleSubmit, setError, watch, setValue } = useForm({
@@ -74,6 +81,51 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
       .then(setDonorTypes)
       .catch((err) => console.error('Error loading donor types', err));
   }, []);
+
+  // ID types are the Document Type master (Master Configuration → Document Type):
+  // active ones are offered; an edited donor also keeps the type it already has.
+  const [documentTypes, setDocumentTypes] = useState([]);
+  useEffect(() => {
+    documentTypeService
+      .listActiveDocumentTypes()
+      .then(setDocumentTypes)
+      .catch((err) => console.error('Error loading document types', err));
+  }, []);
+  const savedIdType = defaultValues?.idType || '';
+  // An edited donor may keep its saved type as long as its domicile is unchanged.
+  const keepsSavedType = (code) =>
+    code === savedIdType && fundSourceDomicile === defaultValues?.fundSourceDomicile;
+  const idTypeOptions = (excludePassport) => {
+    // Only types meant for this donor's fund source domicile (Master → Document Type).
+    const list = documentTypes.filter(
+      (t) => (!excludePassport || t.code !== 'PASSPORT_ID') && documentTypeAppliesTo(t, fundSourceDomicile),
+    );
+    const options = list.map((t) => ({ value: t.code, label: t.name }));
+    if (savedIdType && keepsSavedType(savedIdType) && !options.some((o) => o.value === savedIdType)) {
+      options.push({ value: savedIdType, label: `${savedIdType} (inactive)` });
+    }
+    return [{ value: '', label: 'Select your preference' }, ...options];
+  };
+  // Switching domicile (e.g. Domestic → Foreign) clears an ID type that no longer fits.
+  useEffect(() => {
+    if (!idType || keepsSavedType(idType)) return;
+    const type = documentTypes.find((t) => t.code === idType);
+    if (type && !documentTypeAppliesTo(type, fundSourceDomicile)) {
+      setValue('idType', '');
+      setValue('idNumber', '');
+    }
+    // keepsSavedType only reads idType/fundSourceDomicile/defaultValues, covered below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fundSourceDomicile, documentTypes, idType, setValue]);
+
+  const idTypeName = documentTypes.find((t) => t.code === idType)?.name;
+  const currentIdField = idField(idType, idTypeName);
+  const onIdNumberChange = (e) => {
+    const formatted = formatIdNumber(currentIdField, e.target.value);
+    setValue('idNumber', formatted, { shouldValidate: true });
+    if (idType === 'PAN_CARD') setValue('panCardNumber', formatted);
+    if (idType === 'PASSPORT_ID') setValue('passportNumber', formatted);
+  };
 
   const selectedDonorType = donorTypes.find((dt) => String(dt.id) === String(donorTypeId));
   const donorTypeOptions = donorTypes.map((dt) => ({ value: dt.id, label: dt.name }));
@@ -219,30 +271,19 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                       control={control}
                       label="ID type"
                       required
-                      options={[
-                        { value: '', label: 'Select your preference' },
-                        ...toOptions(INDIVIDUAL_ID_TYPE),
-                      ]}
+                      options={idTypeOptions(false)}
+                      helperText="Manage the list in Master → Document Type"
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <RhfTextField
                       name="idNumber"
                       control={control}
-                      label={getIdNumberLabel(idType) || 'ID number'}
+                      label={currentIdField.label}
                       required
-                      placeholder={getIdNumberPlaceholder(idType)}
-                      slotProps={getIdNumberSlotProps(idType)}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const formatted = idType === 'AADHAR'
-                          ? val.replace(/\D/g, '')
-                          : val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                        setValue('idNumber', formatted, { shouldValidate: true });
-                        if (idType === 'PASSPORT') {
-                          setValue('passportNumber', formatted);
-                        }
-                      }}
+                      placeholder={currentIdField.placeholder}
+                      slotProps={idSlotProps(currentIdField)}
+                      onChange={onIdNumberChange}
                     />
                   </Grid>
                 </>
@@ -299,36 +340,17 @@ export function DonorForm({ mode, defaultValues, onSubmit, submitting, submitErr
                     name="idType"
                     control={control}
                     label="ID type"
-                    options={[
-                      { value: '', label: 'Select your preference' },
-                      ...toOptions(
-                        Object.fromEntries(
-                          Object.entries(INDIVIDUAL_ID_TYPE).filter(([key]) => key !== 'PASSPORT')
-                        )
-                      ),
-                    ]}
+                    options={idTypeOptions(true)}
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <RhfTextField
                     name="idNumber"
                     control={control}
-                    label={getIdNumberLabel(idType)}
-                    placeholder={getIdNumberPlaceholder(idType)}
-                    slotProps={getIdNumberSlotProps(idType)}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const formatted = idType === 'AADHAR'
-                        ? val.replace(/\D/g, '')
-                        : val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                      setValue('idNumber', formatted, { shouldValidate: true });
-                      if (idType === 'PAN') {
-                        setValue('panCardNumber', formatted);
-                      }
-                      if (idType === 'PASSPORT') {
-                        setValue('passportNumber', formatted);
-                      }
-                    }}
+                    label={currentIdField.label}
+                    placeholder={currentIdField.placeholder}
+                    slotProps={idSlotProps(currentIdField)}
+                    onChange={onIdNumberChange}
                   />
                 </Grid>
               </Grid>

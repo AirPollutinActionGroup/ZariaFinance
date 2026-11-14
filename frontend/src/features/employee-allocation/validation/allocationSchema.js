@@ -35,7 +35,7 @@ export const allocationSchema = z
 
 export const allocationFormDefaults = {
   employeeId: '',
-  allocationType: '',
+  allocationType: 'Program',
   programmeId: '',
   projectId: '',
   role: '',

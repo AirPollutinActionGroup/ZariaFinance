@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -74,4 +75,26 @@ public class CreateEmployeeRequest {
     private String status;
 
     private String remark;
+    // ---- PAN and salary bank account (all optional; blank is treated as not given) ----
+
+    @Pattern(regexp = "^$|[A-Za-z]{5}[0-9]{4}[A-Za-z]", message = "Enter a valid PAN (e.g. ABCDE1234F)")
+    private String panNumber;
+
+    @Size(max = 255, message = "Account holder name is too long")
+    private String accountHolderName;
+
+    @Size(max = 255, message = "Bank name is too long")
+    private String bankName;
+
+    @Pattern(regexp = "^$|Savings|Current|Salary", message = "Account type is not a recognised value")
+    private String accountType;
+
+    @Pattern(regexp = "^$|[0-9]{9,18}", message = "Account number must be 9 to 18 digits")
+    private String accountNumber;
+
+    @Pattern(regexp = "^$|[A-Za-z]{4}0[A-Za-z0-9]{6}", message = "Enter a valid IFSC code (e.g. HDFC0000123)")
+    private String ifscCode;
+
+    @Size(max = 255, message = "Branch name is too long")
+    private String branchName;
 }

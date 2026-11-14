@@ -42,6 +42,7 @@ import { EmployeeCreatePage } from '../employee-list/pages/EmployeeCreatePage.js
 import { EmployeeDetailPage } from '../employee-list/pages/EmployeeDetailPage.jsx';
 import { EmployeeEditPage } from '../employee-list/pages/EmployeeEditPage.jsx';
 import { EmployeeAllocationPage } from '../employee-allocation/pages/EmployeeAllocationPage.jsx';
+import { EmployeeAllocationCreatePage } from '../employee-allocation/pages/EmployeeAllocationCreatePage.jsx';
 import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined';
 import { MasterPage } from '../masters/pages/MasterPage.jsx';
 import { VendorListPage } from '../vendor-registration/pages/VendorListPage.jsx';
@@ -136,6 +137,7 @@ export const donorManagementModule = {
     { path: '/employee-list/:id', element: <EmployeeDetailPage /> },
     { path: '/employee-list/:id/edit', element: <EmployeeEditPage /> },
     { path: '/employee-allocation', element: <EmployeeAllocationPage /> },
+    { path: '/employee-allocation/new', element: <EmployeeAllocationCreatePage /> },
     { path: '/masters', element: <MasterPage /> },
     { path: '/masters/departments', element: <MasterPage /> },
     { path: '/masters/designations', element: <MasterPage /> },

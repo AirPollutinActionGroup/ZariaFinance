@@ -34,5 +34,6 @@ public interface EmployeeMapper {
     @Mapping(target = "designationName", ignore = true)
     @Mapping(target = "stateNames", ignore = true)
     @Mapping(target = "cityNames", ignore = true)
+    @Mapping(target = "documents", ignore = true)
     EmployeeResponse toResponse(Employee entity);
 }

@@ -9,8 +9,13 @@ import com.ngo.finance.donor.repository.StateRepository;
 import com.ngo.finance.employee.entity.Employee;
 import com.ngo.finance.employee.repository.EmployeeRepository;
 import com.ngo.finance.employeeallocation.dto.request.CreateEmployeeAllocationRequest;
+import com.ngo.finance.employeeallocation.dto.request.EndEmployeeAllocationRequest;
+import com.ngo.finance.employeeallocation.dto.response.EmployeeAllocationLogResponse;
 import com.ngo.finance.employeeallocation.dto.response.EmployeeAllocationResponse;
 import com.ngo.finance.employeeallocation.entity.EmployeeAllocation;
+import com.ngo.finance.employeeallocation.entity.EmployeeAllocationLog;
+import com.ngo.finance.employeeallocation.enums.AllocationEvent;
+import com.ngo.finance.employeeallocation.repository.EmployeeAllocationLogRepository;
 import com.ngo.finance.employeeallocation.repository.EmployeeAllocationRepository;
 import com.ngo.finance.employeeallocation.service.EmployeeAllocationService;
 import com.ngo.finance.programme.ProgrammeTypes;
@@ -40,6 +45,7 @@ public class EmployeeAllocationServiceImpl implements EmployeeAllocationService 
     private final ProgrammeRepository programmeRepository;
     private final StateRepository stateRepository;
     private final CityRepository cityRepository;
+    private final EmployeeAllocationLogRepository employeeAllocationLogRepository;
 
     /** Resolved + validated related entities shared by create. */
     private record RelatedEntities(
@@ -102,16 +108,118 @@ public class EmployeeAllocationServiceImpl implements EmployeeAllocationService 
                 .build();
 
         EmployeeAllocation saved = employeeAllocationRepository.save(allocation);
+        logEvent(saved, AllocationEvent.CREATED, related.programme(), related.project(), related.states(),
+                related.cities(), null);
         return toResponse(saved, related.employee(), related.programme(), related.project(), related.states(), related.cities());
     }
 
     @Override
     @Transactional
-    public void deleteAllocation(Long id) {
-        if (!employeeAllocationRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Employee allocation", id);
+    public void deleteAllocation(Long id, String note) {
+        EmployeeAllocation allocation = employeeAllocationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee allocation", id));
+        logEvent(allocation, AllocationEvent.REMOVED, trimToNull(note));
+        employeeAllocationRepository.delete(allocation);
+    }
+
+    @Override
+    @Transactional
+    public EmployeeAllocationResponse endAllocation(Long id, EndEmployeeAllocationRequest request) {
+        EmployeeAllocation allocation = employeeAllocationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee allocation", id));
+        LocalDate today = LocalDate.now();
+        if (!isActive(allocation, today)) {
+            throw new ValidationException("This allocation already ended on " + allocation.getEndDate());
         }
-        employeeAllocationRepository.deleteById(id);
+        LocalDate endDate = request.getEndDate() != null ? request.getEndDate() : today;
+        if (allocation.getStartDate() != null && endDate.isBefore(allocation.getStartDate())) {
+            throw new ValidationException("End date cannot be before the start date (" + allocation.getStartDate() + ")",
+                    Map.of("endDate", "End date cannot be before the start date"));
+        }
+
+        allocation.setEndDate(endDate);
+        EmployeeAllocation saved = employeeAllocationRepository.save(allocation);
+        logEvent(saved, AllocationEvent.ENDED, trimToNull(request.getNote()));
+
+        Employee employee = employeeRepository.findById(saved.getEmployeeId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", saved.getEmployeeId()));
+        return toResponse(saved, employee,
+                programmeRepository.findById(saved.getProgrammeId()).orElse(null),
+                saved.getProjectId() != null ? programmeRepository.findById(saved.getProjectId()).orElse(null) : null,
+                stateRepository.findAllById(saved.getStateIds()),
+                cityRepository.findAllById(saved.getCityIds()));
+    }
+
+    @Override
+    public List<EmployeeAllocationLogResponse> getHistory(Long employeeId) {
+        if (!employeeRepository.existsById(employeeId)) {
+            throw new ResourceNotFoundException("Employee", employeeId);
+        }
+        return employeeAllocationLogRepository.findByEmployeeIdOrderByCreatedAtDescIdDesc(employeeId).stream()
+                .map(entry -> EmployeeAllocationLogResponse.builder()
+                        .id(entry.getId())
+                        .employeeId(entry.getEmployeeId())
+                        .allocationId(entry.getAllocationId())
+                        .event(entry.getEvent().name())
+                        .programmeName(entry.getProgrammeName())
+                        .projectName(entry.getProjectName())
+                        .role(entry.getRole())
+                        .allocationPct(entry.getAllocationPct())
+                        .startDate(entry.getStartDate())
+                        .endDate(entry.getEndDate())
+                        .stateNames(entry.getStateNames())
+                        .cityNames(entry.getCityNames())
+                        .note(entry.getNote())
+                        .changedAt(entry.getCreatedAt())
+                        .changedBy(entry.getCreatedBy())
+                        .build())
+                .toList();
+    }
+
+    /**
+     * An allocation counts toward the 100% until its end date: from the end date
+     * on, its share is free (ending one today frees it today). No end date = open-ended.
+     */
+    static boolean isActive(EmployeeAllocation allocation, LocalDate today) {
+        return allocation.getEndDate() == null || allocation.getEndDate().isAfter(today);
+    }
+
+    private static String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    /** Logs an event, looking the program / project / place names up from the allocation's ids. */
+    private void logEvent(EmployeeAllocation allocation, AllocationEvent event, String note) {
+        logEvent(allocation, event,
+                programmeRepository.findById(allocation.getProgrammeId()).orElse(null),
+                allocation.getProjectId() != null ? programmeRepository.findById(allocation.getProjectId()).orElse(null) : null,
+                stateRepository.findAllById(allocation.getStateIds()),
+                cityRepository.findAllById(allocation.getCityIds()),
+                note);
+    }
+
+    private void logEvent(EmployeeAllocation allocation, AllocationEvent event, Programme programme,
+            Programme project, List<StateMaster> states, List<CityMaster> cities, String note) {
+        employeeAllocationLogRepository.save(EmployeeAllocationLog.builder()
+                .employeeId(allocation.getEmployeeId())
+                .allocationId(allocation.getId())
+                .event(event)
+                .programmeId(allocation.getProgrammeId())
+                .programmeName(programme != null ? programme.getProgrammeName() : null)
+                .projectId(allocation.getProjectId())
+                .projectName(project != null ? project.getProgrammeName() : null)
+                .role(allocation.getRole())
+                .allocationPct(allocation.getAllocationPct())
+                .startDate(allocation.getStartDate())
+                .endDate(allocation.getEndDate())
+                .stateNames(joinOrNull(states.stream().map(StateMaster::getStateName).sorted().toList()))
+                .cityNames(joinOrNull(cities.stream().map(CityMaster::getCityName).sorted().toList()))
+                .note(note)
+                .build());
+    }
+
+    private static String joinOrNull(List<String> names) {
+        return names.isEmpty() ? null : String.join(", ", names);
     }
 
     private RelatedEntities resolveAndValidateRelated(CreateEmployeeAllocationRequest request) {
@@ -158,9 +266,11 @@ public class EmployeeAllocationServiceImpl implements EmployeeAllocationService 
         }
     }
 
-    /** An employee's allocations must never sum to more than 100%. */
+    /** An employee's running allocations must never sum to more than 100% — ended ones don't count. */
     private void validateHeadroom(Long employeeId, Integer allocationPct) {
+        LocalDate today = LocalDate.now();
         int existingTotal = employeeAllocationRepository.findByEmployeeId(employeeId).stream()
+                .filter(a -> isActive(a, today))
                 .mapToInt(EmployeeAllocation::getAllocationPct)
                 .sum();
         int remaining = 100 - existingTotal;
@@ -216,6 +326,7 @@ public class EmployeeAllocationServiceImpl implements EmployeeAllocationService 
                 .allocationPct(allocation.getAllocationPct())
                 .startDate(allocation.getStartDate())
                 .endDate(allocation.getEndDate())
+                .active(isActive(allocation, LocalDate.now()))
                 .remark(allocation.getRemark())
                 .createdAt(allocation.getCreatedAt())
                 .updatedAt(allocation.getUpdatedAt())
@@ -248,6 +359,7 @@ public class EmployeeAllocationServiceImpl implements EmployeeAllocationService 
                 .allocationPct(allocation.getAllocationPct())
                 .startDate(allocation.getStartDate())
                 .endDate(allocation.getEndDate())
+                .active(isActive(allocation, LocalDate.now()))
                 .remark(allocation.getRemark())
                 .createdAt(allocation.getCreatedAt())
                 .updatedAt(allocation.getUpdatedAt())

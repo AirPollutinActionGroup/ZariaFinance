@@ -16,6 +16,7 @@ import com.ngo.finance.employee.entity.EmployeeUpdateLog;
 import com.ngo.finance.employee.mapper.EmployeeMapper;
 import com.ngo.finance.employee.repository.EmployeeRepository;
 import com.ngo.finance.employee.repository.EmployeeUpdateLogRepository;
+import com.ngo.finance.employee.service.EmployeeDocumentService;
 import com.ngo.finance.employee.service.EmployeeService;
 import com.ngo.finance.masters.department.entity.Department;
 import com.ngo.finance.masters.department.repository.DepartmentRepository;
@@ -58,6 +59,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeMapper employeeMapper;
 
+    private final EmployeeDocumentService employeeDocumentService;
+
     /** Resolved + validated master-data references shared by create and update. */
     private record RelatedEntities(
             Department department, Designation designation, List<StateMaster> states, List<CityMaster> cities) {
@@ -76,6 +79,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         Employee employee = employeeMapper.toEntity(request);
         applyRelated(employee, related);
+        normaliseBankingAndPan(employee);
         employee.setStatus(request.getStatus() == null || request.getStatus().isBlank()
                 ? EmployeeStatuses.ACTIVE
                 : request.getStatus());
@@ -106,6 +110,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         employeeMapper.updateEntity(request, employee);
         applyRelated(employee, related);
+        normaliseBankingAndPan(employee);
         employee.setStatus(request.getStatus());
 
         Employee saved = employeeRepository.save(employee);
@@ -220,14 +225,53 @@ public class EmployeeServiceImpl implements EmployeeService {
         snapshot.put("City", joinNames(cities.stream().map(CityMaster::getCityName).toList()));
         snapshot.put("Joining Date", String.valueOf(employee.getJoiningDate()));
         snapshot.put("Exit Date", employee.getExitDate() != null ? employee.getExitDate().toString() : "");
-        snapshot.put("Annual CTC", employee.getAnnualCtc() != null ? employee.getAnnualCtc().toPlainString() : "");
+        snapshot.put("Annual CTC", employee.getAnnualCtc() != null
+                ? employee.getAnnualCtc().stripTrailingZeros().toPlainString() : "");
         snapshot.put("Employment Type", employee.getEmploymentType());
         snapshot.put("PF", employee.getPf());
         snapshot.put("ESI", employee.getEsi());
         snapshot.put("Gratuity", employee.getGratuity());
         snapshot.put("Status", employee.getStatus());
         snapshot.put("Remark", employee.getRemark() != null ? employee.getRemark() : "");
+        snapshot.put("PAN Number", nullToEmpty(employee.getPanNumber()));
+        snapshot.put("Account Holder Name", nullToEmpty(employee.getAccountHolderName()));
+        snapshot.put("Bank Name", nullToEmpty(employee.getBankName()));
+        snapshot.put("Account Type", nullToEmpty(employee.getAccountType()));
+        snapshot.put("Account Number", maskAccountNumber(employee.getAccountNumber()));
+        snapshot.put("IFSC Code", nullToEmpty(employee.getIfscCode()));
+        snapshot.put("Branch Name", nullToEmpty(employee.getBranchName()));
         return snapshot;
+    }
+
+    private static String nullToEmpty(String value) {
+        return value != null ? value : "";
+    }
+
+    /** The update log shows only the last four digits of an account number. */
+    private static String maskAccountNumber(String accountNumber) {
+        if (accountNumber == null || accountNumber.isEmpty()) {
+            return "";
+        }
+        return accountNumber.length() <= 4 ? accountNumber : "XXXX" + accountNumber.substring(accountNumber.length() - 4);
+    }
+
+    /** Trims the optional PAN / bank fields, blanks become null, PAN and IFSC are upper-cased. */
+    private static void normaliseBankingAndPan(Employee employee) {
+        employee.setPanNumber(upper(blankToNull(employee.getPanNumber())));
+        employee.setAccountHolderName(blankToNull(employee.getAccountHolderName()));
+        employee.setBankName(blankToNull(employee.getBankName()));
+        employee.setAccountType(blankToNull(employee.getAccountType()));
+        employee.setAccountNumber(blankToNull(employee.getAccountNumber()));
+        employee.setIfscCode(upper(blankToNull(employee.getIfscCode())));
+        employee.setBranchName(blankToNull(employee.getBranchName()));
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static String upper(String value) {
+        return value == null ? null : value.toUpperCase(java.util.Locale.ROOT);
     }
 
     private String joinNames(List<String> names) {
@@ -281,6 +325,8 @@ public class EmployeeServiceImpl implements EmployeeService {
         response.setDesignationName(related.designation().getName());
         response.setStateNames(related.states().stream().map(StateMaster::getStateName).toList());
         response.setCityNames(related.cities().stream().map(CityMaster::getCityName).toList());
+        response.setDocuments(employeeDocumentService.listFor(List.of(employee.getId()))
+                .getOrDefault(employee.getId(), List.of()));
         return response;
     }
 

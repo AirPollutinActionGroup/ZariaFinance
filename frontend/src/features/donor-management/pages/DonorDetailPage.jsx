@@ -22,13 +22,13 @@ import {
 import { formatDate, formatDateTime } from '../../../lib/format/date.js';
 import { formatInr } from '../../../lib/format/currency.js';
 import { useDonor, useDonorLifecycle } from '../hooks/useDonors.js';
+import { useDocumentTypeName } from '../../masters/hooks/useDocumentTypes.js';
 import { useGrants } from '../hooks/useGrants.js';
 import { FundProfilesPanel } from '../components/FundProfilesPanel.jsx';
 import {
   DONOR_ACTIVE_TONE,
   FUND_SOURCE_DOMICILE_TONE,
   GRANT_ACTIVE_TONE,
-  INDIVIDUAL_ID_TYPE,
   MODULE_ID,
 } from '../constants.js';
 
@@ -128,6 +128,7 @@ export function DonorDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const donorQuery = useDonor(id);
+  const documentTypeName = useDocumentTypeName();
   const grantsQuery = useGrants({ donorId: id });
   const lifecycle = useDonorLifecycle(id);
   const [pendingAction, setPendingAction] = useState(null);
@@ -212,7 +213,7 @@ export function DonorDetailPage() {
                     : []),
                   ['Registration no.', donor.registrationNumber],
                   ...(donor.idType
-                    ? [[INDIVIDUAL_ID_TYPE[donor.idType] || 'ID document', donor.idNumber]]
+                    ? [[documentTypeName(donor.idType) || 'ID document', donor.idNumber]]
                     : []),
                   ...(donor.fundSourceDomicile === 'FOREIGN' ? [['Passport ID', donor.passportNumber]] : []),
                 ]}

@@ -12,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /**
  * Global exception handler for donor module
@@ -123,6 +124,23 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(ex.getStatus()).body(errorResponse);
+    }
+
+    /** An upload over spring.servlet.multipart.max-file-size (5 MB). */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSize(
+            MaxUploadSizeExceededException ex, WebRequest request) {
+        log.warn("Upload too large: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONTENT_TOO_LARGE.value())
+                .error("Payload Too Large")
+                .message("File is larger than 5 MB")
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(errorResponse);
     }
 
     @ExceptionHandler(Exception.class)

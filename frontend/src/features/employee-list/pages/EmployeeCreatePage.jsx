@@ -11,8 +11,20 @@ export function EmployeeCreatePage() {
   const createEmployee = useCreateEmployee();
 
   const onSubmit = async (values) => {
-    const created = await createEmployee.mutateAsync(values);
-    navigate(`/employee-list/${created.id}`);
+    try {
+      const created = await createEmployee.mutateAsync(values);
+      navigate(`/employee-list/${created.id}`);
+    } catch (error) {
+      // The employee was saved but a document upload failed — continue on its edit page.
+      if (error?.savedEmployee) {
+        navigate(`/employee-list/${error.savedEmployee.id}/edit`, {
+          replace: true,
+          state: { notice: `Employee saved, but a document could not be uploaded (${error.message}). Please try again.` },
+        });
+        return;
+      }
+      throw error;
+    }
   };
 
   return (

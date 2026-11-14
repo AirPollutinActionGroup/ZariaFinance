@@ -25,7 +25,20 @@ export const employeeAllocationService = {
     });
   },
 
-  async removeAllocation(id) {
-    await employeeAllocationApi.remove(id);
+  /** Ends an allocation (today when no date is given). It stays on record and in the history. */
+  async endAllocation(id, { endDate, note } = {}) {
+    return employeeAllocationApi.end(id, { endDate: endDate || null, note: note?.trim() || null });
+  },
+
+  /** Deletes an allocation made by mistake. The removal is kept in the history. */
+  async removeAllocation(id, note) {
+    await employeeAllocationApi.remove(id, note?.trim() || undefined);
+  },
+
+  async getHistory(employeeId) {
+    return employeeAllocationApi.history(employeeId);
   },
 };
+
+/** An allocation still counts toward the 100% until its end date has passed. */
+export const isActiveAllocation = (allocation) => allocation.active !== false;

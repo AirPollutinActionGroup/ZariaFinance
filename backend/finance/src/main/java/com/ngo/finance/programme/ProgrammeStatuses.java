@@ -12,10 +12,10 @@ public final class ProgrammeStatuses {
     public static final String ACTIVE = "Active";
     public static final String ON_HOLD = "On Hold";
     public static final String COMPLETE = "Complete";
-    public static final String CLOSE = "Close";
+    public static final String TERMINATE = "Terminate";
 
     /** Bean Validation {@code @Pattern} regexp listing every allowed value. */
-    public static final String PATTERN = "Planned|Active|On Hold|Complete|Close";
+    public static final String PATTERN = "Planned|Active|On Hold|Complete|Terminate";
 
     private ProgrammeStatuses() {
     }

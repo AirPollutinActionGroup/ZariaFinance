@@ -16,6 +16,6 @@ public interface ProgrammeService {
 
     void deactivateProgramme(Long id);
 
-    /** Sets any lifecycle status directly (Planned/Active/On Hold/Complete/Close); isActive stays in sync. */
+    /** Sets any lifecycle status directly (Planned/Active/On Hold/Complete/Terminate); isActive stays in sync. */
     ProgrammeResponse updateStatus(Long id, String status);
 }

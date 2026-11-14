@@ -40,6 +40,9 @@ public class EmployeeAllocationResponse {
     private LocalDate startDate;
     private LocalDate endDate;
 
+    /** False once the end date has passed — an ended allocation no longer counts toward the 100%. */
+    private Boolean active;
+
     private String remark;
 
     private LocalDateTime createdAt;
