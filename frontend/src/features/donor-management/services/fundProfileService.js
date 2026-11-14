@@ -9,6 +9,11 @@ import {
  * repository directly.
  */
 export const fundProfileService = {
+  async listAll() {
+    const dtos = await fundProfileApi.list();
+    return dtos.map(fromFundProfileResponse);
+  },
+
   async listByDonor(donorId) {
     const dtos = await fundProfileApi.listByDonor(donorId);
     return dtos.map(fromFundProfileResponse);

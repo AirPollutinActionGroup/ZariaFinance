@@ -21,6 +21,8 @@ import lombok.NoArgsConstructor;
 public class FundProfileResponse {
 
     private Long id;
+    /** System-generated FP-{year}-{nnn}. */
+    private String profileCode;
     private Long donorId;
     private String donorName;
     private String fundMode;

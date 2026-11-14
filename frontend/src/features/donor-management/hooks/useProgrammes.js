@@ -35,7 +35,7 @@ export function useProgrammeLifecycle(id) {
   });
 }
 
-/** Sets any lifecycle status directly (Planned/Active/On Hold/Complete/Close). */
+/** Sets any lifecycle status directly (Planned/Active/On Hold/Complete/Terminate). */
 export function useUpdateProgrammeStatus(id) {
   const queryClient = useQueryClient();
   return useMutation({

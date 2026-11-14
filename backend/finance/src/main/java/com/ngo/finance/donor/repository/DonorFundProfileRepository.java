@@ -12,4 +12,10 @@ public interface DonorFundProfileRepository extends JpaRepository<DonorFundProfi
 
     @Query("SELECT p FROM DonorFundProfile p WHERE p.donor.id = :donorId ORDER BY p.createdAt DESC")
     List<DonorFundProfile> findByDonorId(@Param("donorId") Long donorId);
+
+    @Query("SELECT p.profileCode FROM DonorFundProfile p WHERE p.profileCode LIKE CONCAT(:prefix, '%')")
+    List<String> findProfileCodesByPrefix(@Param("prefix") String prefix);
+
+    @Query("SELECT p FROM DonorFundProfile p ORDER BY p.createdAt DESC")
+    List<DonorFundProfile> findAllNewestFirst();
 }

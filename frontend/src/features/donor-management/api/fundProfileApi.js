@@ -5,6 +5,9 @@ import { http } from '../../../lib/api/apiClient.js';
  * One function per backend endpoint — nothing invented.
  */
 export const fundProfileApi = {
+  /** GET /api/v1/fund-profiles → FundProfileResponse[] (all donors, newest first). */
+  list: () => http.get('/v1/fund-profiles'),
+
   /** GET /api/v1/donors/{donorId}/fund-profiles → FundProfileResponse[]. */
   listByDonor: (donorId) => http.get(`/v1/donors/${donorId}/fund-profiles`),
 

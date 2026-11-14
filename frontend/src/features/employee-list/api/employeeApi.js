@@ -1,4 +1,5 @@
 import { http } from '../../../lib/api/apiClient.js';
+import { env } from '../../../lib/config/env.js';
 
 /**
  * Repository for /api/v1/employees (EmployeeController).
@@ -22,4 +23,20 @@ export const employeeApi = {
 
   /** GET /api/v1/employees/{id}/update-logs → EmployeeUpdateLogResponse[]. */
   getUpdateLogs: (id) => http.get(`/v1/employees/${id}/update-logs`),
+
+  /** POST /api/v1/employees/{id}/documents/{type} — multipart "file" → EmployeeDocumentResponse. */
+  uploadDocument: (id, type, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return http.post(`/v1/employees/${id}/documents/${type}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    });
+  },
+
+  /** DELETE /api/v1/employees/{id}/documents/{type} → 204. */
+  deleteDocument: (id, type) => http.delete(`/v1/employees/${id}/documents/${type}`),
+
+  /** URL of GET /api/v1/employees/{id}/documents/{type} — opened in a new tab to view / download. */
+  documentUrl: (id, type) => `${(env.apiBaseUrl || '/api').replace(/\/$/, '')}/v1/employees/${id}/documents/${type}`,
 };

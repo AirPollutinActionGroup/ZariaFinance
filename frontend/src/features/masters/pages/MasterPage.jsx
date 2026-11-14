@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -26,18 +25,75 @@ import BadgeIcon from '@mui/icons-material/Badge';
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism';
 import CategoryIcon from '@mui/icons-material/Category';
 import TuneIcon from '@mui/icons-material/Tune';
+import ContactPageIcon from '@mui/icons-material/ContactPage';
 import { useSearchParams } from 'react-router-dom';
 import { BudgetCategoryTab } from '../components/BudgetCategoryTab.jsx';
+import { DocumentTypeTab } from '../components/DocumentTypeTab.jsx';
 import { FundSuggestionWeightsTab } from '../components/FundSuggestionWeightsTab.jsx';
-import { ConfirmDialog, DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
+import {
+  MasterToolbar,
+  NameCell,
+  actionsColumn,
+  applyStatusFilter,
+  statusColumn,
+  toggleDialogText,
+} from '../components/MasterListParts.jsx';
+import { ConfirmDialog, DataTable, PageHeader, StatusChip } from '../../../shared/components/index.js';
 import { useCreateDepartment, useDepartmentLifecycle, useDepartments } from '../hooks/useDepartments.js';
 import { useCreateDesignation, useDesignationLifecycle, useDesignations } from '../hooks/useDesignations.js';
 import { useCreateDonorType, useDonorTypeLifecycle, useDonorTypes } from '../hooks/useDonorTypes.js';
 
+/**
+ * The masters, in tab order. `id` is also the ?tab= value, so links such as
+ * /masters?tab=fund-suggestion (from the debit note's fund suggestions) open
+ * that master directly.
+ */
+const MASTERS = [
+  {
+    id: 'department',
+    label: 'Departments',
+    icon: ApartmentIcon,
+    addLabel: 'New department',
+  },
+  {
+    id: 'designation',
+    label: 'Designations',
+    icon: BadgeIcon,
+    addLabel: 'New designation',
+  },
+  {
+    id: 'donor-type',
+    label: 'Donor types',
+    icon: VolunteerActivismIcon,
+    addLabel: 'New donor type',
+  },
+  {
+    id: 'document-type',
+    label: 'Document types',
+    icon: ContactPageIcon,
+    addLabel: 'New document type',
+  },
+  {
+    id: 'budget-category',
+    label: 'Budget categories',
+    icon: CategoryIcon,
+    addLabel: 'New budget category',
+  },
+  {
+    id: 'fund-suggestion',
+    label: 'Fund suggestion',
+    icon: TuneIcon,
+  },
+];
+
+const DOMICILE_LABEL = { DOMESTIC: 'Domestic', FOREIGN: 'Foreign' };
+
 export function MasterPage() {
-  // ?tab=fund-suggestion opens that tab directly (linked from the debit note's fund suggestions).
-  const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(() => (searchParams.get('tab') === 'fund-suggestion' ? 4 : 0));
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const activeTab = MASTERS.some((m) => m.id === tabParam) ? tabParam : 'department';
+  const active = MASTERS.find((m) => m.id === activeTab);
+  const selectTab = (id) => setSearchParams(id === 'department' ? {} : { tab: id }, { replace: true });
 
   // Departments State
   const [deptSearch, setDeptSearch] = useState('');
@@ -56,18 +112,6 @@ export function MasterPage() {
   const [newDesigDepartmentId, setNewDesigDepartmentId] = useState('');
   const [newDesigStatus, setNewDesigStatus] = useState('Active');
 
-  const departmentsQuery = useDepartments(deptSearch);
-  const createDepartment = useCreateDepartment();
-  const departmentLifecycle = useDepartmentLifecycle();
-
-  // Full, unfiltered department list — feeds the "Department Name" dropdown
-  // on the Add Designation dialog, independent of the Department tab's search.
-  const allDepartmentsQuery = useDepartments();
-
-  const designationsQuery = useDesignations(desigSearch);
-  const createDesignation = useCreateDesignation();
-  const designationLifecycle = useDesignationLifecycle();
-
   // Donor Types State
   const [donorTypeSearch, setDonorTypeSearch] = useState('');
   const [donorTypeStatusFilter, setDonorTypeStatusFilter] = useState('All');
@@ -78,64 +122,64 @@ export function MasterPage() {
   const [newDonorTypeFundSourceDomiciles, setNewDonorTypeFundSourceDomiciles] = useState([]);
   const [newDonorTypeContributionTypes, setNewDonorTypeContributionTypes] = useState([]);
 
-  // Budget Category — the tab component owns its list; the page header only opens its Add dialog.
+  // Budget Category / Document Type — the tab components own their lists; this page only opens their Add dialogs.
   const [newBudgetCategoryOpen, setNewBudgetCategoryOpen] = useState(false);
+  const [newDocumentTypeOpen, setNewDocumentTypeOpen] = useState(false);
+
+  const departmentsQuery = useDepartments(deptSearch);
+  const createDepartment = useCreateDepartment();
+  const departmentLifecycle = useDepartmentLifecycle();
+
+  const designationsQuery = useDesignations(desigSearch);
+  const createDesignation = useCreateDesignation();
+  const designationLifecycle = useDesignationLifecycle();
 
   const donorTypesQuery = useDonorTypes(donorTypeSearch);
   const createDonorType = useCreateDonorType();
   const donorTypeLifecycle = useDonorTypeLifecycle();
+
+  // Full, unsearched lists: the department dropdown on the Add Designation
+  // dialog and the designation count per department. An empty search shares
+  // the tabs' cache entries.
+  const allDepartmentsQuery = useDepartments('');
+  const allDesignationsQuery = useDesignations('');
 
   // Defaults the Add Designation dialog's department to the first one loaded,
   // until the user picks a different one — computed, not stored, to avoid a
   // setState-in-effect render cascade.
   const selectedDesigDepartmentId = newDesigDepartmentId || allDepartmentsQuery.data?.[0]?.id || '';
 
-  // Department Filtered Data
-  const filteredDepartments = useMemo(() => {
-    const rows = departmentsQuery.data || [];
-    const filtered = deptStatusFilter === 'All' ? rows : rows.filter((d) => d.status === deptStatusFilter);
-    return filtered.map((d, index) => ({ ...d, srNo: index + 1 }));
-  }, [departmentsQuery.data, deptStatusFilter]);
+  const departments = departmentsQuery.data || [];
+  const designations = designationsQuery.data || [];
+  const donorTypes = donorTypesQuery.data || [];
+  const filteredDepartments = useMemo(
+    () => applyStatusFilter(departmentsQuery.data || [], deptStatusFilter),
+    [departmentsQuery.data, deptStatusFilter],
+  );
+  const filteredDesignations = useMemo(
+    () => applyStatusFilter(designationsQuery.data || [], desigStatusFilter),
+    [designationsQuery.data, desigStatusFilter],
+  );
+  const filteredDonorTypes = useMemo(
+    () => applyStatusFilter(donorTypesQuery.data || [], donorTypeStatusFilter),
+    [donorTypesQuery.data, donorTypeStatusFilter],
+  );
 
-  // Designation Filtered Data
-  const filteredDesignations = useMemo(() => {
-    const rows = designationsQuery.data || [];
-    const filtered = desigStatusFilter === 'All' ? rows : rows.filter((d) => d.status === desigStatusFilter);
-    return filtered.map((d, index) => ({ ...d, srNo: index + 1 }));
-  }, [designationsQuery.data, desigStatusFilter]);
+  // How many designations each department has — shown on the department rows.
+  const designationCountByDept = useMemo(() => {
+    const counts = {};
+    (allDesignationsQuery.data || []).forEach((d) => {
+      counts[d.departmentName] = (counts[d.departmentName] || 0) + 1;
+    });
+    return counts;
+  }, [allDesignationsQuery.data]);
 
-  // Donor Type Filtered Data
-  const filteredDonorTypes = useMemo(() => {
-    const rows = donorTypesQuery.data || [];
-    const filtered = donorTypeStatusFilter === 'All' ? rows : rows.filter((d) => d.status === donorTypeStatusFilter);
-    return filtered.map((d, index) => ({ ...d, srNo: index + 1 }));
-  }, [donorTypesQuery.data, donorTypeStatusFilter]);
-
-  // Department Status Toggle
-  const handleConfirmDeptStatusChange = async () => {
-    if (!deptToToggle) return;
-    const action = deptToToggle.status === 'ACTIVE' ? 'deactivate' : 'activate';
-    await departmentLifecycle.mutateAsync({ id: deptToToggle.id, action });
-    setDeptToToggle(null);
+  const toggle = (lifecycle, row, clear) => async () => {
+    if (!row) return;
+    await lifecycle.mutateAsync({ id: row.id, action: row.status === 'ACTIVE' ? 'deactivate' : 'activate' });
+    clear(null);
   };
 
-  // Designation Status Toggle
-  const handleConfirmDesigStatusChange = async () => {
-    if (!desigToToggle) return;
-    const action = desigToToggle.status === 'ACTIVE' ? 'deactivate' : 'activate';
-    await designationLifecycle.mutateAsync({ id: desigToToggle.id, action });
-    setDesigToToggle(null);
-  };
-
-  // Donor Type Status Toggle
-  const handleConfirmDonorTypeStatusChange = async () => {
-    if (!donorTypeToToggle) return;
-    const action = donorTypeToToggle.status === 'ACTIVE' ? 'deactivate' : 'activate';
-    await donorTypeLifecycle.mutateAsync({ id: donorTypeToToggle.id, action });
-    setDonorTypeToToggle(null);
-  };
-
-  // Add Department
   const handleAddDepartment = async (e) => {
     e.preventDefault();
     if (!newDeptName.trim()) return;
@@ -145,7 +189,6 @@ export function MasterPage() {
     setNewDeptOpen(false);
   };
 
-  // Add Designation
   const handleAddDesignation = async (e) => {
     e.preventDefault();
     if (!newDesigName.trim() || !selectedDesigDepartmentId) return;
@@ -160,7 +203,6 @@ export function MasterPage() {
     setNewDesigOpen(false);
   };
 
-  // Add Donor Type
   const handleAddDonorType = async (e) => {
     e.preventDefault();
     if (!newDonorTypeName.trim()) return;
@@ -177,399 +219,233 @@ export function MasterPage() {
     setNewDonorTypeOpen(false);
   };
 
-  // Department Columns
   const departmentColumns = [
     {
-      key: 'srNo',
-      header: 'S.NO',
-      width: '15%',
-      align: 'center',
-      render: (r) => (
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {r.srNo}
-        </Typography>
-      ),
-    },
-    {
       key: 'name',
-      header: 'DEPARTMENT NAME',
-      width: '45%',
-      align: 'center',
-      render: (r) => (
-        <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
-          {r.name}
-        </Typography>
-      ),
+      header: 'Department',
+      sortValue: (r) => r.name,
+      render: (r) => <NameCell name={r.name} mono />,
     },
     {
-      key: 'status',
-      header: 'STATUS',
-      width: '20%',
-      align: 'center',
-      render: (r) => (
-        <Chip
-          label={r.statusLabel}
-          color={r.status === 'ACTIVE' ? 'success' : 'error'}
-          size="small"
-          variant="outlined"
-          sx={{ fontWeight: 600, minWidth: 80 }}
-        />
-      ),
+      key: 'designations',
+      header: 'Designations',
+      sortValue: (r) => designationCountByDept[r.name] || 0,
+      render: (r) => {
+        const n = designationCountByDept[r.name] || 0;
+        return (
+          <Typography variant="body2" color={n ? 'text.primary' : 'text.secondary'}>
+            {n || '—'}
+          </Typography>
+        );
+      },
     },
-    {
-      key: 'action',
-      header: 'ACTION',
-      width: '20%',
-      align: 'center',
-      render: (r) => (
-        <Button
-          size="small"
-          variant="outlined"
-          color={r.status === 'ACTIVE' ? 'warning' : 'success'}
-          onClick={() => setDeptToToggle(r)}
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        >
-          Change Status
-        </Button>
-      ),
-    },
+    statusColumn,
+    actionsColumn({ onToggle: setDeptToToggle }),
   ];
 
-  // Designation Columns
   const designationColumns = [
     {
-      key: 'srNo',
-      header: 'S.NO',
-      width: '10%',
-      align: 'center',
-      render: (r) => (
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {r.srNo}
-        </Typography>
-      ),
-    },
-    {
       key: 'name',
-      header: 'DESIGNATION NAME',
-      width: '35%',
-      align: 'center',
-      render: (r) => <b>{r.name}</b>,
+      header: 'Designation',
+      sortValue: (r) => r.name,
+      render: (r) => <NameCell name={r.name} />,
     },
     {
       key: 'departmentName',
-      header: 'DEPARTMENT NAME',
-      width: '25%',
-      align: 'center',
+      header: 'Department',
+      sortValue: (r) => r.departmentName,
       render: (r) => (
-        <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary', fontWeight: 600 }}>
+        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: 12.5, color: 'text.secondary' }}>
           {r.departmentName || '—'}
         </Typography>
       ),
     },
-    {
-      key: 'status',
-      header: 'STATUS',
-      width: '15%',
-      align: 'center',
-      render: (r) => (
-        <Chip
-          label={r.statusLabel}
-          color={r.status === 'ACTIVE' ? 'success' : 'error'}
-          size="small"
-          variant="outlined"
-          sx={{ fontWeight: 600, minWidth: 80 }}
-        />
-      ),
-    },
-    {
-      key: 'action',
-      header: 'ACTION',
-      width: '15%',
-      align: 'center',
-      render: (r) => (
-        <Button
-          size="small"
-          variant="outlined"
-          color={r.status === 'ACTIVE' ? 'warning' : 'success'}
-          onClick={() => setDesigToToggle(r)}
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        >
-          Change Status
-        </Button>
-      ),
-    },
+    statusColumn,
+    actionsColumn({ onToggle: setDesigToToggle }),
   ];
 
-  // Donor Type Columns
+  const anyChip = (
+    <Typography variant="caption" color="text.secondary">
+      Any
+    </Typography>
+  );
   const donorTypeColumns = [
     {
-      key: 'srNo',
-      header: 'S.NO',
-      width: '10%',
-      align: 'center',
-      render: (r) => (
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {r.srNo}
-        </Typography>
-      ),
-    },
-    {
       key: 'name',
-      header: 'DONOR TYPE NAME',
-      width: '25%',
-      align: 'center',
-      render: (r) => <b>{r.name}</b>,
+      header: 'Donor type',
+      sortValue: (r) => r.name,
+      render: (r) => <NameCell name={r.name} />,
     },
     {
       key: 'allowedFundSourceDomiciles',
-      header: 'FUND SOURCE DOMICILE',
-      width: '20%',
-      align: 'center',
-      render: (r) => (
-        <Stack direction="row" spacing={0.5} justifyContent="center" flexWrap="wrap">
-          {r.allowedFundSourceDomiciles.length
-            ? r.allowedFundSourceDomiciles.map((v) => (
-                <Chip key={v} label={v === 'DOMESTIC' ? 'Domestic' : 'Foreign'} size="small" variant="outlined" />
-              ))
-            : <Typography variant="body2" color="text.secondary">Any</Typography>}
-        </Stack>
-      ),
+      header: 'Fund source',
+      render: (r) =>
+        r.allowedFundSourceDomiciles.length ? (
+          <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+            {r.allowedFundSourceDomiciles.map((v) => (
+              <StatusChip key={v} label={DOMICILE_LABEL[v] || v} tone={v === 'FOREIGN' ? 'graphite' : 'neutral'} />
+            ))}
+          </Stack>
+        ) : (
+          anyChip
+        ),
     },
     {
       key: 'allowedContributionTypes',
-      header: 'CONTRIBUTION TYPE',
-      width: '15%',
-      align: 'center',
-      render: (r) => (
-        <Stack direction="row" spacing={0.5} justifyContent="center" flexWrap="wrap">
-          {r.allowedContributionTypes.length
-            ? r.allowedContributionTypes.map((v) => <Chip key={v} label={v} size="small" variant="outlined" />)
-            : <Typography variant="body2" color="text.secondary">Any</Typography>}
-        </Stack>
-      ),
+      header: 'Contribution',
+      render: (r) =>
+        r.allowedContributionTypes.length ? (
+          <Stack direction="row" spacing={0.5}>
+            {r.allowedContributionTypes.map((v) => (
+              <StatusChip key={v} label={v} tone="outlined" />
+            ))}
+          </Stack>
+        ) : (
+          anyChip
+        ),
     },
-    {
-      key: 'status',
-      header: 'STATUS',
-      width: '15%',
-      align: 'center',
-      render: (r) => (
-        <Chip
-          label={r.statusLabel}
-          color={r.status === 'ACTIVE' ? 'success' : 'error'}
-          size="small"
-          variant="outlined"
-          sx={{ fontWeight: 600, minWidth: 80 }}
-        />
-      ),
-    },
-    {
-      key: 'action',
-      header: 'ACTION',
-      width: '20%',
-      align: 'center',
-      render: (r) => (
-        <Button
-          size="small"
-          variant="outlined"
-          color={r.status === 'ACTIVE' ? 'warning' : 'success'}
-          onClick={() => setDonorTypeToToggle(r)}
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        >
-          Change Status
-        </Button>
-      ),
-    },
+    statusColumn,
+    actionsColumn({ onToggle: setDonorTypeToToggle }),
   ];
+
+  const addAction = {
+    department: () => setNewDeptOpen(true),
+    designation: () => setNewDesigOpen(true),
+    'donor-type': () => setNewDonorTypeOpen(true),
+  }[activeTab];
+  const addButton = addAction ? (
+    <Button variant="contained" startIcon={<AddIcon />} onClick={addAction}>
+      {active.addLabel}
+    </Button>
+  ) : null;
+
+  const deptDialog = toggleDialogText(deptToToggle, 'department');
+  const desigDialog = toggleDialogText(desigToToggle, 'designation');
+  const donorTypeDialog = toggleDialogText(donorTypeToToggle, 'donor type');
 
   return (
     <Box>
       <PageHeader
         title="Master Configuration"
-        subtitle="Manage organisational departments, designations, donor types, budget categories, fund suggestion weights and master registers"
-        actions={
-          activeTab === 0 ? (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setNewDeptOpen(true)}
-            >
-              Add Department
-            </Button>
-          ) : activeTab === 1 ? (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setNewDesigOpen(true)}
-            >
-              Add Designation
-            </Button>
-          ) : activeTab === 2 ? (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setNewDonorTypeOpen(true)}
-            >
-              Add Donor Type
-            </Button>
-          ) : activeTab === 3 ? (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setNewBudgetCategoryOpen(true)}
-            >
-              Add Budget Category
-            </Button>
-          ) : null
-        }
+        subtitle="Lists and settings used across the finance, donor and HR modules"
       />
 
-      {/* TABS */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2.5 }}>
         <Tabs
           value={activeTab}
-          onChange={(_, val) => setActiveTab(val)}
-          sx={{
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontWeight: 700,
-              fontSize: 14,
-              minHeight: 48,
-            },
-          }}
+          onChange={(_, id) => selectTab(id)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: 13.5, minHeight: 44 } }}
         >
-          <Tab icon={<ApartmentIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Department" />
-          <Tab icon={<BadgeIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Designation" />
-          <Tab icon={<VolunteerActivismIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Donor Type" />
-          <Tab icon={<CategoryIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Budget Category" />
-          <Tab icon={<TuneIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Fund Suggestion" />
+          {MASTERS.map((m) => {
+            const Icon = m.icon;
+            return <Tab key={m.id} value={m.id} icon={<Icon sx={{ fontSize: 18 }} />} iconPosition="start" label={m.label} />;
+          })}
         </Tabs>
       </Box>
 
-      {/* TAB 1: DEPARTMENT */}
-      {activeTab === 0 && (
-        <Box>
-          <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Box sx={{ maxWidth: 380, flex: 1, minWidth: 240 }}>
-              <SearchField
-                value={deptSearch}
-                onChange={setDeptSearch}
-                placeholder="Search department name…"
-              />
-            </Box>
-
-            <Select
-              size="small"
-              value={deptStatusFilter}
-              onChange={(e) => setDeptStatusFilter(e.target.value)}
-              sx={{ minWidth: 140, borderRadius: 2 }}
-            >
-              <MenuItem value="All">All Statuses</MenuItem>
-              <MenuItem value="ACTIVE">Active</MenuItem>
-              <MenuItem value="INACTIVE">Inactive</MenuItem>
-            </Select>
-          </Stack>
-
+      {activeTab === 'department' && (
+        <>
+          <MasterToolbar
+            search={deptSearch}
+            onSearch={setDeptSearch}
+            placeholder="Search departments…"
+            status={deptStatusFilter}
+            onStatus={setDeptStatusFilter}
+            rows={departments}
+            action={addButton}
+          />
           <DataTable
+            dense
             columns={departmentColumns}
             rows={filteredDepartments}
             getRowKey={(r) => r.id}
+            defaultSort={{ key: 'name', direction: 'asc' }}
             isLoading={departmentsQuery.isPending}
             error={departmentsQuery.isError ? departmentsQuery.error : null}
             onRetry={departmentsQuery.refetch}
             emptyTitle="No departments found"
           />
-        </Box>
+        </>
       )}
 
-      {/* TAB 2: DESIGNATION */}
-      {activeTab === 1 && (
-        <Box>
-          <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Box sx={{ maxWidth: 380, flex: 1, minWidth: 240 }}>
-              <SearchField
-                value={desigSearch}
-                onChange={setDesigSearch}
-                placeholder="Search designation name…"
-              />
-            </Box>
-
-            <Select
-              size="small"
-              value={desigStatusFilter}
-              onChange={(e) => setDesigStatusFilter(e.target.value)}
-              sx={{ minWidth: 140, borderRadius: 2 }}
-            >
-              <MenuItem value="All">All Statuses</MenuItem>
-              <MenuItem value="ACTIVE">Active</MenuItem>
-              <MenuItem value="INACTIVE">Inactive</MenuItem>
-            </Select>
-          </Stack>
-
+      {activeTab === 'designation' && (
+        <>
+          <MasterToolbar
+            search={desigSearch}
+            onSearch={setDesigSearch}
+            placeholder="Search designations…"
+            status={desigStatusFilter}
+            onStatus={setDesigStatusFilter}
+            rows={designations}
+            action={addButton}
+          />
           <DataTable
+            dense
             columns={designationColumns}
             rows={filteredDesignations}
             getRowKey={(r) => r.id}
+            defaultSort={{ key: 'departmentName', direction: 'asc' }}
             isLoading={designationsQuery.isPending}
             error={designationsQuery.isError ? designationsQuery.error : null}
             onRetry={designationsQuery.refetch}
             emptyTitle="No designations found"
           />
-        </Box>
+        </>
       )}
 
-      {/* TAB 3: DONOR TYPE */}
-      {activeTab === 2 && (
-        <Box>
-          <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Box sx={{ maxWidth: 380, flex: 1, minWidth: 240 }}>
-              <SearchField
-                value={donorTypeSearch}
-                onChange={setDonorTypeSearch}
-                placeholder="Search donor type name or code…"
-              />
-            </Box>
-
-            <Select
-              size="small"
-              value={donorTypeStatusFilter}
-              onChange={(e) => setDonorTypeStatusFilter(e.target.value)}
-              sx={{ minWidth: 140, borderRadius: 2 }}
-            >
-              <MenuItem value="All">All Statuses</MenuItem>
-              <MenuItem value="ACTIVE">Active</MenuItem>
-              <MenuItem value="INACTIVE">Inactive</MenuItem>
-            </Select>
-          </Stack>
-
+      {activeTab === 'donor-type' && (
+        <>
+          <MasterToolbar
+            search={donorTypeSearch}
+            onSearch={setDonorTypeSearch}
+            placeholder="Search donor types…"
+            status={donorTypeStatusFilter}
+            onStatus={setDonorTypeStatusFilter}
+            rows={donorTypes}
+            action={addButton}
+          />
           <DataTable
+            dense
             columns={donorTypeColumns}
             rows={filteredDonorTypes}
             getRowKey={(r) => r.id}
+            defaultSort={{ key: 'name', direction: 'asc' }}
             isLoading={donorTypesQuery.isPending}
             error={donorTypesQuery.isError ? donorTypesQuery.error : null}
             onRetry={donorTypesQuery.refetch}
             emptyTitle="No donor types found"
           />
-        </Box>
+        </>
       )}
 
-      {/* TAB 4: BUDGET CATEGORY */}
-      {activeTab === 3 && (
-        <BudgetCategoryTab createOpen={newBudgetCategoryOpen} onCreateClose={() => setNewBudgetCategoryOpen(false)} />
+      {activeTab === 'document-type' && (
+        <DocumentTypeTab
+          createOpen={newDocumentTypeOpen}
+          onCreate={() => setNewDocumentTypeOpen(true)}
+          onCreateClose={() => setNewDocumentTypeOpen(false)}
+        />
       )}
 
-      {/* TAB 5: FUND SUGGESTION WEIGHTS */}
-      {activeTab === 4 && <FundSuggestionWeightsTab />}
+      {activeTab === 'budget-category' && (
+        <BudgetCategoryTab
+          createOpen={newBudgetCategoryOpen}
+          onCreate={() => setNewBudgetCategoryOpen(true)}
+          onCreateClose={() => setNewBudgetCategoryOpen(false)}
+        />
+      )}
+
+      {activeTab === 'fund-suggestion' && <FundSuggestionWeightsTab />}
 
       {/* DIALOG: ADD DEPARTMENT */}
       <Dialog open={newDeptOpen} onClose={() => setNewDeptOpen(false)} maxWidth="xs" fullWidth>
         <form onSubmit={handleAddDepartment}>
-          <DialogTitle sx={{ fontWeight: 700 }}>Add New Department</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>New department</DialogTitle>
           <DialogContent>
             <Stack spacing={2.5} sx={{ pt: 1 }}>
               <TextField
-                label="Department Name"
+                label="Department name"
                 placeholder="e.g. DEPT-FINANCE"
                 value={newDeptName}
                 onChange={(e) => setNewDeptName(e.target.value)}
@@ -594,12 +470,8 @@ export function MasterPage() {
           </DialogContent>
           <DialogActions sx={{ p: 2.5, pt: 1 }}>
             <Button onClick={() => setNewDeptOpen(false)}>Cancel</Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={!newDeptName.trim() || createDepartment.isPending}
-            >
-              Save Department
+            <Button type="submit" variant="contained" disabled={!newDeptName.trim() || createDepartment.isPending}>
+              Save department
             </Button>
           </DialogActions>
         </form>
@@ -608,23 +480,25 @@ export function MasterPage() {
       {/* DIALOG: ADD DESIGNATION */}
       <Dialog open={newDesigOpen} onClose={() => setNewDesigOpen(false)} maxWidth="xs" fullWidth>
         <form onSubmit={handleAddDesignation}>
-          <DialogTitle sx={{ fontWeight: 700 }}>Add New Designation</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>New designation</DialogTitle>
           <DialogContent>
             <Stack spacing={2.5} sx={{ pt: 1 }}>
               <TextField
-                label="Designation Name *"
+                label="Designation name"
                 placeholder="e.g. Senior Financial Analyst"
                 value={newDesigName}
                 onChange={(e) => setNewDesigName(e.target.value)}
+                required
                 fullWidth
                 size="small"
                 autoFocus
               />
               <TextField
                 select
-                label="Department Name *"
+                label="Department"
                 value={selectedDesigDepartmentId}
                 onChange={(e) => setNewDesigDepartmentId(e.target.value)}
+                required
                 fullWidth
                 size="small"
               >
@@ -636,9 +510,10 @@ export function MasterPage() {
               </TextField>
               <TextField
                 select
-                label="Status *"
+                label="Status"
                 value={newDesigStatus}
                 onChange={(e) => setNewDesigStatus(e.target.value)}
+                required
                 fullWidth
                 size="small"
               >
@@ -654,7 +529,7 @@ export function MasterPage() {
               variant="contained"
               disabled={!newDesigName.trim() || !selectedDesigDepartmentId || createDesignation.isPending}
             >
-              Save Designation
+              Save designation
             </Button>
           </DialogActions>
         </form>
@@ -663,11 +538,11 @@ export function MasterPage() {
       {/* DIALOG: ADD DONOR TYPE */}
       <Dialog open={newDonorTypeOpen} onClose={() => setNewDonorTypeOpen(false)} maxWidth="xs" fullWidth>
         <form onSubmit={handleAddDonorType}>
-          <DialogTitle sx={{ fontWeight: 700 }}>Add New Donor Type</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>New donor type</DialogTitle>
           <DialogContent>
             <Stack spacing={2.5} sx={{ pt: 1 }}>
               <TextField
-                label="Donor Type Name"
+                label="Donor type name"
                 placeholder="e.g. Trust"
                 value={newDonorTypeName}
                 onChange={(e) => setNewDonorTypeName(e.target.value)}
@@ -677,36 +552,33 @@ export function MasterPage() {
                 autoFocus
               />
               <FormControl fullWidth size="small">
-                <InputLabel id="donor-type-fsd-label">Fund Source Domicile</InputLabel>
+                <InputLabel id="donor-type-fsd-label">Fund source domicile</InputLabel>
                 <Select
                   labelId="donor-type-fsd-label"
                   multiple
                   value={newDonorTypeFundSourceDomiciles}
                   onChange={(e) => setNewDonorTypeFundSourceDomiciles(e.target.value)}
-                  input={<OutlinedInput label="Fund Source Domicile" />}
+                  input={<OutlinedInput label="Fund source domicile" />}
                   renderValue={(selected) =>
-                    selected.length ? selected.map((v) => (v === 'DOMESTIC' ? 'Domestic' : 'Foreign')).join(', ') : 'Any'
+                    selected.length ? selected.map((v) => DOMICILE_LABEL[v] || v).join(', ') : 'Any'
                   }
                 >
-                  {[
-                    { value: 'DOMESTIC', label: 'Domestic' },
-                    { value: 'FOREIGN', label: 'Foreign' },
-                  ].map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value}>
-                      <Checkbox checked={newDonorTypeFundSourceDomiciles.includes(opt.value)} />
-                      <ListItemText primary={opt.label} />
+                  {Object.entries(DOMICILE_LABEL).map(([value, label]) => (
+                    <MenuItem key={value} value={value}>
+                      <Checkbox checked={newDonorTypeFundSourceDomiciles.includes(value)} />
+                      <ListItemText primary={label} />
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
               <FormControl fullWidth size="small">
-                <InputLabel id="donor-type-contribution-label">Contribution Type</InputLabel>
+                <InputLabel id="donor-type-contribution-label">Contribution type</InputLabel>
                 <Select
                   labelId="donor-type-contribution-label"
                   multiple
                   value={newDonorTypeContributionTypes}
                   onChange={(e) => setNewDonorTypeContributionTypes(e.target.value)}
-                  input={<OutlinedInput label="Contribution Type" />}
+                  input={<OutlinedInput label="Contribution type" />}
                   renderValue={(selected) => (selected.length ? selected.join(', ') : 'Any')}
                 >
                   {[
@@ -736,68 +608,41 @@ export function MasterPage() {
           </DialogContent>
           <DialogActions sx={{ p: 2.5, pt: 1 }}>
             <Button onClick={() => setNewDonorTypeOpen(false)}>Cancel</Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={!newDonorTypeName.trim() || createDonorType.isPending}
-            >
-              Save Donor Type
+            <Button type="submit" variant="contained" disabled={!newDonorTypeName.trim() || createDonorType.isPending}>
+              Save donor type
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
-      {/* CONFIRM STATUS TOGGLE DIALOG - DEPARTMENT */}
       <ConfirmDialog
         open={Boolean(deptToToggle)}
-        title="Change Department Status"
-        description={
-          deptToToggle
-            ? `Are you sure you want to change the status of "${deptToToggle.name}" from ${deptToToggle.statusLabel.toLowerCase()} to ${
-                deptToToggle.status === 'ACTIVE' ? 'inactive' : 'active'
-              }?`
-            : ''
-        }
-        confirmLabel="Confirm"
+        title={deptDialog.title}
+        description={deptDialog.description}
+        confirmLabel={deptDialog.confirmLabel}
         confirmColor={deptToToggle?.status === 'ACTIVE' ? 'warning' : 'primary'}
         busy={departmentLifecycle.isPending}
-        onConfirm={handleConfirmDeptStatusChange}
+        onConfirm={toggle(departmentLifecycle, deptToToggle, setDeptToToggle)}
         onClose={() => setDeptToToggle(null)}
       />
-
-      {/* CONFIRM STATUS TOGGLE DIALOG - DESIGNATION */}
       <ConfirmDialog
         open={Boolean(desigToToggle)}
-        title="Change Designation Status"
-        description={
-          desigToToggle
-            ? `Are you sure you want to change the status of "${desigToToggle.name}" from ${desigToToggle.statusLabel.toLowerCase()} to ${
-                desigToToggle.status === 'ACTIVE' ? 'inactive' : 'active'
-              }?`
-            : ''
-        }
-        confirmLabel="Confirm"
+        title={desigDialog.title}
+        description={desigDialog.description}
+        confirmLabel={desigDialog.confirmLabel}
         confirmColor={desigToToggle?.status === 'ACTIVE' ? 'warning' : 'primary'}
         busy={designationLifecycle.isPending}
-        onConfirm={handleConfirmDesigStatusChange}
+        onConfirm={toggle(designationLifecycle, desigToToggle, setDesigToToggle)}
         onClose={() => setDesigToToggle(null)}
       />
-
-      {/* CONFIRM STATUS TOGGLE DIALOG - DONOR TYPE */}
       <ConfirmDialog
         open={Boolean(donorTypeToToggle)}
-        title="Change Donor Type Status"
-        description={
-          donorTypeToToggle
-            ? `Are you sure you want to change the status of "${donorTypeToToggle.name}" from ${donorTypeToToggle.statusLabel.toLowerCase()} to ${
-                donorTypeToToggle.status === 'ACTIVE' ? 'inactive' : 'active'
-              }?`
-            : ''
-        }
-        confirmLabel="Confirm"
+        title={donorTypeDialog.title}
+        description={donorTypeDialog.description}
+        confirmLabel={donorTypeDialog.confirmLabel}
         confirmColor={donorTypeToToggle?.status === 'ACTIVE' ? 'warning' : 'primary'}
         busy={donorTypeLifecycle.isPending}
-        onConfirm={handleConfirmDonorTypeStatusChange}
+        onConfirm={toggle(donorTypeLifecycle, donorTypeToToggle, setDonorTypeToToggle)}
         onClose={() => setDonorTypeToToggle(null)}
       />
     </Box>

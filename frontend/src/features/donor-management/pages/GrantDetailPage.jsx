@@ -4,16 +4,10 @@ import {
   Button,
   Card,
   CardContent,
-  Grid,
   Link,
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
@@ -81,47 +75,41 @@ const ACTION_COPY = {
   },
 };
 
-/** Label/value row in the "register" style of the approved design. */
+/** Compact "label  value" row; the label column is fixed so values line up. */
 function TermRow({ label, children, last = false }) {
   return (
-    <Stack
-      direction="row"
-      spacing={2}
+    <Box
       sx={{
-        py: 1.75,
-        alignItems: 'center',
+        display: 'grid',
+        gridTemplateColumns: '112px minmax(0, 1fr)',
+        columnGap: 1.5,
+        py: 0.9,
+        alignItems: 'baseline',
+        fontSize: 13,
         borderBottom: last ? 'none' : '1px solid',
         borderColor: 'divider',
       }}
     >
-      <Typography
-        variant="caption"
-        sx={{
-          width: { xs: 140, sm: 190 },
-          flexShrink: 0,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          color: 'text.secondary',
-        }}
-      >
-        {label}
-      </Typography>
-      <Box sx={{ minWidth: 0 }}>
-        {typeof children === 'string' || typeof children === 'number' ? (
-          <Typography variant="body1">{children}</Typography>
-        ) : (
-          children
-        )}
-      </Box>
-    </Stack>
+      <Box sx={{ color: 'text.secondary' }}>{label}</Box>
+      <Box sx={{ fontWeight: 500, overflowWrap: 'break-word' }}>{children}</Box>
+    </Box>
   );
 }
+
+const overlineSx = {
+  display: 'block',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  fontSize: 11,
+  fontWeight: 600,
+  color: 'text.secondary',
+};
 
 function SectionCard({ title, children }) {
   return (
     <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: 3 }}>
-        <Typography variant="h4" component="h2" sx={{ mb: 1.5 }}>
+      <CardContent sx={{ px: 2.5, py: 2, '&:last-child': { pb: 2 } }}>
+        <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
           {title}
         </Typography>
         {children}
@@ -130,19 +118,62 @@ function SectionCard({ title, children }) {
   );
 }
 
-/** Committed amount, per the signed agreement (no receipt tracking). */
-function FundingPosition({ grant }) {
-  const committedInr = Number(grant.totalGrantAmount) || 0;
+/**
+ * The grant's money at a glance: committed (signed agreement), received
+ * (actuals on its Inflow Budget lines), spent (debit notes) and the balance
+ * still available from what was received.
+ */
+function MoneyStrip({ committed, received, spent }) {
+  const committedNum = Number(committed) || 0;
+  const receivedPct = committedNum > 0 ? Math.round((received / committedNum) * 100) : null;
+  const stats = [
+    { label: 'Committed', value: committedNum, note: 'Signed agreement', color: 'text.primary' },
+    {
+      label: 'Received',
+      value: received,
+      note: receivedPct != null ? `${receivedPct}% of committed` : null,
+      color: 'success.main',
+    },
+    { label: 'Spent', value: spent, note: 'Debit notes', color: 'error.main' },
+    { label: 'Balance', value: received - spent, note: 'Received − spent', color: 'text.primary' },
+  ];
 
   return (
-    <Stack spacing={0.5}>
-      <Typography variant="h3" sx={{ fontWeight: 700 }}>
-        {formatInr(committedInr)}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">
-        Committed — contracted / signed
-      </Typography>
-    </Stack>
+    <Card>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+          '& > *': { px: 2.5, py: 1.75 },
+          '& > *:not(:last-child)': { borderRight: { md: '1px solid' }, borderColor: { md: 'divider' } },
+        }}
+      >
+        {stats.map((s) => (
+          <Box key={s.label}>
+            <Typography sx={overlineSx}>{s.label}</Typography>
+            <Typography sx={{ fontSize: 22, fontWeight: 700, lineHeight: 1.3, color: s.color }}>
+              {formatInr(s.value)}
+            </Typography>
+            {s.note ? (
+              <Typography variant="caption" color="text.secondary">
+                {s.note}
+              </Typography>
+            ) : null}
+          </Box>
+        ))}
+      </Box>
+      {committedNum > 0 ? (
+        <Box sx={{ height: 4, bgcolor: 'var(--card2)' }}>
+          <Box
+            sx={{
+              height: '100%',
+              width: `${Math.min(100, Math.max(0, (received / committedNum) * 100))}%`,
+              bgcolor: 'success.main',
+            }}
+          />
+        </Box>
+      ) : null}
+    </Card>
   );
 }
 
@@ -154,7 +185,7 @@ function FundingPosition({ grant }) {
 function DisbursementRule({ rule }) {
   if (!rule) {
     return (
-      <Typography color="text.secondary" sx={{ py: 2 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
         No disbursement rule defined on the inherited fund profile.
       </Typography>
     );
@@ -167,61 +198,49 @@ function DisbursementRule({ rule }) {
 
   return (
     <>
-      <TermRow label="Disbursement type">
+      <TermRow label="Type">
         <StatusChip label={disbursementType} tone={isTranched ? 'info' : 'neutral'} />
       </TermRow>
 
       {isTranched && tranches.length ? (
-        <Box sx={{ pt: 2 }}>
-          <Typography
-            variant="caption"
-            sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.secondary' }}
+        <Box sx={{ pt: 1.5 }}>
+          <Typography sx={overlineSx}>Tranche schedule</Typography>
+          {/* One line per tranche: number · amount · expected date · frequency. */}
+          <Box
+            sx={{
+              mt: 0.5,
+              display: 'grid',
+              gridTemplateColumns: 'auto auto auto 1fr',
+              columnGap: 1.5,
+              fontSize: 12.5,
+              '& > *': { py: 0.6, borderBottom: '1px solid', borderColor: 'divider' },
+              '& > .head': { color: 'text.secondary', fontSize: 11.5, py: 0.4 },
+            }}
           >
-            Tranche schedule
-          </Typography>
-          <Table size="small" sx={{ mt: 1, '& td, & th': { borderColor: 'divider' } }}>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ pl: 0 }}>#</TableCell>
-                <TableCell align="right">Amount</TableCell>
-                <TableCell>Expected date</TableCell>
-                <TableCell>Frequency</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {tranches.map((t, i) => (
-                <TableRow key={t.id ?? i}>
-                  <TableCell sx={{ pl: 0, border: i === tranches.length - 1 ? 0 : undefined }}>
-                    {i + 1}
-                    {t.isFinalTranche ? ' (final)' : ''}
-                  </TableCell>
-                  <TableCell
-                    align="right"
-                    sx={{ fontWeight: 600, whiteSpace: 'nowrap', border: i === tranches.length - 1 ? 0 : undefined }}
-                  >
-                    {formatInr(t.amountCriteria)}
-                  </TableCell>
-                  <TableCell sx={{ border: i === tranches.length - 1 ? 0 : undefined }}>
-                    {formatDate(t.expectedReleaseDate)}
-                  </TableCell>
-                  <TableCell sx={{ border: i === tranches.length - 1 ? 0 : undefined }}>
-                    {t.frequencyLabel || t.frequency || '—'}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+            <Box className="head">#</Box>
+            <Box className="head" sx={{ textAlign: 'right' }}>Amount</Box>
+            <Box className="head">Expected</Box>
+            <Box className="head">Frequency</Box>
+            {tranches.map((t, i) => [
+              <Box key={`n${i}`} sx={{ whiteSpace: 'nowrap' }}>
+                {i + 1}
+                {t.isFinalTranche ? (
+                  <Box component="span" sx={{ ml: 0.5, color: 'text.secondary', fontSize: 11 }}>final</Box>
+                ) : null}
+              </Box>,
+              <Box key={`a${i}`} sx={{ textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                {formatInr(t.amountCriteria)}
+              </Box>,
+              <Box key={`d${i}`} sx={{ whiteSpace: 'nowrap' }}>{formatDate(t.expectedReleaseDate)}</Box>,
+              <Box key={`f${i}`}>{t.frequencyLabel || t.frequency || '—'}</Box>,
+            ])}
+          </Box>
         </Box>
       ) : null}
 
-      <Box sx={{ pt: 2 }}>
-        <Typography
-          variant="caption"
-          sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.secondary' }}
-        >
-          Release criteria — all must be met
-        </Typography>
-        <Stack spacing={1} sx={{ mt: 1.25 }}>
+      <Box sx={{ pt: 1.5 }}>
+        <Typography sx={overlineSx}>Release criteria — all must be met</Typography>
+        <Stack spacing={0.75} sx={{ mt: 0.75 }}>
           {criteria.map((c, i) => (
             <Stack key={`${c.label}-${i}`} direction="row" spacing={1.25} sx={{ alignItems: 'baseline' }}>
               <Box
@@ -251,35 +270,6 @@ function DisbursementRule({ rule }) {
   );
 }
 
-/**
- * Expected / received / spent totals for this grant. Received = actual receipts
- * on its Inflow Budget lines (credit notes included); spent = debit notes.
- */
-function TransactionSummary({ expectedAmount, receivedAmount, spentAmount }) {
-  const stats = [
-    { label: 'Expected amount', value: expectedAmount, color: 'text.primary' },
-    { label: 'Received amount', value: receivedAmount, color: 'success.main' },
-    { label: 'Spent amount', value: spentAmount, color: 'error.main' },
-  ];
-
-  return (
-    <Grid container spacing={2} sx={{ mb: 2.5 }}>
-      {stats.map((s) => (
-        <Grid key={s.label} size={{ xs: 12, sm: 4 }}>
-          <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'var(--card2)' }}>
-            <Typography variant="caption" color="text.secondary">
-              {s.label}
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700, color: s.color }}>
-              {formatInr(s.value)}
-            </Typography>
-          </Box>
-        </Grid>
-      ))}
-    </Grid>
-  );
-}
-
 const TYPE_CHIP = {
   DEBIT: { label: 'Debit note', tone: 'error' },
   CREDIT: { label: 'Credit note', tone: 'success' },
@@ -289,7 +279,7 @@ const TYPE_CHIP = {
  * Money out of and into this grant: the debit notes charged to its fund and
  * the credit notes received into it.
  */
-function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, expectedAmount, receivedAmount }) {
+function GrantTransactions({ transactions, isLoading, error, onRetry, navigate }) {
   const [typeFilter, setTypeFilter] = useState('All');
   // null = user hasn't touched the FY filter yet, so it defaults to the
   // financial year marked current; 'All'/an id means the user picked it.
@@ -300,9 +290,6 @@ function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, 
   const currentFy = financialYears.find((fy) => fy.current) || null;
   const effectiveFyFilter = fyFilter ?? (currentFy ? String(currentFy.id) : 'All');
   const selectedFy = financialYears.find((fy) => String(fy.id) === effectiveFyFilter) || null;
-
-  const total = (pred) => transactions.filter(pred).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  const spentAmount = total((t) => t.type === 'DEBIT');
 
   const filteredTransactions = transactions.filter((t) => {
     const matchesType = typeFilter === 'All' || t.type === typeFilter;
@@ -316,12 +303,12 @@ function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, 
       header: 'Note ID',
       width: 140,
       render: (r) => (
-        <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
+        <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
           {r.id}
         </Typography>
       ),
     },
-    { key: 'date', header: 'Date', width: 110, render: (r) => formatDate(r.date) },
+    { key: 'date', header: 'Date', width: 110, sx: { whiteSpace: 'nowrap' }, render: (r) => formatDate(r.date) },
     {
       key: 'type',
       header: 'Type',
@@ -339,7 +326,7 @@ function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, 
       render: (r) => (
         <Typography
           variant="body2"
-          sx={{ fontWeight: 700, color: r.type === 'DEBIT' ? 'error.main' : 'success.main' }}
+          sx={{ fontWeight: 700, whiteSpace: 'nowrap', color: r.type === 'DEBIT' ? 'error.main' : 'success.main' }}
         >
           {r.type === 'DEBIT' ? '−' : '+'}
           {formatInr(r.amount)}
@@ -348,52 +335,56 @@ function GrantTransactions({ transactions, isLoading, error, onRetry, navigate, 
     },
   ];
 
+  const filters = (
+    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', '& .MuiInputBase-root': { height: 32, fontSize: 13 } }}>
+      <Select
+        size="small"
+        value={typeFilter}
+        onChange={(e) => setTypeFilter(e.target.value)}
+        sx={{ minWidth: 130, borderRadius: 2 }}
+        inputProps={{ 'aria-label': 'Transaction type' }}
+      >
+        <MenuItem value="All">All Types</MenuItem>
+        <MenuItem value="DEBIT">Debit (Out)</MenuItem>
+        <MenuItem value="CREDIT">Credit (In)</MenuItem>
+      </Select>
+
+      <Select
+        size="small"
+        value={effectiveFyFilter}
+        onChange={(e) => setFyFilter(e.target.value)}
+        sx={{ minWidth: 150, borderRadius: 2 }}
+        inputProps={{ 'aria-label': 'Financial year' }}
+      >
+        <MenuItem value="All">All Financial Years</MenuItem>
+        {financialYears.map((fy) => (
+          <MenuItem key={fy.id} value={String(fy.id)}>
+            {fy.code}
+          </MenuItem>
+        ))}
+      </Select>
+    </Stack>
+  );
+
   return (
-    <>
-      <TransactionSummary
-        expectedAmount={expectedAmount}
-        receivedAmount={receivedAmount}
-        spentAmount={spentAmount}
-      />
-
-      <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }}>
-        <Select
-          size="small"
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          sx={{ minWidth: 150, borderRadius: 2 }}
-        >
-          <MenuItem value="All">All Types</MenuItem>
-          <MenuItem value="DEBIT">Debit (Out)</MenuItem>
-          <MenuItem value="CREDIT">Credit (In)</MenuItem>
-        </Select>
-
-        <Select
-          size="small"
-          value={effectiveFyFilter}
-          onChange={(e) => setFyFilter(e.target.value)}
-          sx={{ minWidth: 170, borderRadius: 2 }}
-        >
-          <MenuItem value="All">All Financial Years</MenuItem>
-          {financialYears.map((fy) => (
-            <MenuItem key={fy.id} value={String(fy.id)}>
-              {fy.code}
-            </MenuItem>
-          ))}
-        </Select>
-      </Stack>
-
-      <DataTable
-        columns={columns}
-        rows={filteredTransactions}
-        getRowKey={(r) => r.id}
-        isLoading={isLoading}
-        error={error}
-        onRetry={onRetry}
-        onRowClick={(r) => navigate(r.href)}
-        emptyTitle="No debit or credit notes recorded against this grant yet"
-      />
-    </>
+    <DataTable
+      dense
+      title={filteredTransactions.length ? `Transactions · ${filteredTransactions.length}` : 'Transactions'}
+      actions={filters}
+      columns={columns}
+      rows={filteredTransactions}
+      getRowKey={(r) => r.id}
+      isLoading={isLoading}
+      error={error}
+      onRetry={onRetry}
+      onRowClick={(r) => navigate(r.href)}
+      emptyTitle="No debit or credit notes yet"
+      emptyDescription={
+        transactions.length > 0
+          ? 'Nothing matches these filters — try All Types or All Financial Years.'
+          : 'Notes charged to or received into this grant will show here.'
+      }
+    />
   );
 }
 
@@ -447,6 +438,9 @@ export function GrantDetailPage() {
   const receivedAmount = (inflowLinesQuery.data || [])
     .filter((line) => trancheIds.has(String(line.id)))
     .reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
+  const spentAmount = grantTransactions
+    .filter((t) => t.type === 'DEBIT')
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const sourceQueries = [debitNotesQuery, creditNotesQuery, inflowLinesQuery];
   const failedQuery = sourceQueries.find((q) => q.isError);
 
@@ -467,7 +461,7 @@ export function GrantDetailPage() {
       <Button
         startIcon={<ArrowBackIcon />}
         size="small"
-        sx={{ mb: 2, color: 'text.secondary' }}
+        sx={{ mb: 1, color: 'text.secondary' }}
         onClick={() => navigate('/grants')}
       >
         Grant Agreements
@@ -511,8 +505,16 @@ export function GrantDetailPage() {
         }
       />
 
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
+      <Stack spacing={2}>
+        <MoneyStrip committed={grant.totalGrantAmount} received={receivedAmount} spent={spentAmount} />
+
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 2,
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' },
+          }}
+        >
           <SectionCard title="Agreement terms">
             <TermRow label="Donor">
               {grant.donorId ? (
@@ -527,46 +529,35 @@ export function GrantDetailPage() {
               {donor ? (donor.fundSourceDomicile === 'FOREIGN' ? 'FC · Foreign contribution' : 'LC · Local contribution') : '—'}
             </TermRow>
             <TermRow label="Fund profile">
-              {profile
-                ? [profile.fundClassLabel, profile.fundModeLabel, profile.purpose]
-                    .filter(Boolean)
-                    .join(' · ')
-                : grant.fundClassCode
-                  ? `Class ${grant.fundClassCode}`
-                  : '—'}
+              {profile ? (
+                <Link component={RouterLink} to={`/fund-profiles/${profile.id}`} underline="hover">
+                  {profile.profileCode}
+                </Link>
+              ) : grant.fundClassCode ? (
+                `Class ${grant.fundClassCode}`
+              ) : (
+                '—'
+              )}
             </TermRow>
             <TermRow label="Agreement date">{formatDate(grant.agreementDate)}</TermRow>
             <TermRow label="Period">
               {`${formatDate(grant.startDate)} → ${formatDate(grant.endDate)}`}
             </TermRow>
-            <TermRow label="Total grant amount">{formatInr(grant.totalGrantAmount)}</TermRow>
-            <TermRow label="Approved by">
+            <TermRow label="Approved by" last={!(grant.isApproved === 1 && (grant.approvalDate || grant.approvalRemarks))}>
               {grant.isApproved === 1 && (grant.approvedByName || grant.approvedBy)
                 ? grant.approvedByName || grant.approvedBy
-                : '—'}
+                : 'Not approved yet'}
             </TermRow>
             {grant.isApproved === 1 && grant.approvalDate ? (
-              <TermRow label="Approval date">{formatDateTime(grant.approvalDate)}</TermRow>
+              <TermRow label="Approved on" last={!grant.approvalRemarks}>
+                {formatDateTime(grant.approvalDate)}
+              </TermRow>
             ) : null}
             {grant.isApproved === 1 && grant.approvalRemarks ? (
-              <TermRow label="Approval remarks">{grant.approvalRemarks}</TermRow>
+              <TermRow label="Remarks" last>{grant.approvalRemarks}</TermRow>
             ) : null}
-            <TermRow label="Status" last>
-              <StatusChip
-                label={grant.statusLabel}
-                tone={GRANT_ACTIVE_TONE[grant.isActive] || 'neutral'}
-              />
-            </TermRow>
           </SectionCard>
-        </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
-          <SectionCard title="Funding position">
-            <FundingPosition grant={grant} />
-          </SectionCard>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6 }}>
           <SectionCard title="Inherited fund profile">
             {profileQuery.isPending && grant.fundProfileId ? (
               <LoadingState label="Loading fund profile…" />
@@ -582,7 +573,7 @@ export function GrantDetailPage() {
                 <TermRow label="FCRA">
                   {donor ? (donor.fcraApplicable ? 'Applicable' : 'Not applicable') : '—'}
                 </TermRow>
-                <TermRow label="Programme / Project">
+                <TermRow label="Programme">
                   {profile.programmeType === 'Project'
                     ? `${profile.parentProgrammeName || '—'} / ${profile.programmeName || '—'}`
                     : profile.programmeName || '—'}
@@ -591,19 +582,17 @@ export function GrantDetailPage() {
                 <TermRow label="Overhead cap">
                   {profile.overheadLimitPercent != null ? `${Number(profile.overheadLimitPercent)}%` : '—'}
                 </TermRow>
-                <TermRow label="Reporting frequency" last>
-                  {profile.reportingFrequency || '—'}
+                <TermRow label="Reporting" last>
+                  {profile.reportingFrequencyLabel || profile.reportingFrequency || '—'}
                 </TermRow>
               </>
             ) : (
-              <Typography color="text.secondary" sx={{ py: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
                 No fund profile linked to this grant.
               </Typography>
             )}
           </SectionCard>
-        </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
           <SectionCard title="Disbursement rule">
             {profileQuery.isPending && grant.fundProfileId ? (
               <LoadingState label="Loading disbursement rule…" />
@@ -611,22 +600,16 @@ export function GrantDetailPage() {
               <DisbursementRule rule={rule} />
             )}
           </SectionCard>
-        </Grid>
+        </Box>
 
-        <Grid size={{ xs: 12 }}>
-          <SectionCard title="Transactions">
-            <GrantTransactions
-              transactions={grantTransactions}
-              isLoading={sourceQueries.some((q) => q.isPending)}
-              error={failedQuery ? failedQuery.error : null}
-              onRetry={() => sourceQueries.forEach((q) => q.isError && q.refetch())}
-              navigate={navigate}
-              expectedAmount={grant.totalGrantAmount}
-              receivedAmount={receivedAmount}
-            />
-          </SectionCard>
-        </Grid>
-      </Grid>
+        <GrantTransactions
+          transactions={grantTransactions}
+          isLoading={sourceQueries.some((q) => q.isPending)}
+          error={failedQuery ? failedQuery.error : null}
+          onRetry={() => sourceQueries.forEach((q) => q.isError && q.refetch())}
+          navigate={navigate}
+        />
+      </Stack>
 
       <ConfirmDialog
         open={Boolean(pendingAction)}

@@ -1,5 +1,5 @@
-import { Box, Button } from '@mui/material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Alert, Box, Button } from '@mui/material';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { ErrorState, LoadingState, PageHeader } from '../../../shared/components/index.js';
 import { useEmployee, useUpdateEmployee } from '../hooks/useEmployees.js';
@@ -9,6 +9,7 @@ import { toEditFormValues } from '../mappers/employeeMapper.js';
 export function EmployeeEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const notice = useLocation().state?.notice;
   const employeeQuery = useEmployee(id);
   const updateEmployee = useUpdateEmployee(id);
 
@@ -37,6 +38,12 @@ export function EmployeeEditPage() {
           </Button>
         }
       />
+
+      {notice ? (
+        <Alert severity="warning" sx={{ mb: 2.5 }}>
+          {notice}
+        </Alert>
+      ) : null}
 
       {/* Keyed on id so the form remounts (and re-reads defaultValues) if navigated between two employees' edit pages. */}
       <EmployeeForm

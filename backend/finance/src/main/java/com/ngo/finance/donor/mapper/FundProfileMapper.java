@@ -195,6 +195,7 @@ public class FundProfileMapper {
 
         return FundProfileResponse.builder()
                 .id(p.getId())
+                .profileCode(p.getProfileCode())
                 .donorId(p.getDonor() != null ? p.getDonor().getId() : null)
                 .donorName(p.getDonor() != null ? p.getDonor().getDonorName() : null)
                 .fundMode(p.getFundMode() != null ? p.getFundMode().name() : null)

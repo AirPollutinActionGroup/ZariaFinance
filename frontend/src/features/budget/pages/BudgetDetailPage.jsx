@@ -1,5 +1,17 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, Grid, Stack, TextField, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Stack,
+  TableCell,
+  TableFooter,
+  TableRow,
+  TextField,
+  Typography,
+} from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../core/auth/index.js';
@@ -28,13 +40,16 @@ const ACTIONS = {
   delete: { title: 'Delete draft budget?', confirm: 'Delete', color: 'error', description: 'This cannot be undone.' },
 };
 
-function SectionCard({ title, children }) {
+function SectionCard({ title, aside = null, children }) {
   return (
     <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: 3 }}>
-        <Typography variant="h4" component="h2" sx={{ mb: 2 }}>
-          {title}
-        </Typography>
+      <CardContent sx={{ px: 2.5, py: 2, '&:last-child': { pb: 2 } }}>
+        <Stack direction="row" sx={{ mb: 1.5, alignItems: 'baseline', justifyContent: 'space-between', gap: 1 }}>
+          <Typography variant="h6" component="h2">
+            {title}
+          </Typography>
+          {aside}
+        </Stack>
         {children}
       </CardContent>
     </Card>
@@ -44,14 +59,14 @@ function SectionCard({ title, children }) {
 /** Horizontal share bars — label, amount and % of the budget total. */
 function BreakdownBars({ rows, total, labelOf, color = 'primary.main' }) {
   return (
-    <Stack spacing={1.5}>
+    <Stack spacing={1.25}>
       {rows.map((row) => {
         const pct = total > 0 ? Math.round((row.amount / total) * 100) : 0;
         return (
           <Box key={row.key}>
-            <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-              <Typography variant="body2">{labelOf(row.key)}</Typography>
-              <Typography variant="body2" sx={{ ...MONEY_SX, fontWeight: 600 }}>
+            <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5, gap: 1.5, alignItems: 'baseline' }}>
+              <Typography variant="body2" sx={{ minWidth: 0 }}>{labelOf(row.key)}</Typography>
+              <Typography variant="body2" sx={{ ...MONEY_SX, fontWeight: 600, whiteSpace: 'nowrap' }}>
                 {formatInrExact(row.amount)} <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400 }}>({pct}%)</Box>
               </Typography>
             </Stack>
@@ -80,7 +95,7 @@ export function BudgetDetailPage() {
 
   const listUrl = budget ? `/budgets?fy=${budget.financialYear}` : '/budgets';
   const back = (
-    <Button startIcon={<ArrowBackIcon />} size="small" sx={{ mb: 2, color: 'text.secondary' }} onClick={() => navigate(listUrl)}>
+    <Button startIcon={<ArrowBackIcon />} size="small" sx={{ mb: 1, color: 'text.secondary' }} onClick={() => navigate(listUrl)}>
       Budget
     </Button>
   );
@@ -189,82 +204,129 @@ export function BudgetDetailPage() {
       />
 
       {budget.status === 'REJECTED' ? (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
           Returned for revision{budget.history.at(-1)?.note ? `: ${budget.history.at(-1).note}` : '.'}
         </Alert>
       ) : null}
 
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <SectionCard title="Total budget">
-            <Typography sx={{ ...MONEY_SX, fontFamily: 'monospace', fontWeight: 700, fontSize: 26 }}>{formatInrExact(total)}</Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2.5 }}>
-              {budget.lines.length} lines · updated {formatDate(budget.updatedAt)}
-            </Typography>
-            <Stack direction="row" spacing={1.5} alignItems="flex-end" sx={{ height: 110 }}>
-              {QUARTERS.map((q) => (
-                <Stack key={q.key} sx={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}>
-                  <Box
-                    title={formatInrExact(qTotals[q.key])}
-                    sx={{ width: '100%', maxWidth: 40, height: `${(qTotals[q.key] / maxQuarter) * 80}%`, minHeight: 2, bgcolor: 'primary.main', borderRadius: '4px 4px 0 0' }}
-                  />
-                  <Typography variant="caption" sx={{ mt: 0.5, fontWeight: 600 }}>{q.label}</Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 10 }}>{q.months}</Typography>
-                </Stack>
-              ))}
-            </Stack>
-          </SectionCard>
-        </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <SectionCard title="By category">
-            <BreakdownBars rows={totalsBy(budget.lines, 'category')} total={total} labelOf={categoryName} />
-          </SectionCard>
-        </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <SectionCard title="By book">
-            <BreakdownBars
-              rows={totalsBy(budget.lines, 'book')}
-              total={total}
-              labelOf={(k) => (BOOK[k] ? `${k} · ${BOOK[k]}` : k)}
-              color="secondary.main"
-            />
-          </SectionCard>
-        </Grid>
-      </Grid>
-
-      <Typography variant="h4" component="h2" sx={{ mb: 1.5 }}>
-        Budget lines
-      </Typography>
-      <Box sx={{ mb: 3 }}>
-        <DataTable columns={columns} rows={budget.lines} getRowKey={(l) => l.id} emptyTitle="No budget lines" />
+      <Box
+        sx={{
+          mb: 2,
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+        }}
+      >
+        <SectionCard title="Total budget">
+          <Typography sx={{ ...MONEY_SX, fontWeight: 700, fontSize: 24, lineHeight: 1.2 }}>
+            {formatInrExact(total)}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+            {budget.lines.length} lines · updated {formatDate(budget.updatedAt)}
+          </Typography>
+          {/* Quarter phasing: bar height = share of the busiest quarter; amount shown under each bar. */}
+          <Stack direction="row" spacing={1.5} alignItems="flex-end" sx={{ height: 64 }}>
+            {QUARTERS.map((q) => (
+              <Box key={q.key} sx={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end' }}>
+                <Box
+                  title={`${q.label} · ${formatInrExact(qTotals[q.key])}`}
+                  sx={{
+                    width: '100%',
+                    height: `${(qTotals[q.key] / maxQuarter) * 100}%`,
+                    minHeight: 2,
+                    bgcolor: 'primary.main',
+                    borderRadius: '4px 4px 0 0',
+                  }}
+                />
+              </Box>
+            ))}
+          </Stack>
+          <Stack direction="row" spacing={1.5} sx={{ mt: 0.75 }}>
+            {QUARTERS.map((q) => (
+              <Box key={q.key} sx={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+                <Typography sx={{ fontSize: 11.5, fontWeight: 600, lineHeight: 1.4 }} title={q.months}>
+                  {q.label}
+                </Typography>
+                <Typography sx={{ ...MONEY_SX, fontSize: 12, whiteSpace: 'nowrap', lineHeight: 1.4 }}>
+                  {formatInrExact(qTotals[q.key])}
+                </Typography>
+                <Typography sx={{ fontSize: 10.5, color: 'text.secondary', whiteSpace: 'nowrap' }}>{q.months}</Typography>
+              </Box>
+            ))}
+          </Stack>
+        </SectionCard>
+        <SectionCard title="By category">
+          <BreakdownBars rows={totalsBy(budget.lines, 'category')} total={total} labelOf={categoryName} />
+        </SectionCard>
+        <SectionCard title="By book">
+          <BreakdownBars
+            rows={totalsBy(budget.lines, 'book')}
+            total={total}
+            labelOf={(k) => (BOOK[k] ? `${k} · ${BOOK[k]}` : k)}
+            color="secondary.main"
+          />
+          {budget.notes ? (
+            <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 0.5 }}>
+                Notes
+              </Typography>
+              <Typography variant="body2">{budget.notes}</Typography>
+            </Box>
+          ) : null}
+        </SectionCard>
       </Box>
 
-      <Grid container spacing={3}>
-        {budget.notes ? (
-          <Grid size={{ xs: 12, md: 6 }}>
-            <SectionCard title="Notes">
-              <Typography variant="body2">{budget.notes}</Typography>
-            </SectionCard>
-          </Grid>
-        ) : null}
-        <Grid size={{ xs: 12, md: budget.notes ? 6 : 12 }}>
-          <SectionCard title="Approval history">
-            <Stack spacing={1.5}>
-              {[...budget.history].reverse().map((h, i) => (
-                <Stack key={`${h.at}-${i}`} direction="row" spacing={1.5} alignItems="flex-start">
-                  <StatusChip label={BUDGET_STATUS[h.status]} tone={BUDGET_STATUS_TONE[h.status]} />
-                  <Box>
-                    <Typography variant="body2">
-                      {h.by || '—'} <Box component="span" sx={{ color: 'text.secondary' }}>· {formatDateTime(h.at)}</Box>
-                    </Typography>
-                    {h.note ? <Typography variant="caption" sx={{ color: 'text.secondary' }}>{h.note}</Typography> : null}
-                  </Box>
-                </Stack>
-              ))}
+      <Box sx={{ mb: 2 }}>
+        <DataTable
+          dense
+          title={`Budget lines · ${budget.lines.length}`}
+          columns={columns}
+          rows={budget.lines}
+          getRowKey={(l) => l.id}
+          emptyTitle="No budget lines"
+          footer={
+            budget.lines.length > 1 ? (
+              <TableFooter>
+                <TableRow sx={{ '& td': { borderBottom: 'none', bgcolor: 'var(--card2)', color: 'text.primary', fontSize: 13 } }}>
+                  <TableCell colSpan={3} sx={{ fontWeight: 600 }}>Total</TableCell>
+                  {QUARTERS.map((q) => (
+                    <TableCell key={q.key} align="right" sx={{ ...MONEY_SX, fontWeight: 600 }}>
+                      {formatInrExact(qTotals[q.key])}
+                    </TableCell>
+                  ))}
+                  <TableCell align="right" sx={{ ...MONEY_SX, fontWeight: 700 }}>{formatInrExact(total)}</TableCell>
+                </TableRow>
+              </TableFooter>
+            ) : null
+          }
+        />
+      </Box>
+
+      <SectionCard title="Approval history">
+        {/* Newest first, as a compact timeline. */}
+        <Stack spacing={0}>
+          {[...budget.history].reverse().map((h, i, all) => (
+            <Stack
+              key={`${h.at}-${i}`}
+              direction="row"
+              spacing={1.5}
+              alignItems="baseline"
+              sx={{ py: 0.75, borderBottom: i === all.length - 1 ? 'none' : '1px solid', borderColor: 'divider', flexWrap: 'wrap' }}
+            >
+              <Box sx={{ width: 92, flexShrink: 0 }}>
+                <StatusChip label={BUDGET_STATUS[h.status]} tone={BUDGET_STATUS_TONE[h.status]} />
+              </Box>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>{h.by || '—'}</Typography>
+              <Typography variant="body2" color="text.secondary">{formatDateTime(h.at)}</Typography>
+              {h.note ? (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  “{h.note}”
+                </Typography>
+              ) : null}
             </Stack>
-          </SectionCard>
-        </Grid>
-      </Grid>
+          ))}
+        </Stack>
+      </SectionCard>
 
       <ConfirmDialog
         open={Boolean(action)}

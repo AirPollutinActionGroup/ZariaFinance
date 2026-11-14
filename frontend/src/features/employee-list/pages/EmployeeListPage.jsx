@@ -1,247 +1,260 @@
 import { useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  Chip,
-  MenuItem,
-  Select,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Chip, MenuItem, Select, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
-import { DataTable, PageHeader, SearchField } from '../../../shared/components/index.js';
+import { DataTable, PageHeader, SearchField, StatStrip, StatusChip } from '../../../shared/components/index.js';
+import { formatDate } from '../../../lib/format/date.js';
+import { formatInr } from '../../../lib/format/currency.js';
 import { useEmployees } from '../hooks/useEmployees.js';
-import { EMPLOYEE_STATUSES, EMPLOYEE_STATUS_TONE } from '../constants.js';
+import { EMPLOYEE_STATUS_TONE } from '../constants.js';
 
+const statusOf = (emp) => emp.status || 'Active';
+const isInactive = (emp) => statusOf(emp).startsWith('Inactive');
+
+/** Status filter chips; `match` decides which employees each one shows. */
+const STATUS_FILTERS = [
+  { key: 'all', label: 'All', match: () => true },
+  { key: 'active', label: 'Active', match: (e) => statusOf(e) === 'Active' },
+  { key: 'notice', label: 'On notice', match: (e) => statusOf(e) === 'On Notice' },
+  { key: 'inactive', label: 'Inactive', match: isInactive },
+];
+
+/** Compact select used for the Department / Bucket / Type filters. */
+function FilterSelect({ value, onChange, allLabel, options }) {
+  return (
+    <Select
+      size="small"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      sx={{ minWidth: 130, '& .MuiSelect-select': { py: 0.75, fontSize: 13.5 } }}
+    >
+      <MenuItem value="All">{allLabel}</MenuItem>
+      {options.map((option) => (
+        <MenuItem key={option} value={option}>
+          {option}
+        </MenuItem>
+      ))}
+    </Select>
+  );
+}
+
+const columns = [
+  {
+    key: 'name',
+    header: 'Employee',
+    sortValue: (r) => r.name,
+    render: (r) => (
+      <Box sx={{ minWidth: 150 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.35 }}>
+          {r.name}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+          <Box component="span" sx={{ fontFamily: 'monospace' }}>{r.empId}</Box> · since {formatDate(r.joiningDate)}
+        </Typography>
+      </Box>
+    ),
+  },
+  {
+    key: 'designationName',
+    header: 'Role',
+    sortValue: (r) => r.designationName,
+    render: (r) => (
+      <Box sx={{ minWidth: 130 }}>
+        <Typography variant="body2" sx={{ lineHeight: 1.35 }}>
+          {r.designationName}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {r.departmentName}
+        </Typography>
+      </Box>
+    ),
+  },
+  {
+    key: 'bucket',
+    header: 'Bucket · Type',
+    sortValue: (r) => r.bucket,
+    sx: { whiteSpace: 'nowrap' },
+    render: (r) => (
+      <>
+        <Typography variant="body2" sx={{ lineHeight: 1.35 }}>
+          {r.bucket}
+        </Typography>
+        <Typography variant="caption" color={r.employmentType === 'Contract' ? 'warning.main' : 'text.secondary'}>
+          {r.employmentType}
+        </Typography>
+      </>
+    ),
+  },
+  {
+    key: 'location',
+    header: 'Location',
+    sortValue: (r) => (r.stateNames || [])[0],
+    render: (r) => (
+      <Box>
+        <Typography variant="body2" sx={{ lineHeight: 1.35 }}>
+          {(r.stateNames || []).join(', ') || '—'}
+        </Typography>
+        {(r.cityNames || []).length ? (
+          <Typography variant="caption" color="text.secondary">
+            {r.cityNames.join(', ')}
+          </Typography>
+        ) : null}
+      </Box>
+    ),
+  },
+  {
+    key: 'annualCtc',
+    header: 'Annual CTC',
+    align: 'right',
+    sx: { whiteSpace: 'nowrap', fontWeight: 600 },
+    sortValue: (r) => Number(r.annualCtc) || 0,
+    render: (r) => `₹${Number(r.annualCtc).toLocaleString('en-IN')}`,
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    sx: { whiteSpace: 'nowrap' },
+    sortValue: (r) => statusOf(r),
+    render: (r) => (
+      <Stack spacing={0.25} alignItems="flex-start">
+        <StatusChip label={statusOf(r)} tone={EMPLOYEE_STATUS_TONE[statusOf(r)] || 'neutral'} />
+        {r.exitDate ? (
+          <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+            Exit {formatDate(r.exitDate)}
+          </Typography>
+        ) : null}
+      </Stack>
+    ),
+  },
+];
+
+/** Employee Master — /employee-list. */
 export function EmployeeListPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('All');
-  const [typeFilter, setTypeFilter] = useState('All');
   const [bucketFilter, setBucketFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const employeesQuery = useEmployees(search);
+  const [typeFilter, setTypeFilter] = useState('All');
+  const employeesQuery = useEmployees();
 
-  const employees = employeesQuery.data || [];
+  const employees = useMemo(() => employeesQuery.data || [], [employeesQuery.data]);
   const departments = useMemo(
-    () => Array.from(new Set(employees.map((e) => e.departmentName))).filter(Boolean),
+    () => Array.from(new Set(employees.map((e) => e.departmentName))).filter(Boolean).sort(),
     [employees],
   );
-  const buckets = useMemo(
-    () => Array.from(new Set(employees.map((e) => e.bucket))).filter(Boolean),
-    [employees],
-  );
+  const buckets = useMemo(() => Array.from(new Set(employees.map((e) => e.bucket))).filter(Boolean).sort(), [employees]);
 
-  const filteredEmployees = employees.filter((emp) => {
-    const matchesSearch =
-      emp.empId.toLowerCase().includes(search.toLowerCase()) ||
-      emp.name.toLowerCase().includes(search.toLowerCase()) ||
-      emp.designationName.toLowerCase().includes(search.toLowerCase()) ||
-      emp.departmentName.toLowerCase().includes(search.toLowerCase()) ||
-      (emp.stateNames || []).some((s) => s.toLowerCase().includes(search.toLowerCase()));
+  // Everything except the status chips — the chips show counts within this set.
+  const baseFiltered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return employees.filter((emp) => {
+      const matchesSearch =
+        !term ||
+        [emp.empId, emp.name, emp.designationName, emp.departmentName, ...(emp.stateNames || []), ...(emp.cityNames || [])]
+          .filter(Boolean)
+          .some((v) => v.toLowerCase().includes(term));
+      return (
+        matchesSearch &&
+        (departmentFilter === 'All' || emp.departmentName === departmentFilter) &&
+        (bucketFilter === 'All' || emp.bucket === bucketFilter) &&
+        (typeFilter === 'All' || emp.employmentType === typeFilter)
+      );
+    });
+  }, [employees, search, departmentFilter, bucketFilter, typeFilter]);
 
-    const matchesDept =
-      departmentFilter === 'All' || emp.departmentName === departmentFilter;
+  const rows = useMemo(() => {
+    const filter = STATUS_FILTERS.find((f) => f.key === statusFilter) || STATUS_FILTERS[0];
+    return baseFiltered.filter(filter.match);
+  }, [baseFiltered, statusFilter]);
 
-    const matchesType =
-      typeFilter === 'All' || emp.employmentType.toLowerCase() === typeFilter.toLowerCase();
-
-    const matchesBucket =
-      bucketFilter === 'All' || emp.bucket.toLowerCase() === bucketFilter.toLowerCase();
-
-    const matchesStatus =
-      statusFilter === 'All' || (emp.status || 'Active').toLowerCase() === statusFilter.toLowerCase();
-
-    return matchesSearch && matchesDept && matchesType && matchesBucket && matchesStatus;
-  });
-
-  const columns = [
+  const current = employees.filter((e) => !isInactive(e));
+  const stats = [
+    { label: 'Employees', value: employees.length },
+    { label: 'Active', value: employees.filter((e) => statusOf(e) === 'Active').length, color: 'success.main' },
     {
-      key: 'empId',
-      header: 'Emp ID',
-      width: 100,
-      render: (r) => (
-        <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
-          {r.empId}
-        </Typography>
-      ),
+      label: 'Permanent · Contract',
+      value: `${current.filter((e) => e.employmentType === 'Permanent').length} · ${
+        current.filter((e) => e.employmentType === 'Contract').length
+      }`,
+      note: 'Current staff',
     },
     {
-      key: 'name',
-      header: 'Name',
-      width: 180,
-      render: (r) => <b>{r.name}</b>,
-    },
-    {
-      key: 'departmentName',
-      header: 'Department (F4)',
-      width: 180,
-      render: (r) => (
-        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: 12.5, fontWeight: 600 }}>
-          {r.departmentName}
-        </Typography>
-      ),
-    },
-    {
-      key: 'designationName',
-      header: 'Designation',
-      width: 220,
-      render: (r) => r.designationName,
-    },
-    {
-      key: 'bucket',
-      header: 'Bucket',
-      width: 110,
-      render: (r) => r.bucket,
-    },
-    {
-      key: 'stateNames',
-      header: 'State',
-      width: 150,
-      render: (r) => (r.stateNames || []).join(', '),
-    },
-    {
-      key: 'joiningDate',
-      header: 'Joining Date',
-      width: 120,
-      render: (r) => r.joiningDate,
-    },
-    {
-      key: 'employmentType',
-      header: 'Employment type',
-      width: 150,
-      align: 'center',
-      render: (r) => (
-        <Chip
-          label={r.employmentType}
-          size="small"
-          variant="outlined"
-          color={r.employmentType === 'Permanent' ? 'default' : 'secondary'}
-          sx={{ fontWeight: 600, fontSize: 12 }}
-        />
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      width: 120,
-      align: 'center',
-      render: (r) => {
-        const status = r.status || 'Active';
-        return (
-          <Chip
-            label={status}
-            color={EMPLOYEE_STATUS_TONE[status] || 'default'}
-            size="small"
-            variant="outlined"
-            sx={{ fontWeight: 600, minWidth: 75 }}
-          />
-        );
-      },
-    },
-    {
-      key: 'annualCtc',
-      header: 'Annual CTC (Rs)',
-      width: 150,
-      align: 'right',
-      render: (r) => (
-        <Typography variant="body2" sx={{ fontWeight: 600, fontFamily: 'monospace' }}>
-          {Number(r.annualCtc).toLocaleString('en-IN')}
-        </Typography>
-      ),
+      label: 'Annual CTC',
+      value: formatInr(current.reduce((sum, e) => sum + (Number(e.annualCtc) || 0), 0)),
+      note: 'Current staff',
     },
   ];
+
+  const filtersActive = departmentFilter !== 'All' || bucketFilter !== 'All' || typeFilter !== 'All' || search.trim();
 
   return (
     <>
       <PageHeader
         title="Employee Master"
-        subtitle="Department and state map to F4 cost centres. Bucket determines which F3 ledger the cost posts to."
+        subtitle="Department and state map to F4 cost centres; bucket decides the F3 ledger"
         actions={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/employee-list/new')}
-          >
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/employee-list/new')}>
             Add Employee
           </Button>
         }
       />
 
-      <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Box sx={{ maxWidth: 320, flex: 1, minWidth: 200 }}>
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            placeholder="Search by ID, name, designation, dept…"
-          />
+      {employees.length ? <StatStrip stats={stats} sx={{ mb: 2 }} /> : null}
+
+      <Stack direction="row" sx={{ mb: 1, gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Box sx={{ width: { xs: '100%', sm: 280 }, mr: { sm: 1 } }}>
+          <SearchField value={search} onChange={setSearch} placeholder="Search name, ID, role, place…" />
         </Box>
-
-        <Select
-          size="small"
-          value={departmentFilter}
-          onChange={(e) => setDepartmentFilter(e.target.value)}
-          sx={{ minWidth: 150, borderRadius: 2 }}
-        >
-          <MenuItem value="All">All Departments</MenuItem>
-          {departments.map((dept) => (
-            <MenuItem key={dept} value={dept}>
-              {dept}
-            </MenuItem>
-          ))}
-        </Select>
-
-        <Select
-          size="small"
-          value={bucketFilter}
-          onChange={(e) => setBucketFilter(e.target.value)}
-          sx={{ minWidth: 130, borderRadius: 2 }}
-        >
-          <MenuItem value="All">All Buckets</MenuItem>
-          {buckets.map((b) => (
-            <MenuItem key={b} value={b}>
-              {b}
-            </MenuItem>
-          ))}
-        </Select>
-
-        <Select
-          size="small"
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          sx={{ minWidth: 140, borderRadius: 2 }}
-        >
-          <MenuItem value="All">All Types</MenuItem>
-          <MenuItem value="Permanent">Permanent</MenuItem>
-          <MenuItem value="Contract">Contract</MenuItem>
-        </Select>
-
-        <Select
-          size="small"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          sx={{ minWidth: 130, borderRadius: 2 }}
-        >
-          <MenuItem value="All">All Statuses</MenuItem>
-          {EMPLOYEE_STATUSES.map((s) => (
-            <MenuItem key={s} value={s}>
-              {s}
-            </MenuItem>
-          ))}
-        </Select>
+        {STATUS_FILTERS.map((f) => {
+          const selected = statusFilter === f.key;
+          return (
+            <Chip
+              key={f.key}
+              size="small"
+              label={`${f.label} · ${baseFiltered.filter(f.match).length}`}
+              onClick={() => setStatusFilter(f.key)}
+              color={selected ? 'primary' : 'default'}
+              variant={selected ? 'filled' : 'outlined'}
+              aria-pressed={selected}
+            />
+          );
+        })}
+      </Stack>
+      <Stack direction="row" sx={{ mb: 1.5, gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+        <FilterSelect value={departmentFilter} onChange={setDepartmentFilter} allLabel="All departments" options={departments} />
+        <FilterSelect value={bucketFilter} onChange={setBucketFilter} allLabel="All buckets" options={buckets} />
+        <FilterSelect value={typeFilter} onChange={setTypeFilter} allLabel="All types" options={['Permanent', 'Contract']} />
+        {filtersActive ? (
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() => {
+              setSearch('');
+              setDepartmentFilter('All');
+              setBucketFilter('All');
+              setTypeFilter('All');
+            }}
+          >
+            Clear filters
+          </Button>
+        ) : null}
+        <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+          Showing {rows.length} of {employees.length}
+        </Typography>
       </Stack>
 
       <DataTable
+        dense
         columns={columns}
-        rows={filteredEmployees}
+        rows={rows}
         getRowKey={(r) => r.id}
         isLoading={employeesQuery.isPending}
         error={employeesQuery.isError ? employeesQuery.error : null}
         onRetry={employeesQuery.refetch}
         onRowClick={(r) => navigate(`/employee-list/${r.id}`)}
-        emptyTitle="No employees found"
-        emptyDescription="Add the first employee to see them here."
+        emptyTitle={employees.length ? 'No employees match these filters' : 'No employees yet'}
+        emptyDescription={employees.length ? 'Try another status or clear the filters.' : 'Add the first employee to see them here.'}
       />
     </>
   );

@@ -21,7 +21,8 @@ export function useCreateEmployee() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (formValues) => employeeService.createEmployee(formValues),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() }),
+    // onSettled: a failed document upload still leaves a saved employee behind.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() }),
   });
 }
 
@@ -29,7 +30,7 @@ export function useUpdateEmployee(id) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (formValues) => employeeService.updateEmployee(id, formValues),
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.employees.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.employees.updateLogs(id) });
     },

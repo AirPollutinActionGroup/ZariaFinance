@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Box, Button, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from 'react-router-dom';
 import { ACTIONS, PermissionGate } from '../../../core/permissions/index.js';
-import { DataTable, PageHeader, SearchField, StatusChip } from '../../../shared/components/index.js';
+import { DataTable, PageHeader, SearchField, StatStrip, StatusChip } from '../../../shared/components/index.js';
 import { useDonors } from '../hooks/useDonors.js';
 import {
   DONOR_ACTIVE_TONE,
@@ -12,18 +12,41 @@ import {
 } from '../constants.js';
 
 const columns = [
-  { key: 'serialNo', header: 'S.No', width: 60, render: (row) => row.serialNo },
+  { key: 'serialNo', header: 'S.No', width: 56, render: (row) => row.serialNo },
   {
     key: 'donorCode',
     header: 'Donor Code',
-    width: 160, // Increased from 110 to 160
-    render: (row) => <span style={{ whiteSpace: 'nowrap' }}>{row.donorCode}</span>
+    sx: { whiteSpace: 'nowrap' },
+    sortValue: (row) => row.donorCode,
   },
-  { key: 'donorName', header: 'Donor Name' },
-  { key: 'donorType', header: 'Donor Type', render: (row) => row.donorTypeLabel },
+  {
+    key: 'donorName',
+    header: 'Donor',
+    sortValue: (row) => row.donorName,
+    render: (row) => (
+      <Box sx={{ minWidth: 200 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.35 }}>
+          {row.donorName}
+        </Typography>
+        {row.email ? (
+          <Typography variant="caption" color="text.secondary">
+            {row.email}
+          </Typography>
+        ) : null}
+      </Box>
+    ),
+  },
+  {
+    key: 'donorType',
+    header: 'Donor Type',
+    sx: { whiteSpace: 'nowrap' },
+    sortValue: (row) => row.donorTypeLabel,
+    render: (row) => row.donorTypeLabel,
+  },
   {
     key: 'fundSourceDomicile',
     header: 'Fund source',
+    sortValue: (row) => row.fundSourceDomicileLabel,
     render: (row) => (
       <StatusChip
         label={row.fundSourceDomicileLabel}
@@ -34,6 +57,7 @@ const columns = [
   {
     key: 'isActive',
     header: 'Status',
+    sortValue: (row) => (row.isActive ? 0 : 1),
     render: (row) => (
       <StatusChip
         label={row.isActive ? 'Active' : 'Inactive'}
@@ -43,11 +67,11 @@ const columns = [
   },
 ];
 
-/** Values: 'all' | 'active' | 'inactive'. */
+/** Status filter chips; `match` picks the donors each one shows. */
 const STATUS_FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
+  { value: 'all', label: 'All', match: () => true },
+  { value: 'active', label: 'Active', match: (d) => d.isActive },
+  { value: 'inactive', label: 'Inactive', match: (d) => !d.isActive },
 ];
 
 /** Donor register — /donors. */
@@ -57,16 +81,25 @@ export function DonorsListPage() {
   const donorsQuery = useDonors(search);
   const navigate = useNavigate();
 
+  // While a new search loads, keep showing the last result so the page doesn't
+  // jump (the summary strip would vanish and the search box would move).
+  const [lastDonors, setLastDonors] = useState(null);
+  if (donorsQuery.data && donorsQuery.data !== lastDonors) setLastDonors(donorsQuery.data);
+  const shown = donorsQuery.data || lastDonors;
+  const donors = useMemo(() => shown || [], [shown]);
+
   const rows = useMemo(() => {
-    const donors = donorsQuery.data || [];
-    const filtered =
-      statusFilter === 'active'
-        ? donors.filter((donor) => donor.isActive)
-        : statusFilter === 'inactive'
-          ? donors.filter((donor) => !donor.isActive)
-          : donors;
-    return filtered.map((donor, index) => ({ ...donor, serialNo: index + 1 }));
-  }, [donorsQuery.data, statusFilter]);
+    const filter = STATUS_FILTERS.find((f) => f.value === statusFilter) || STATUS_FILTERS[0];
+    return donors.filter(filter.match).map((donor, index) => ({ ...donor, serialNo: index + 1 }));
+  }, [donors, statusFilter]);
+
+  const foreign = donors.filter((d) => d.fundSourceDomicile === 'FOREIGN').length;
+  const stats = [
+    { label: 'Donors', value: donors.length },
+    { label: 'Active', value: donors.filter((d) => d.isActive).length, color: 'success.main' },
+    { label: 'Domestic', value: donors.length - foreign },
+    { label: 'Foreign · FCRA', value: foreign },
+  ];
 
   return (
     <>
@@ -86,32 +119,46 @@ export function DonorsListPage() {
           </PermissionGate>
         }
       />
-      <Stack id="tour-donors-filters" direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Box sx={{ maxWidth: 420, flex: 1, minWidth: 240 }}>
+      {donors.length ? <StatStrip stats={stats} sx={{ mb: 2 }} /> : null}
+      {/* Kept outside the DataTable: the table swaps to a loading state while a
+          new search runs, which would otherwise unmount the search box. */}
+      <Stack
+        id="tour-donors-filters"
+        direction="row"
+        sx={{ mb: 1.5, gap: 1, alignItems: 'center', flexWrap: 'wrap' }}
+      >
+        <Box sx={{ width: { xs: '100%', sm: 280 }, mr: { sm: 1 } }}>
           <SearchField value={search} onChange={setSearch} placeholder="Search donors…" />
         </Box>
-        <ToggleButtonGroup
-          value={statusFilter}
-          exclusive
-          size="small"
-          onChange={(_, next) => next && setStatusFilter(next)}
-        >
-          {STATUS_FILTERS.map((option) => (
-            <ToggleButton key={option.value} value={option.value}>
-              {option.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+        {STATUS_FILTERS.map((f) => {
+          const selected = statusFilter === f.value;
+          return (
+            <Chip
+              key={f.value}
+              size="small"
+              label={`${f.label} · ${donors.filter(f.match).length}`}
+              onClick={() => setStatusFilter(f.value)}
+              color={selected ? 'primary' : 'default'}
+              variant={selected ? 'filled' : 'outlined'}
+              aria-pressed={selected}
+            />
+          );
+        })}
       </Stack>
       <DataTable
+        dense
         columns={columns}
         rows={rows}
         getRowKey={(row) => row.id}
-        isLoading={donorsQuery.isPending}
+        isLoading={donorsQuery.isPending && !shown}
         error={donorsQuery.isError ? donorsQuery.error : null}
         onRetry={donorsQuery.refetch}
-        emptyTitle="No donors registered"
-        emptyDescription="Create the first donor record to start mapping funding sources."
+        emptyTitle={donors.length ? 'No donors with this status' : 'No donors registered'}
+        emptyDescription={
+          donors.length
+            ? 'Pick another status above, or All.'
+            : 'Create the first donor record to start mapping funding sources.'
+        }
         onRowClick={(row) => navigate(`/donors/${row.id}`)}
       />
     </>

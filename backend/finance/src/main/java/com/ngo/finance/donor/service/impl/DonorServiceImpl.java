@@ -14,6 +14,7 @@ import com.ngo.finance.donor.repository.CityRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.StateRepository;
 import com.ngo.finance.donor.service.DonorService;
+import com.ngo.finance.masters.documenttype.service.DocumentTypeService;
 import com.ngo.finance.masters.donortype.entity.DonorTypeMaster;
 import com.ngo.finance.masters.donortype.repository.DonorTypeMasterRepository;
 import java.util.List;
@@ -48,6 +49,9 @@ public class DonorServiceImpl implements DonorService {
 
     @Autowired
     private DonorTypeMasterRepository donorTypeMasterRepository;
+
+    @Autowired
+    private DocumentTypeService documentTypeService;
 
     /**
      * Resolves the donor type by id, requires it to be active, and — when the
@@ -85,6 +89,8 @@ public class DonorServiceImpl implements DonorService {
 
         DonorMaster donor = donorMapper.toEntity(request);
         donor.setDonorType(donorType);
+        donor.setDocumentType(documentTypeService.requireUsableCode(
+                request.getDocumentType(), null, request.getFundSourceDomicile()));
 
         if (request.getCountryId() != null) {
             donor.setCountry(countryRepository.findById(request.getCountryId())
@@ -193,6 +199,11 @@ public class DonorServiceImpl implements DonorService {
                     .orElseThrow(() -> new ResourceNotFoundException("City", request.getCityId())));
         }
 
+        FundSourceDomicile effectiveDomicileForDocument = request.getFundSourceDomicile() != null
+                ? request.getFundSourceDomicile()
+                : donor.getFundSourceDomicile();
+        boolean domicileChanged = effectiveDomicileForDocument != donor.getFundSourceDomicile();
+
         donorMapper.updateEntity(CreateDonorRequest.builder()
                 .donorCode(donor.getDonorCode())
                 .donorName(request.getDonorName())
@@ -202,7 +213,14 @@ public class DonorServiceImpl implements DonorService {
                 .foreignFundSourceType(request.getForeignFundSourceType())
                 .foreignCountryId(request.getForeignCountryId())
                 .passportId(request.getPassportId())
-                .documentType(request.getDocumentType())
+                .documentType(request.getDocumentType() == null
+                        ? null
+                        : documentTypeService.requireUsableCode(
+                                request.getDocumentType(),
+                                // Keeping the saved type is fine, unless the domicile changes —
+                                // then the type must fit the new domicile like a fresh choice.
+                                domicileChanged ? null : donor.getDocumentType(),
+                                effectiveDomicileForDocument))
                 .documentNumber(request.getDocumentNumber())
                 .email(request.getEmail())
                 .phoneNumber(request.getPhoneNumber())

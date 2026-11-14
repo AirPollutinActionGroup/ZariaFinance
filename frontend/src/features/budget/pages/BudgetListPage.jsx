@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
+  Chip,
   FormControl,
-  Grid,
   MenuItem,
   Select,
   Stack,
@@ -15,7 +15,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { DataTable, PageHeader, SearchField, StatCard, StatusChip } from '../../../shared/components/index.js';
+import { DataTable, PageHeader, SearchField, StatStrip, StatusChip } from '../../../shared/components/index.js';
 import { formatInr, formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate } from '../../../lib/format/date.js';
 import { useBudgetFinancialYears, useBudgets } from '../hooks/useBudgets.js';
@@ -116,15 +116,19 @@ export function BudgetListPage() {
       key: 'scope',
       header: 'Scope',
       sortValue: (b) => `${budgetTypeOf(b)} ${b.programme}`,
+      // Programme on top; type (as a small tinted label) and state underneath.
       render: (b) => (
-        <Box>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.4 }}>
-            <StatusChip label={BUDGET_TYPE[budgetTypeOf(b)]} tone={BUDGET_TYPE_TONE[budgetTypeOf(b)]} />
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>{b.programme}</Typography>
-          </Stack>
-          <Stack direction="row" spacing={0.4} alignItems="center" sx={{ color: 'text.secondary' }}>
-            <PlaceOutlinedIcon sx={{ fontSize: 14 }} />
-            <Typography variant="caption">{b.stateName || 'All states'}</Typography>
+        <Box sx={{ minWidth: 170 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.35 }}>{b.programme}</Typography>
+          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ color: 'text.secondary', mt: 0.25 }}>
+            <Box sx={{ '& .MuiChip-root': { height: 18, fontSize: 10.5 } }}>
+              <StatusChip
+                label={BUDGET_TYPE[budgetTypeOf(b)].replace('-based', '')}
+                tone={BUDGET_TYPE_TONE[budgetTypeOf(b)]}
+              />
+            </Box>
+            <PlaceOutlinedIcon sx={{ fontSize: 13 }} />
+            <Typography variant="caption" sx={{ whiteSpace: 'nowrap' }}>{b.stateName || 'All states'}</Typography>
           </Stack>
         </Box>
       ),
@@ -150,16 +154,15 @@ export function BudgetListPage() {
       render: (b) => <StatusChip label={BUDGET_STATUS[b.status]} tone={BUDGET_STATUS_TONE[b.status]} />,
     },
     {
-      key: 'owner',
-      header: 'Owner',
-      sortValue: (b) => b.owner,
-      render: (b) => <Typography variant="body2">{b.owner || '—'}</Typography>,
-    },
-    {
       key: 'updatedAt',
-      header: 'Last updated',
+      header: 'Updated',
       sortValue: (b) => b.updatedAt,
-      render: (b) => <Typography variant="body2" color="text.secondary">{formatDate(b.updatedAt)}</Typography>,
+      render: (b) => (
+        <Box sx={{ whiteSpace: 'nowrap' }}>
+          <Typography variant="body2" sx={{ lineHeight: 1.35 }}>{formatDate(b.updatedAt)}</Typography>
+          <Typography variant="caption" color="text.secondary">by {b.owner || '—'}</Typography>
+        </Box>
+      ),
     },
   ];
 
@@ -173,7 +176,7 @@ export function BudgetListPage() {
           <TableCell align="right" sx={{ ...MONEY_SX, fontWeight: 700 }}>
             {formatInrExact(sum(filtered))}
           </TableCell>
-          <TableCell colSpan={3} />
+          <TableCell colSpan={2} />
         </TableRow>
       </TableFooter>
     ) : null;
@@ -196,95 +199,90 @@ export function BudgetListPage() {
         }
       />
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            emphasis
-            label={`Total planned · ${fyLabel}`}
-            value={formatInr(kpis.planned)}
-            hint={`${kpis.count} ${kpis.count === 1 ? 'budget' : 'budgets'} · Programme ${pct(kpis.programme, kpis.planned)}% · Organisation ${pct(kpis.organisation, kpis.planned)}%`}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            accent
-            label="Approved"
-            value={formatInr(kpis.approved)}
-            hint={`${kpis.approvedCount} ${kpis.approvedCount === 1 ? 'budget' : 'budgets'} · ${pct(kpis.approved, kpis.planned)}% of planned`}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            label="Awaiting approval"
-            value={formatInr(kpis.pending)}
-            hint={`${kpis.pendingCount} submitted`}
-            onClick={kpis.pendingCount ? () => setStatusFilter('SUBMITTED') : null}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            label="In draft"
-            value={formatInr(kpis.drafts)}
-            hint={`${kpis.draftCount} ${kpis.draftCount === 1 ? 'budget' : 'budgets'}${kpis.rejectedCount ? ` · ${kpis.rejectedCount} returned` : ''}`}
-            onClick={kpis.draftCount ? () => setStatusFilter('DRAFT') : null}
-          />
-        </Grid>
-      </Grid>
+      <StatStrip
+        sx={{ mb: 2 }}
+        stats={[
+          {
+            label: `Total planned · ${fyLabel}`,
+            value: formatInr(kpis.planned),
+            note: `${kpis.count} ${kpis.count === 1 ? 'budget' : 'budgets'} · Programme ${pct(kpis.programme, kpis.planned)}% · Org ${pct(kpis.organisation, kpis.planned)}%`,
+          },
+          {
+            label: 'Approved',
+            value: formatInr(kpis.approved),
+            note: `${kpis.approvedCount} ${kpis.approvedCount === 1 ? 'budget' : 'budgets'} · ${pct(kpis.approved, kpis.planned)}% of planned`,
+            color: 'success.main',
+          },
+          {
+            label: 'Awaiting approval',
+            value: formatInr(kpis.pending),
+            note: `${kpis.pendingCount} submitted`,
+            color: kpis.pendingCount ? 'warning.main' : undefined,
+          },
+          {
+            label: 'In draft',
+            value: formatInr(kpis.drafts),
+            note: `${kpis.draftCount} ${kpis.draftCount === 1 ? 'budget' : 'budgets'}${kpis.rejectedCount ? ` · ${kpis.rejectedCount} returned` : ''}`,
+          },
+        ]}
+      />
 
       <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        spacing={1.5}
-        alignItems={{ md: 'center' }}
-        justifyContent="space-between"
-        sx={{ mb: 1.5 }}
+        direction="row"
+        sx={{
+          mb: 1.5,
+          gap: 1,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          '& .MuiInputBase-root': { height: 34, fontSize: 13 },
+        }}
       >
-        <Box sx={{ width: { xs: '100%', md: 360 } }}>
+        <Box sx={{ width: { xs: '100%', sm: 260 }, mr: { sm: 1 } }}>
           <SearchField placeholder="Search budget, programme or state…" value={searchQuery} onChange={setSearchQuery} />
         </Box>
-        <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', rowGap: 1.5 }}>
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <Select value={fy} onChange={(e) => setFy(e.target.value)} inputProps={{ 'aria-label': 'Financial year' }}>
-              {fyOptions.map((option) => (
-                <MenuItem key={option} value={option}>
-                  FY {option}{option === fyMaster.activeLabel ? ' (current)' : ''}
-                </MenuItem>
-              ))}
-              <MenuItem value="All">All FYs</MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 170 }}>
-            <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} inputProps={{ 'aria-label': 'Budget type' }}>
-              <MenuItem value="All">All Types</MenuItem>
-              {Object.entries(BUDGET_TYPE).map(([code, label]) => (
-                <MenuItem key={code} value={code}>{label}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} inputProps={{ 'aria-label': 'Status' }}>
-              <MenuItem value="All">All Statuses</MenuItem>
-              {Object.entries(BUDGET_STATUS).map(([code, label]) => (
-                <MenuItem key={code} value={code}>{label}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
-      </Stack>
-
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1, minHeight: 30 }}>
-        <Typography variant="body2" color="text.secondary">
-          {filtersActive
-            ? `Showing ${filtered.length} of ${fyBudgets.length} budgets in ${fyLabel}`
-            : `${fyBudgets.length} ${fyBudgets.length === 1 ? 'budget' : 'budgets'} in ${fyLabel}`}
-        </Typography>
+        {[['All', 'All'], ...Object.entries(BUDGET_STATUS)].map(([code, label]) => {
+          const selected = statusFilter === code;
+          const n = code === 'All' ? fyBudgets.length : fyBudgets.filter((b) => b.status === code).length;
+          return (
+            <Chip
+              key={code}
+              size="small"
+              label={`${label} · ${n}`}
+              onClick={() => setStatusFilter(code)}
+              color={selected ? 'primary' : 'default'}
+              variant={selected ? 'filled' : 'outlined'}
+              aria-pressed={selected}
+            />
+          );
+        })}
         {filtersActive ? (
           <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>
-            Clear filters
+            Clear
           </Button>
         ) : null}
+        <Box sx={{ flex: 1 }} />
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <Select value={fy} onChange={(e) => setFy(e.target.value)} inputProps={{ 'aria-label': 'Financial year' }}>
+            {fyOptions.map((option) => (
+              <MenuItem key={option} value={option}>
+                FY {option}{option === fyMaster.activeLabel ? ' (current)' : ''}
+              </MenuItem>
+            ))}
+            <MenuItem value="All">All FYs</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 150 }}>
+          <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} inputProps={{ 'aria-label': 'Budget type' }}>
+            <MenuItem value="All">All Types</MenuItem>
+            {Object.entries(BUDGET_TYPE).map(([code, label]) => (
+              <MenuItem key={code} value={code}>{label}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Stack>
 
       <DataTable
+        dense
         columns={columns}
         rows={filtered}
         getRowKey={(b) => b.id}

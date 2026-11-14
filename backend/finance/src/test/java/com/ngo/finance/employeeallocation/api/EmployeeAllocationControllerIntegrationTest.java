@@ -1,6 +1,9 @@
 package com.ngo.finance.employeeallocation.api;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -101,6 +104,89 @@ public class EmployeeAllocationControllerIntegrationTest {
         postAllocation(allocation(projectId, null, 40))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.programmeId").exists());
+    }
+
+    @Test
+    public void testHistory_RecordsAddedEndedAndRemoved() throws Exception {
+        Long allocationId = idOf(postAllocation(startingOn(allocation(programId, projectId, 40), LocalDate.of(2025, 5, 1)))
+                .andExpect(status().isCreated()));
+
+        mockMvc.perform(patch("/api/v1/employee-allocations/" + allocationId + "/end")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"endDate\":\"2025-12-31\",\"note\":\"Moved to another project\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.endDate").value("2025-12-31"))
+                .andExpect(jsonPath("$.active").value(false));
+
+        mockMvc.perform(delete("/api/v1/employee-allocations/" + allocationId).with(csrf()).param("note", "Made by mistake"))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/employee-allocations/history").param("employeeId", employeeId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].event").value("REMOVED"))
+                .andExpect(jsonPath("$[0].note").value("Made by mistake"))
+                .andExpect(jsonPath("$[1].event").value("ENDED"))
+                .andExpect(jsonPath("$[1].endDate").value("2025-12-31"))
+                .andExpect(jsonPath("$[1].note").value("Moved to another project"))
+                .andExpect(jsonPath("$[2].event").value("CREATED"))
+                .andExpect(jsonPath("$[2].programmeName").value("Allocation Test Program"))
+                .andExpect(jsonPath("$[2].projectName").value("Allocation Test Project"))
+                .andExpect(jsonPath("$[2].allocationPct").value(40));
+    }
+
+    @Test
+    public void testEndedAllocation_NoLongerCountsTowardTheHundredPercent() throws Exception {
+        Long allocationId = idOf(postAllocation(startingOn(allocation(programId, null, 100), LocalDate.of(2025, 5, 1)))
+                .andExpect(status().isCreated()));
+
+        postAllocation(allocation(programId, projectId, 50))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.allocationPct").exists());
+
+        mockMvc.perform(patch("/api/v1/employee-allocations/" + allocationId + "/end")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"endDate\":\"2025-12-31\"}"))
+                .andExpect(status().isOk());
+
+        postAllocation(allocation(programId, projectId, 50)).andExpect(status().isCreated());
+    }
+
+    @Test
+    public void testEndingToday_FreesTheShareRightAway() throws Exception {
+        Long allocationId = idOf(postAllocation(startingOn(allocation(programId, null, 100), LocalDate.of(2025, 5, 1)))
+                .andExpect(status().isCreated()));
+
+        // No body: ends today.
+        mockMvc.perform(patch("/api/v1/employee-allocations/" + allocationId + "/end").with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.endDate").value(LocalDate.now().toString()))
+                .andExpect(jsonPath("$.active").value(false));
+
+        postAllocation(allocation(programId, projectId, 100)).andExpect(status().isCreated());
+    }
+
+    @Test
+    public void testEndAllocation_BeforeItsStart_Fails() throws Exception {
+        Long allocationId = idOf(postAllocation(startingOn(allocation(programId, null, 30), LocalDate.of(2025, 5, 1)))
+                .andExpect(status().isCreated()));
+
+        mockMvc.perform(patch("/api/v1/employee-allocations/" + allocationId + "/end")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"endDate\":\"2025-04-30\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    private static CreateEmployeeAllocationRequest startingOn(CreateEmployeeAllocationRequest request, LocalDate start) {
+        request.setStartDate(start);
+        return request;
+    }
+
+    private Long idOf(ResultActions result) throws Exception {
+        return objectMapper.readTree(result.andReturn().getResponse().getContentAsString()).get("id").asLong();
     }
 
     private CreateEmployeeAllocationRequest allocation(Long programmeId, Long projectId, int pct) {

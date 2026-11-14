@@ -12,6 +12,9 @@ import { GrantCreatePage } from './pages/GrantCreatePage.jsx';
 import { GrantDetailPage } from './pages/GrantDetailPage.jsx';
 import { GrantEditPage } from './pages/GrantEditPage.jsx';
 import { FundProfileFormPage } from './pages/FundProfileFormPage.jsx';
+import { FundProfilesListPage } from './pages/FundProfilesListPage.jsx';
+import { FundProfileDetailPage } from './pages/FundProfileDetailPage.jsx';
+import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
 import { ReportsPage } from './pages/ReportsPage.jsx';
 import { ProgrammesListPage } from './pages/ProgrammesListPage.jsx';
 import { ProgrammeCreatePage } from './pages/ProgrammeCreatePage.jsx';
@@ -39,6 +42,7 @@ import { EmployeeCreatePage } from '../employee-list/pages/EmployeeCreatePage.js
 import { EmployeeDetailPage } from '../employee-list/pages/EmployeeDetailPage.jsx';
 import { EmployeeEditPage } from '../employee-list/pages/EmployeeEditPage.jsx';
 import { EmployeeAllocationPage } from '../employee-allocation/pages/EmployeeAllocationPage.jsx';
+import { EmployeeAllocationCreatePage } from '../employee-allocation/pages/EmployeeAllocationCreatePage.jsx';
 import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined';
 import { MasterPage } from '../masters/pages/MasterPage.jsx';
 import { VendorListPage } from '../vendor-registration/pages/VendorListPage.jsx';
@@ -79,6 +83,7 @@ export const donorManagementModule = {
   navSection: 'CORE LAYERS',
   navItems: [
     { label: 'Donors Registry', path: '/donors', icon: VolunteerActivismOutlinedIcon, section: 'DONOR & GRANTS' },
+    { label: 'Fund Profiles', path: '/fund-profiles', icon: RuleOutlinedIcon, section: 'DONOR & GRANTS' },
     { label: 'Grants Agreements', path: '/grants', icon: HandshakeOutlinedIcon, section: 'DONOR & GRANTS' },
     //{ label: 'Donations', path: '/donations', icon: VolunteerActivismOutlinedIcon, section: 'DONOR & GRANTS' },
     { label: 'Programmes', path: '/programmes', icon: CategoryOutlinedIcon, section: 'DONOR & GRANTS' },
@@ -106,6 +111,8 @@ export const donorManagementModule = {
     { path: '/donors/:id', element: <DonorDetailPage /> },
     { path: '/donors/:id/edit', element: <DonorEditPage /> },
     { path: '/donors/:donorId/fund-profiles/new', element: <FundProfileFormPage /> },
+    { path: '/fund-profiles', element: <FundProfilesListPage /> },
+    { path: '/fund-profiles/:id', element: <FundProfileDetailPage /> },
     { path: '/fund-profiles/:id/edit', element: <FundProfileFormPage /> },
     { path: '/grants', element: <GrantsListPage /> },
     { path: '/grants/new', element: <GrantCreatePage /> },
@@ -130,6 +137,7 @@ export const donorManagementModule = {
     { path: '/employee-list/:id', element: <EmployeeDetailPage /> },
     { path: '/employee-list/:id/edit', element: <EmployeeEditPage /> },
     { path: '/employee-allocation', element: <EmployeeAllocationPage /> },
+    { path: '/employee-allocation/new', element: <EmployeeAllocationCreatePage /> },
     { path: '/masters', element: <MasterPage /> },
     { path: '/masters/departments', element: <MasterPage /> },
     { path: '/masters/designations', element: <MasterPage /> },

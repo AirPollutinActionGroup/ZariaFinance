@@ -1,5 +1,6 @@
 export { PageHeader } from './PageHeader.jsx';
 export { StatCard } from './StatCard.jsx';
+export { StatStrip } from './StatStrip.jsx';
 export { StatusChip } from './StatusChip.jsx';
 export { DataTable } from './DataTable.jsx';
 export { LoadingState } from './LoadingState.jsx';

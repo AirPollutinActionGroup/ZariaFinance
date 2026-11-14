@@ -15,15 +15,6 @@ export const FUND_SOURCE_DOMICILE = Object.freeze({
   FOREIGN: 'Foreign',
 });
 
-export const INDIVIDUAL_ID_TYPE = Object.freeze({
-  PAN: 'PAN Card',
-  AADHAR: 'Aadhaar Card',
-  VOTER_ID: 'Voter ID',
-  DRIVING_LICENSE: 'Driving License',
-  PASSPORT: 'Passport ID',
-  FOREIGN_TAX_ID: 'Foreign Tax Identification Number',
-});
-
 /** Donor lifecycle is a plain isActive boolean now (no multi-step status). */
 export const DONOR_ACTIVE_TONE = Object.freeze({
   true: 'success',
@@ -35,6 +26,13 @@ export const DONOR_ACTIVE_TONE = Object.freeze({
 export function toOptions(enumMap) {
   return Object.entries(enumMap).map(([value, label]) => ({ value, label }));
 }
+
+/** DonorFundProfile.fundClass enum name -> the short A/B/C restriction code. */
+export const FUND_CLASS_SHORT = Object.freeze({
+  CLASS_A_RESTRICTED: 'A',
+  CLASS_B_UNRESTRICTED: 'B',
+  CLASS_C_UNRESTRICTED: 'C',
+});
 
 /** Tone for the fund-profile restriction class A/B/C. */
 export const FUND_CLASS_CODE_TONE = Object.freeze({
@@ -100,12 +98,12 @@ export const ROLE_STATUSES = ['Active', 'Inactive'];
  */
 export const PROGRAMME_TYPES = ['Programme', 'Project'];
 
-export const PROGRAMME_STATUSES = ['Planned', 'Active', 'On Hold', 'Complete', 'Close'];
+export const PROGRAMME_STATUSES = ['Planned', 'Active', 'On Hold', 'Complete', 'Terminate'];
 
 export const PROGRAMME_STATUS_TONE = Object.freeze({
   Planned: 'neutral',
   Active: 'success',
   'On Hold': 'warning',
   Complete: 'info',
-  Close: 'graphite',
+  Terminate: 'graphite',
 });

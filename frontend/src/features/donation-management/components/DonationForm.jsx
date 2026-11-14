@@ -43,13 +43,13 @@ import {
   FUND_MODE,
   GIK_INTENDED_USE,
   GIK_VALUATION_BASIS,
-  INDIVIDUAL_ID_TYPE,
   INVESTMENT_MODE,
   MANDATE_FREQUENCY,
   MANDATE_STATUS,
   UTILISATION_PERIOD_TYPE,
   toOptions,
 } from '../constants.js';
+import { useDocumentTypeName } from '../../masters/hooks/useDocumentTypes.js';
 
 const dateProps = { type: 'date', slotProps: { inputLabel: { shrink: true } } };
 
@@ -106,6 +106,8 @@ export function DonationForm({
   const watchedCsvFile = useWatch({ control, name: 'payrollBatch.csvFile' });
 
   const selectedDonor = (donors || []).find((d) => String(d.id) === String(donorId));
+  // Donor ID types come from the Document Type master (codes such as PAN_CARD).
+  const documentTypeName = useDocumentTypeName();
   const isForeign = selectedDonor?.fundSourceDomicile === 'Foreign' || selectedDonor?.fundSourceDomicile === 'FOREIGN';
   const bookValue = selectedDonor ? (isForeign ? 'FC · Foreign contribution' : 'LC · Local contribution') : '—';
   const isIndividualOrMajor =
@@ -282,7 +284,7 @@ export function DonationForm({
                       <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                         <TextField
                           label="ID type"
-                          value={selectedDonor?.idType ? (INDIVIDUAL_ID_TYPE[selectedDonor.idType] || selectedDonor.idType) : '—'}
+                          value={selectedDonor?.idType ? documentTypeName(selectedDonor.idType) : '—'}
                           disabled
                           fullWidth
                           helperText="Derived from donor registry"

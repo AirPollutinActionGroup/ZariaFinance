@@ -15,6 +15,7 @@ import com.ngo.finance.donor.repository.CountryRepository;
 import com.ngo.finance.donor.repository.DonorRepository;
 import com.ngo.finance.donor.repository.StateRepository;
 import com.ngo.finance.donor.service.impl.DonorServiceImpl;
+import com.ngo.finance.masters.documenttype.service.DocumentTypeService;
 import com.ngo.finance.masters.donortype.entity.DonorTypeMaster;
 import com.ngo.finance.masters.donortype.repository.DonorTypeMasterRepository;
 import java.util.Optional;
@@ -44,6 +45,9 @@ public class DonorServiceTest {
 
     @Mock
     private DonorTypeMasterRepository donorTypeMasterRepository;
+
+    @Mock
+    private DocumentTypeService documentTypeService;
 
     @InjectMocks
     private DonorServiceImpl donorService;

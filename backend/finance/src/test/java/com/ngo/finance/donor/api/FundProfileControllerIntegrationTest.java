@@ -1,6 +1,8 @@
 package com.ngo.finance.donor.api;
 
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -131,6 +133,7 @@ public class FundProfileControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.profileCode").value(matchesPattern("FP-\\d{4}-\\d{3,}")))
                 .andExpect(jsonPath("$.geographies.length()").value(1))
                 .andExpect(jsonPath("$.geographies[0].stateId").value(stateId))
                 .andExpect(jsonPath("$.utilisationRules[0].ruleType").value("ADMIN_OVERHEAD_COST"))
@@ -165,6 +168,7 @@ public class FundProfileControllerIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         long profileId = objectMapper.readTree(created).path("id").asLong();
+        String profileCode = objectMapper.readTree(created).path("profileCode").asText();
 
         CreateFundProfileRequest updated = baseProfile()
                 .geographies(List.of(GeographyItem.builder().stateId(stateId).build()))
@@ -182,11 +186,51 @@ public class FundProfileControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updated)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profileCode").value(profileCode))
                 .andExpect(jsonPath("$.geographies.length()").value(1))
                 .andExpect(jsonPath("$.disbursementRules.length()").value(1))
                 .andExpect(jsonPath("$.disbursementRules[0].disbursementType").value("TRANCHES"))
                 .andExpect(jsonPath("$.disbursementRules[0].totalAmount").value(125000.00))
                 .andExpect(jsonPath("$.disbursementRules[0].trancheCriteria.length()").value(2));
+    }
+
+    private CreateFundProfileRequest lumpSumProfile(String purpose) {
+        return baseProfile()
+                .purpose(purpose)
+                .disbursementRules(List.of(DisbursementRuleItem.builder()
+                        .totalAmount(new BigDecimal("90000.00"))
+                        .disbursementType(DisbursementType.LUMP_SUM)
+                        .receivingDate(LocalDate.of(2026, 4, 1))
+                        .trancheCriteria(List.of(onSigningCriterion("90000.00", LocalDate.of(2026, 4, 1), true)))
+                        .build()))
+                .build();
+    }
+
+    @Test
+    @WithMockUser
+    void testListAllReturnsProfilesAcrossDonors() throws Exception {
+        DonorMaster first = seedDonor("L1");
+        DonorMaster second = seedDonor("L2");
+
+        List<String> codes = new java.util.ArrayList<>();
+        for (DonorMaster donor : List.of(first, second)) {
+            String body = mockMvc.perform(post("/api/v1/donors/{donorId}/fund-profiles", donor.getId())
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(lumpSumProfile("List-all " + donor.getDonorCode()))))
+                    .andExpect(status().isCreated())
+                    .andReturn().getResponse().getContentAsString();
+            codes.add(objectMapper.readTree(body).path("profileCode").asText());
+        }
+        // Consecutive creates get distinct, sequential codes.
+        org.junit.jupiter.api.Assertions.assertNotEquals(codes.get(0), codes.get(1));
+
+        mockMvc.perform(get("/api/v1/fund-profiles"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.purpose == 'List-all DN-FP-L1')].donorName")
+                        .value("Fund Profile Donor L1"))
+                .andExpect(jsonPath("$[?(@.purpose == 'List-all DN-FP-L2')].donorName")
+                        .value("Fund Profile Donor L2"));
     }
 
     @Test
