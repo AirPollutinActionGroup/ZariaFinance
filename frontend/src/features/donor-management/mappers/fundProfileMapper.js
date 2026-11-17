@@ -14,7 +14,7 @@ const FUND_MODE_LABEL = { RESTRICTED: 'Restricted', UNRESTRICTED: 'Unrestricted'
 
 /** A/B/C restriction class → human label (distinct from the donor typology). */
 export const FUND_CLASS_LABEL = {
-  CLASS_A_RESTRICTED: 'Class A · Fully restricted',
+  CLASS_A_RESTRICTED: 'Class A – Restricted',
   CLASS_B_UNRESTRICTED: 'Class B · Unrestricted w/ explanation',
   CLASS_C_UNRESTRICTED: 'Class C · Fully unrestricted',
 };

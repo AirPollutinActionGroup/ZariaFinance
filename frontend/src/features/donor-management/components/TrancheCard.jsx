@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   Alert,
   Box,
@@ -23,6 +24,7 @@ import { RhfTextField } from '../../../shared/components/index.js';
 import { formatInrExact } from '../../../lib/format/currency.js';
 import { formatDate } from '../../../lib/format/date.js';
 import { CriterionFields } from './CriterionFields.jsx';
+import { CURRENCY_SYMBOL, formatForeign, inrFromForeign } from './ForeignContributionFields.jsx';
 import { criterionTypeLabel, emptyCriterion } from '../mappers/disbursementMapper.js';
 
 /** Designation id → its display name, for the collapsed-card summary text. */
@@ -46,12 +48,25 @@ export function TrancheCard({
   singleCriterion = false,
   verificationRoleOptions = [],
   responsibleRoleOptions = [],
+  // FC book: { currency, rate } — the tranche is entered in the foreign
+  // currency and its INR amount is derived (needs setValue).
+  fx = null,
+  setValue,
 }) {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
   const criteria = useFieldArray({ control, name: `${path}.criteria` });
   const tranche = useWatch({ control, name: path });
   const received = Boolean(tranche?.received);
+
+  // Keep the INR amount = foreign amount × rate (also when the rate changes).
+  const derivedInr = fx ? inrFromForeign(tranche?.fcAmount, fx.rate) : null;
+  useEffect(() => {
+    if (derivedInr != null && setValue && !received) {
+      setValue(`${path}.amount`, String(derivedInr), { shouldValidate: true, shouldDirty: true });
+    }
+  }, [derivedInr, path, setValue, received]);
+  const foreignLabel = fx && Number(tranche?.fcAmount) > 0 ? formatForeign(fx.currency, tranche.fcAmount) : null;
 
   const tag = `T${index + 1}`;
   // trancheName is a form-only label (never persisted), so a saved tranche falls back to its position.
@@ -111,6 +126,11 @@ export function TrancheCard({
               fontSize: 16,
             }}
           >
+            {foreignLabel ? (
+              <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: 13, mr: 1 }}>
+                {foreignLabel} ·
+              </Box>
+            ) : null}
             {formatInrExact(tranche?.amount || 0)}
           </Typography>
         </Box>
@@ -259,6 +279,11 @@ export function TrancheCard({
         </Typography>
         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 14 }}>
+            {foreignLabel ? (
+              <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500, mr: 1 }}>
+                {foreignLabel} ·
+              </Box>
+            ) : null}
             {formatInrExact(Number(tranche?.amount) || 0)}
           </Typography>
           {!lumpSum && !received ? (
@@ -290,34 +315,55 @@ export function TrancheCard({
         ) : null}
 
         <Grid container spacing={2} sx={{ alignItems: 'flex-start' }}>
-          <Grid size={{ xs: 12, sm: 4 }}>
+          {fx ? (
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <RhfTextField
+                name={`${path}.fcAmount`}
+                control={control}
+                label={`Amount in ${fx.currency || 'currency'}`}
+                required
+                type="number"
+                disabled={received || lumpSum}
+                helperText={fx.rate ? `× ₹${fx.rate} per ${fx.currency}` : 'Set the FX rate above'}
+                slotProps={{
+                  htmlInput: { min: 0, step: '0.01' },
+                  input: {
+                    startAdornment: <InputAdornment position="start">{CURRENCY_SYMBOL[fx.currency] || fx.currency}</InputAdornment>,
+                  },
+                }}
+              />
+            </Grid>
+          ) : null}
+          <Grid size={fx ? { xs: 12, sm: 6, md: 3 } : { xs: 12, sm: 4 }}>
             <RhfTextField
               name={`${path}.amount`}
               control={control}
-              label="Amount *"
+              label={fx ? 'Amount (INR)' : 'Amount'}
               required
               type="number"
               disabled={received || lumpSum}
+              helperText={fx ? (derivedInr != null ? 'Calculated' : 'Calculated from the foreign amount') : undefined}
               slotProps={{
-                htmlInput: { min: 0, step: '0.01' },
+                htmlInput: { min: 0, step: '0.01', readOnly: derivedInr != null },
                 input: {
                   startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                  ...(derivedInr != null ? { sx: { bgcolor: 'var(--card2)' } } : null),
                 },
               }}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
+          <Grid size={fx ? { xs: 12, sm: 6, md: 3 } : { xs: 12, sm: 4 }}>
             <RhfTextField
               name={`${path}.expectedReleaseDate`}
               control={control}
-              label="Expected release date *"
+              label="Expected release date"
               required
               type="date"
               disabled={lumpSum}
               slotProps={{ inputLabel: { shrink: true } }}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
+          <Grid size={fx ? { xs: 12, sm: 6, md: 3 } : { xs: 12, sm: 4 }}>
             <TextField
               label="Frequency"
               value={frequencyLabel || (lumpSum ? 'Not applicable' : '—')}

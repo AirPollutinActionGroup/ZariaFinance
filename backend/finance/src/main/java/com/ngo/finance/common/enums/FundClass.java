@@ -5,8 +5,8 @@ package com.ngo.finance.donor.enums;
  */
 public enum FundClass {
     CLASS_A_RESTRICTED("Class A – Restricted"),
-    CLASS_B_UNRESTRICTED("Class B – Unrestricted"),
-    CLASS_C_UNRESTRICTED("Class C – Unrestricted");
+    CLASS_B_UNRESTRICTED("Class B · Unrestricted w/ explanation"),
+    CLASS_C_UNRESTRICTED("Class C · Fully unrestricted");
 
     private final String label;
 

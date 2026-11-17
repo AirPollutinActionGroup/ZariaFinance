@@ -139,6 +139,14 @@ export const fundProfileSchema = z
     tranches: z.array(trancheSchema).optional(),
   })
   .superRefine((data, ctx) => {
+    // Fund class must match Fund mode: Restricted → A; Unrestricted → B or C.
+    if (data.fundMode === 'RESTRICTED' && data.fundClass && data.fundClass !== 'CLASS_A_RESTRICTED') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A Restricted fund must be Class A', path: ['fundClass'] });
+    }
+    if (data.fundMode === 'UNRESTRICTED' && data.fundClass === 'CLASS_A_RESTRICTED') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'An Unrestricted fund must be Class B or Class C', path: ['fundClass'] });
+    }
+
     if (data.programmeTied && isBlank(data.programmeId)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -170,8 +178,42 @@ export const fundProfileSchema = z
       if (disbursementActive && isBlank(data.frequency)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Schedule type is required for tranches', path: ['frequency'] });
       }
+      addOverCommitmentIssues(ctx, data.tranches, 'amount', data.totalAmount, 'totalAmount', formatRupees);
     }
   });
+
+const formatRupees = (n) => `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+/**
+ * Tranches can't promise more than was committed: no single tranche above the
+ * committed amount, and all tranches together not above it either. Shared
+ * with the Funding form, which runs it again on the foreign-currency amounts.
+ *
+ * @param field       the tranche field holding the amount ('amount' / 'fcAmount')
+ * @param totalPath   where the "add up to more" error is shown
+ */
+export function addOverCommitmentIssues(ctx, tranches, field, committed, totalPath, format) {
+  const total = Number(committed);
+  if (!(total > 0)) return;
+  const list = tranches || [];
+  list.forEach((t, i) => {
+    if (Number(t?.[field]) > total + 0.005) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Tranche ${i + 1} can't be more than the committed ${format(total)}`,
+        path: ['tranches', i, field],
+      });
+    }
+  });
+  const sum = list.reduce((acc, t) => acc + (Number(t?.[field]) || 0), 0);
+  if (sum > total + 0.005) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `Tranches add up to ${format(sum)} — more than the committed ${format(total)} (over by ${format(sum - total)})`,
+      path: [totalPath],
+    });
+  }
+}
 
 export const fundProfileFormDefaults = {
   fundMode: 'RESTRICTED',
