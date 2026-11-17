@@ -36,7 +36,7 @@ import { grantService } from '../services/grantService.js';
 import { FUND_CLASS_CODE_TONE, GRANT_ACTIVE_TONE, MODULE_ID } from '../constants.js';
 import { deriveDisbursementType, deriveReleaseCriteria } from '../lib/disbursement.js';
 
-const ACTION_COPY = {
+export const ACTION_COPY = {
   approve: {
     label: 'Approve',
     title: 'Approve grant',
@@ -76,7 +76,7 @@ const ACTION_COPY = {
 };
 
 /** Compact "label  value" row; the label column is fixed so values line up. */
-function TermRow({ label, children, last = false }) {
+export function TermRow({ label, children, last = false }) {
   return (
     <Box
       sx={{
@@ -105,7 +105,7 @@ const overlineSx = {
   color: 'text.secondary',
 };
 
-function SectionCard({ title, children }) {
+export function SectionCard({ title, children }) {
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ px: 2.5, py: 2, '&:last-child': { pb: 2 } }}>
@@ -123,7 +123,7 @@ function SectionCard({ title, children }) {
  * (actuals on its Inflow Budget lines), spent (debit notes) and the balance
  * still available from what was received.
  */
-function MoneyStrip({ committed, received, spent }) {
+export function MoneyStrip({ committed, received, spent }) {
   const committedNum = Number(committed) || 0;
   const receivedPct = committedNum > 0 ? Math.round((received / committedNum) * 100) : null;
   const stats = [
@@ -279,7 +279,7 @@ const TYPE_CHIP = {
  * Money out of and into this grant: the debit notes charged to its fund and
  * the credit notes received into it.
  */
-function GrantTransactions({ transactions, isLoading, error, onRetry, navigate }) {
+export function GrantTransactions({ transactions, isLoading, error, onRetry, navigate }) {
   const [typeFilter, setTypeFilter] = useState('All');
   // null = user hasn't touched the FY filter yet, so it defaults to the
   // financial year marked current; 'All'/an id means the user picked it.

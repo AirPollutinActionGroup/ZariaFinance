@@ -15,6 +15,10 @@ import { FundProfileFormPage } from './pages/FundProfileFormPage.jsx';
 import { FundProfilesListPage } from './pages/FundProfilesListPage.jsx';
 import { FundProfileDetailPage } from './pages/FundProfileDetailPage.jsx';
 import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
+import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
+import { FundingListPage } from '../funding-agreements/pages/FundingListPage.jsx';
+import { FundingDetailPage } from '../funding-agreements/pages/FundingDetailPage.jsx';
+import { FundingFormPage } from '../funding-agreements/pages/FundingFormPage.jsx';
 import { ReportsPage } from './pages/ReportsPage.jsx';
 import { ProgrammesListPage } from './pages/ProgrammesListPage.jsx';
 import { ProgrammeCreatePage } from './pages/ProgrammeCreatePage.jsx';
@@ -83,10 +87,13 @@ export const donorManagementModule = {
   navSection: 'CORE LAYERS',
   navItems: [
     { label: 'Donors Registry', path: '/donors', icon: VolunteerActivismOutlinedIcon, section: 'DONOR & GRANTS' },
+    { label: 'Programmes', path: '/programmes', icon: CategoryOutlinedIcon, section: 'DONOR & GRANTS' },
+    // Funding Agreements (below) combines a fund profile and its grant agreement in one record and form;
+    // the separate Fund Profiles / Grants Agreements registers remain available.
     { label: 'Fund Profiles', path: '/fund-profiles', icon: RuleOutlinedIcon, section: 'DONOR & GRANTS' },
     { label: 'Grants Agreements', path: '/grants', icon: HandshakeOutlinedIcon, section: 'DONOR & GRANTS' },
     //{ label: 'Donations', path: '/donations', icon: VolunteerActivismOutlinedIcon, section: 'DONOR & GRANTS' },
-    { label: 'Programmes', path: '/programmes', icon: CategoryOutlinedIcon, section: 'DONOR & GRANTS' },
+    { label: 'Funding Agreements', path: '/funding', icon: AccountBalanceWalletOutlinedIcon, section: 'DONOR & GRANTS' },
     //{ label: 'User Requests', path: '/user-requests', icon: PersonAddOutlinedIcon, section: 'DONOR & GRANTS' },
     //{ label: 'organization Register', path: '/organisation-register', icon: BusinessIcon, section: 'MASTERS' },
     //{ label: 'Role Directory', path: '/role-directory', icon: GroupsOutlinedIcon, section: 'MASTERS' },
@@ -163,5 +170,9 @@ export const donorManagementModule = {
     { path: '/credit-notes', element: <CreditNotesPage /> },
     { path: '/credit-notes/new', element: <CreditNoteCreatePage /> },
     { path: '/credit-notes/:id', element: <CreditNoteDetailPage /> },
+    { path: '/funding', element: <FundingListPage /> },
+    { path: '/funding/new', element: <FundingFormPage mode="new" /> },
+    { path: '/funding/:id', element: <FundingDetailPage /> },
+    { path: '/funding/:id/edit', element: <FundingFormPage mode="edit" /> },
   ],
 };

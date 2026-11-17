@@ -94,7 +94,7 @@ function movementRule(profile) {
 }
 
 /** Settings that contradict each other or are missing — surfaced so someone fixes them. */
-function findIssues(profile) {
+export function findIssues(profile) {
   const code = classOf(profile);
   const issues = [];
   if (!code) issues.push('No restriction class is set, so it is unclear how tightly this money is controlled.');
@@ -468,7 +468,7 @@ function InstalmentRow({ index, count, instalment, total }) {
   );
 }
 
-function PaymentSchedule({ profile }) {
+export function PaymentSchedule({ profile }) {
   const rule = profile.disbursementRules[0];
   const instalments = rule ? instalmentsOf(rule) : [];
   return (
@@ -565,7 +565,7 @@ function RuleRow({ icon: Icon, label, note, children, first = false }) {
 
 const answerSx = { fontWeight: 600, fontSize: 14.5 };
 
-function SpendingRules({ profile }) {
+export function SpendingRules({ profile }) {
   const programme = programmeLabel(profile);
   const movement = movementRule(profile);
   const committed = committedOf(profile);

@@ -53,8 +53,8 @@ export const FUND_MODE = Object.freeze({
 /** Mirrors backend com.ngo.finance.donor.enums.FundClass. */
 export const FUND_CLASS = Object.freeze({
   CLASS_A_RESTRICTED: 'Class A – Restricted',
-  CLASS_B_UNRESTRICTED: 'Class B – Unrestricted',
-  CLASS_C_UNRESTRICTED: 'Class C – Unrestricted',
+  CLASS_B_UNRESTRICTED: 'Class B · Unrestricted w/ explanation',
+  CLASS_C_UNRESTRICTED: 'Class C · Fully unrestricted',
 });
 
 export const UTILISATION_PERIOD_TYPE = Object.freeze({
